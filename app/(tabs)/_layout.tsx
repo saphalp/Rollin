@@ -1,10 +1,13 @@
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Redirect } from "expo-router";
 import { Button } from "react-native-paper";
+import {useFonts} from "expo-font"
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-
+  const isLoggedIn = false;
+  if (!isLoggedIn) return <Redirect href="/(auth)" />;
   return (
     <>
       <Button buttonColor={Colors.light.primaryContainer}>Click me</Button>

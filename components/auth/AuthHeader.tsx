@@ -28,7 +28,7 @@ function getStyles(colors: typeof Colors.light) {
     },
     heading: {
       color: colors.primaryContainer,
-      fontWeight: "bold",
+      fontWeight: "900",
     },
     subheading: {
       color: colors.icon,

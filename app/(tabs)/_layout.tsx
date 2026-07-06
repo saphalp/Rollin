@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -9,6 +9,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
+
+  const isLoggedIn = true; // TODO: replace with real auth check
+  if (!isLoggedIn) return <Redirect href="/(auth)" />;
 
   return (
     <Tabs

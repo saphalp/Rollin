@@ -1,6 +1,5 @@
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import {
   MD3DarkTheme,
@@ -8,11 +7,13 @@ import {
   configureFonts,
 } from "react-native-paper";
 import "react-native-reanimated";
+
 export const unstable_settings = {
   anchor: "(tabs)",
 };
+
 const fontConfig = {
-  fontFamily: "NunitoSans-Regular",
+  fontFamily: Fonts.sans,
 };
 
 const fonts = configureFonts({ config: fontConfig });
@@ -27,13 +28,7 @@ const appTheme = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [fontsLoaded] = useFonts({
-    "NunitoSans-Regular": require("../assets/fonts/nunito.ttf"),
-  });
 
-  if (!fontsLoaded) {
-    return null;
-  }
   return (
     <PaperProvider theme={appTheme}>
       <Stack screenOptions={{ headerShown: false }}>

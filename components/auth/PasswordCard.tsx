@@ -3,21 +3,21 @@ import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 
-interface EmailCardProps {
-  email: string;
-  onNext: (value: string) => void;
+interface PasswordCardProps {
+  email: String;
   onLoginClick: () => void;
 }
 
-export default function EmailCard({
+export default function PasswordCard({
   email,
-  onNext,
   onLoginClick,
-}: EmailCardProps) {
+}: PasswordCardProps) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
-  const [value, setValue] = useState(email);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   return (
     <View
@@ -32,16 +32,31 @@ export default function EmailCard({
       <Text
         style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}
       >
-        Email
+        Password
       </Text>
 
       <TextInput
         mode="outlined"
-        placeholder="example@latech.edu"
-        value={value}
-        onChangeText={setValue}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
         autoCapitalize="none"
-        keyboardType="email-address"
+        secureTextEntry
+        style={[styles.input, { backgroundColor: colors.surface }]}
+        outlineColor={colors.outlineVariant}
+        activeOutlineColor={colors.tint}
+        textColor={colors.text}
+        placeholderTextColor={colors.icon}
+        theme={{ roundness: 15 }}
+      />
+
+      <TextInput
+        mode="outlined"
+        placeholder="Confirm password"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        autoCapitalize="none"
+        secureTextEntry
         style={[styles.input, { backgroundColor: colors.surface }]}
         outlineColor={colors.outlineVariant}
         activeOutlineColor={colors.tint}
@@ -53,21 +68,19 @@ export default function EmailCard({
       <Text
         style={[styles.helper, { color: colors.text, fontFamily: Fonts.sans }]}
       >
-        Use your university email to get a verified badge
+        Use at least 8 characters, including a number
       </Text>
 
       <Button
         mode="contained"
-        onPress={() => {
-          onNext(value);
-        }}
+        onPress={() => {}}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}
         contentStyle={styles.nextButtonContent}
         labelStyle={styles.nextButtonLabel}
       >
-        Next
+        Sign Up
       </Button>
 
       <Text

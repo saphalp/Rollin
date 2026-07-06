@@ -3,21 +3,16 @@ import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 
-interface EmailCardProps {
-  email: string;
-  onNext: (value: string) => void;
-  onLoginClick: () => void;
+interface LoginProps {
+  onSignUpClick: () => void;
 }
 
-export default function EmailCard({
-  email,
-  onNext,
-  onLoginClick,
-}: EmailCardProps) {
+export default function Login({ onSignUpClick }: LoginProps) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
-  const [value, setValue] = useState(email);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   return (
     <View
@@ -32,14 +27,14 @@ export default function EmailCard({
       <Text
         style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}
       >
-        Email
+        Log In
       </Text>
 
       <TextInput
         mode="outlined"
-        placeholder="example@latech.edu"
-        value={value}
-        onChangeText={setValue}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
         style={[styles.input, { backgroundColor: colors.surface }]}
@@ -50,40 +45,52 @@ export default function EmailCard({
         theme={{ roundness: 15 }}
       />
 
+      <TextInput
+        mode="outlined"
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        autoCapitalize="none"
+        secureTextEntry
+        style={[styles.input, { backgroundColor: colors.surface }]}
+        outlineColor={colors.outlineVariant}
+        activeOutlineColor={colors.tint}
+        textColor={colors.text}
+        placeholderTextColor={colors.icon}
+        theme={{ roundness: 15 }}
+      />
+
       <Text
-        style={[styles.helper, { color: colors.text, fontFamily: Fonts.sans }]}
+        style={{ color: colors.tint, fontWeight: "600", alignSelf: "flex-end" }}
+        onPress={() => {}}
       >
-        Use your university email to get a verified badge
+        Forgot password?
       </Text>
 
       <Button
         mode="contained"
-        onPress={() => {
-          onNext(value);
-        }}
+        onPress={() => {}}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}
         contentStyle={styles.nextButtonContent}
         labelStyle={styles.nextButtonLabel}
       >
-        Next
+        Log In
       </Button>
 
       <Text
         style={[
-          styles.loginRow,
+          styles.signupRow,
           { color: colors.text, fontFamily: Fonts.sans },
         ]}
       >
-        Already have an account?{" "}
+        Don't have an account?{" "}
         <Text
           style={{ color: colors.tint, fontWeight: "600" }}
-          onPress={() => {
-            onLoginClick();
-          }}
+          onPress={() => onSignUpClick()}
         >
-          Log In
+          Sign Up
         </Text>
       </Text>
     </View>
@@ -105,9 +112,6 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 14,
   },
-  helper: {
-    fontSize: 14,
-  },
   nextButton: {
     borderRadius: 12,
     marginTop: 8,
@@ -119,7 +123,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  loginRow: {
+  signupRow: {
     textAlign: "center",
     fontSize: 14,
     marginTop: 4,

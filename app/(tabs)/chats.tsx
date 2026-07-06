@@ -3,10 +3,10 @@ import { StyleSheet } from 'react-native';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
 
-export default function ExploreScreen() {
+export default function ChatsScreen() {
   return (
     <AppView style={styles.container}>
-      <AppText type="title">Explore</AppText>
+      <AppText type="title">Chats</AppText>
     </AppView>
   );
 }

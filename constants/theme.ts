@@ -26,6 +26,8 @@ export const Colors = {
     outline: "#727785",
     outlineVariant: "#c2c6d6",
     verified: "#10B981", // Emerald verified badge
+    cardBackground: "#ffffff", // card surface on top of background
+    onImageOverlay: "#ffffff", // text/icons on dark photo overlays
   },
   dark: {
     text: "#eff0fa", // inverse-on-surface
@@ -49,6 +51,8 @@ export const Colors = {
     outline: "#8b909d",
     outlineVariant: "#424754",
     verified: "#10B981",
+    cardBackground: "#3a3c45", // same as surfaceContainer in dark
+    onImageOverlay: "#ffffff", // always white on dark photo overlays
   },
 };
 

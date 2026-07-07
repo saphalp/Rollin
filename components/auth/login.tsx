@@ -1,4 +1,4 @@
-import { Colors, Fonts } from "@/constants/theme"; // adjust path to your theme file
+import { Colors, Fonts } from "@/constants/theme"; 
 import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
@@ -79,6 +79,34 @@ export default function Login({ onSignUpClick }: LoginProps) {
         Log In
       </Button>
 
+      <View style={styles.dividerRow}>
+        <View
+          style={[
+            styles.dividerLine,
+            { backgroundColor: colors.outlineVariant },
+          ]}
+        />
+        <Text style={[styles.dividerText, { color: colors.icon }]}>OR</Text>
+        <View
+          style={[
+            styles.dividerLine,
+            { backgroundColor: colors.outlineVariant },
+          ]}
+        />
+      </View>
+
+      <Button
+        mode="outlined"
+        icon="google"
+        onPress={() => {}}
+        textColor={colors.text}
+        style={[styles.googleButton, { borderColor: colors.outlineVariant }]}
+        contentStyle={styles.nextButtonContent}
+        labelStyle={styles.googleButtonLabel}
+      >
+        Continue with Google
+      </Button>
+
       <Text
         style={[
           styles.signupRow,
@@ -122,6 +150,28 @@ const styles = StyleSheet.create({
   nextButtonLabel: {
     fontSize: 18,
     fontWeight: "700",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  googleButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  googleButtonLabel: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   signupRow: {
     textAlign: "center",

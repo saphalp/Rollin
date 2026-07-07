@@ -1,4 +1,4 @@
-import { Colors, Fonts } from "@/constants/theme"; // adjust path to your theme file
+import { Colors, Fonts } from "@/constants/theme"; 
 import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";

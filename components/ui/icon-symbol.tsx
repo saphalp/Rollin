@@ -23,6 +23,10 @@ const MAPPING = {
   'car.fill': 'directions-car',
   'bubble.left.fill': 'chat',
   'person.fill': 'person',
+  // Home screen icons
+  'bell.fill': 'notifications',
+  'magnifyingglass': 'search',
+  'line.3.horizontal.decrease': 'filter-list',
   // Activity card icons
   'cart': 'shopping-cart',
   'music.note': 'music-note',

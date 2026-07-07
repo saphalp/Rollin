@@ -1,10 +1,12 @@
-import { Colors, Fonts } from "@/constants/theme"; 
+import { Colors, Fonts } from "@/constants/theme";
+import { supabase } from "@/lib/supabase";
+import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 
 interface PasswordCardProps {
-  email: String;
+  email: string;
   onLoginClick: () => void;
 }
 
@@ -73,7 +75,15 @@ export default function PasswordCard({
 
       <Button
         mode="contained"
-        onPress={() => {}}
+        onPress={async () => {
+          if (email && passwordsMatch) {
+            const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+            });
+            data.user && router.replace("/EmailConfirmation");
+          }
+        }}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}

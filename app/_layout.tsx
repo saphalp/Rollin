@@ -9,7 +9,7 @@ import {
 import "react-native-reanimated";
 
 export const unstable_settings = {
-  anchor: "(tabs)",
+  anchor: "index",
 };
 
 const fontConfig = {
@@ -32,6 +32,7 @@ export default function RootLayout() {
   return (
     <PaperProvider theme={appTheme}>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
       </Stack>

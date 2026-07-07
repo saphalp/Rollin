@@ -56,6 +56,8 @@ export const Colors = {
   },
 };
 
+export const LandingGradient = ['#c8e8ff', '#3d9de0', '#0058be', '#040c1e'] as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

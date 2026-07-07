@@ -47,7 +47,7 @@ export function ActivityCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[styles.card, { backgroundColor: theme === 'light' ? '#ffffff' : colors.surfaceContainer, borderColor: colors.outlineVariant }]}
+      style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
     >
       <View style={styles.topRow}>
         <IconSymbol name={CATEGORY_ICONS[category]} size={32} color={colors.text} />

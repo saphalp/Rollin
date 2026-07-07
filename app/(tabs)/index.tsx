@@ -91,7 +91,7 @@ export default function HomeScreen() {
               style={[styles.searchInput, { color: colors.text, fontFamily: Fonts?.sans }]}
             />
           </View>
-          <TouchableOpacity style={[styles.filterButton, { borderColor: colors.outlineVariant, backgroundColor: theme === 'light' ? '#ffffff' : colors.surfaceContainer }]}>
+          <TouchableOpacity style={[styles.filterButton, { borderColor: colors.outlineVariant, backgroundColor: colors.cardBackground }]}>
             <IconSymbol name="line.3.horizontal.decrease" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -111,7 +111,7 @@ export default function HomeScreen() {
             >
               <AppText style={[
                 styles.pillText,
-                { color: selectedCategory === cat ? '#ffffff' : colors.text, fontFamily: Fonts?.sans },
+                { color: selectedCategory === cat ? colors.onImageOverlay : colors.text, fontFamily: Fonts?.sans },
               ]}>
                 {cat}
               </AppText>
@@ -123,7 +123,7 @@ export default function HomeScreen() {
         <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
           Featured
         </AppText>
-        <View style={[styles.featuredCard, { backgroundColor: '#4a7c59' }]}>
+        <View style={[styles.featuredCard, { backgroundColor: colors.primaryContainer }]}>
           {/* Ride sharing badge */}
           <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
             <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
@@ -136,12 +136,12 @@ export default function HomeScreen() {
           <View style={styles.featuredOverlay}>
             <View style={styles.hostRow}>
               <View style={[styles.hostAvatar, { backgroundColor: colors.primaryContainer }]} />
-              <AppText style={[styles.hostedBy, { fontFamily: Fonts?.sans }]}>Hosted by K. Prather</AppText>
+              <AppText style={[styles.hostedBy, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>Hosted by K. Prather</AppText>
             </View>
-            <AppText style={[styles.featuredTitle, { fontFamily: Fonts?.sans }]}>Hike to Lost Valley</AppText>
+            <AppText style={[styles.featuredTitle, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>Hike to Lost Valley</AppText>
             <View style={styles.joinedRow}>
-              <IconSymbol name="person.2.fill" size={14} color="#ffffff" />
-              <AppText style={[styles.joinedText, { fontFamily: Fonts?.sans }]}>3 people joined</AppText>
+              <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
+              <AppText style={[styles.joinedText, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>3 people joined</AppText>
             </View>
           </View>
         </View>
@@ -274,12 +274,10 @@ const styles = StyleSheet.create({
   },
   hostedBy: {
     fontSize: 12,
-    color: '#ffffff',
   },
   featuredTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
   },
   joinedRow: {
     flexDirection: 'row',
@@ -288,7 +286,6 @@ const styles = StyleSheet.create({
   },
   joinedText: {
     fontSize: 13,
-    color: '#ffffff',
   },
   cardList: {
     gap: 12,

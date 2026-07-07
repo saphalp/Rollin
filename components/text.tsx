@@ -16,7 +16,9 @@ export function AppText({
   type = 'default',
   ...rest
 }: AppTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const textColor = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const color = type === 'link' ? tintColor : textColor;
 
   return (
     <Text
@@ -60,6 +62,5 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#0058be',
   },
 });

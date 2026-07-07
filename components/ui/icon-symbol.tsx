@@ -23,6 +23,15 @@ const MAPPING = {
   'car.fill': 'directions-car',
   'bubble.left.fill': 'chat',
   'person.fill': 'person',
+  // Activity card icons
+  'cart': 'shopping-cart',
+  'music.note': 'music-note',
+  'book.fill': 'menu-book',
+  'mountain.2': 'terrain',
+  'person.2.fill': 'group',
+  'sportscourt.fill': 'sports',
+  'gamecontroller.fill': 'sports-esports',
+  'mappin': 'location-on',
 } as IconMapping;
 
 /**

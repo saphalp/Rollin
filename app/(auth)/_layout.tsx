@@ -1,7 +1,7 @@
 import { Redirect, Stack } from "expo-router";
 
 export default function AuthLayout() {
-  const isLoggedIn = false;
+  const isLoggedIn = true; // TODO: replace with real auth check
 
   if (isLoggedIn) return <Redirect href="/(tabs)" />;
   return (

@@ -5,11 +5,12 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { supabase } from "@/lib/supabase";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
 
-  const isLoggedIn = false; // TODO: replace with real auth check
+  const isLoggedIn = supabase.auth.getUser(); // TODO: replace with real auth check
   if (!isLoggedIn) return <Redirect href="/(auth)" />;
 
   return (

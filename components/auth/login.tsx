@@ -76,6 +76,9 @@ export default function Login({ onSignUpClick }: LoginProps) {
             email,
             password,
           });
+          if (error) {
+            console.log(error);
+          }
           if (data.user) {
             if (data.user.confirmed_at) {
               router.replace("/(tabs)");

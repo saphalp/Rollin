@@ -47,3 +47,5 @@ app-example
 
 # Git
 .gitignore
+
+.env

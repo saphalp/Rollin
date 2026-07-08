@@ -1,3 +1,4 @@
+import {router} from "expo-router";
 import AuthHeader from "@/components/auth/AuthHeader";
 import EmailCard from "@/components/auth/EmailCard";
 import ImageContainer from "@/components/auth/ImageContainer";
@@ -27,7 +28,13 @@ export default function LoginScreen() {
               onLoginClick={() => setStep(0)}
             />
           )}
-          {step == 2 && <PasswordCard email={email} onLoginClick={() => setStep(0)} />}
+          {step == 2 && (
+            <PasswordCard
+              email={email}
+              onLoginClick={() => setStep(0)}
+              onSignUpSuccess={() => router.replace("/complete-profile")}
+            />
+          )} onLoginClick={() => setStep(0)} />}
           {step == 0 && <Login onSignUpClick={() => setStep(1)} />}
           <TermsFooter />
         </View>

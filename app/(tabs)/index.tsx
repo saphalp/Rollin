@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityCard } from '@/components/activity-card';
 import { AppText } from '@/components/text';
-import { AppView } from '@/components/view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 

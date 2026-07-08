@@ -1,4 +1,6 @@
-import { Colors, Fonts } from "@/constants/theme"; 
+import { Colors, Fonts } from "@/constants/theme";
+import { supabase } from "@/lib/supabase";
+import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
@@ -69,7 +71,19 @@ export default function Login({ onSignUpClick }: LoginProps) {
 
       <Button
         mode="contained"
-        onPress={() => {}}
+        onPress={async () => {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (data.user) {
+            if (data.user.confirmed_at) {
+              router.replace("/(tabs)");
+            } else {
+              router.replace("/(auth)/EmailConfirmation");
+            }
+          }
+        }}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}

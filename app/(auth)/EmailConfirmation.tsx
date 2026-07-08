@@ -1,5 +1,6 @@
+import { Colors } from "@/constants/theme";
 import { StyleSheet, Text, View } from "react-native";
-import Svg2, { Circle, Path, Rect } from "react-native-svg";
+import Svg2, { Path, Rect } from "react-native-svg";
 
 export default function EmailVerificationScreen() {
   return (
@@ -9,20 +10,11 @@ export default function EmailVerificationScreen() {
           <Rect x="2" y="8" width="86" height="56" rx="8" fill="#ffffff" />
           <Path
             d="M8 16 L45 42 L82 16"
-            stroke="#3b63d6"
+            stroke={Colors.light.primaryContainer}
             strokeWidth={5}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
-          />
-          <Circle cx="70" cy="16" r="16" fill="#ffffff" />
-          <Circle cx="70" cy="10" r="5" fill="#3b63d6" />
-          <Path
-            d="M62 22 Q70 15 78 22"
-            stroke="#3b63d6"
-            strokeWidth={4}
-            fill="none"
-            strokeLinecap="round"
           />
         </Svg2>
 
@@ -36,13 +28,6 @@ export default function EmailVerificationScreen() {
       <Text style={styles.resendText}>
         Didn't get the email? <Text style={styles.resendLink}>Resend link</Text>
       </Text>
-
-      <Svg2 viewBox="0 0 400 60" preserveAspectRatio="none" style={styles.wave}>
-        <Path
-          d="M0,30 Q100,55 200,30 T400,30 V60 H0 Z"
-          fill="rgba(255,255,255,0.18)"
-        />
-      </Svg2>
     </View>
   );
 }

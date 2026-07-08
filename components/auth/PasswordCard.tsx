@@ -81,6 +81,7 @@ export default function PasswordCard({
               email,
               password,
             });
+            if (error) console.log(error.message); // REMINDER to add error logic here
             data.user && router.replace("/EmailConfirmation");
           }
         }}

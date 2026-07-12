@@ -2,6 +2,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useState } from "react";
 import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
+import GoogleSignInButton from "./SignInWithGoogle";
 
 interface EmailCardProps {
   email: string;
@@ -86,17 +87,7 @@ export default function EmailCard({
         />
       </View>
 
-      <Button
-        mode="outlined"
-        icon="google"
-        onPress={() => {}}
-        textColor={colors.text}
-        style={[styles.googleButton, { borderColor: colors.outlineVariant }]}
-        contentStyle={styles.nextButtonContent}
-        labelStyle={styles.googleButtonLabel}
-      >
-        Continue with Google
-      </Button>
+      <GoogleSignInButton />
 
       <Text
         style={[

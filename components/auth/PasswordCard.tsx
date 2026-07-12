@@ -72,7 +72,6 @@ export default function PasswordCard({
       >
         Use at least 8 characters, including a number
       </Text>
-
       <Button
         mode="contained"
         onPress={async () => {

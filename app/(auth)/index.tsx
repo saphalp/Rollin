@@ -5,7 +5,11 @@ import Login from "@/components/auth/login";
 import PasswordCard from "@/components/auth/PasswordCard";
 import TermsFooter from "@/components/auth/TermsFooter";
 import { useState } from "react";
-import { KeyboardAvoidingView, StyleSheet, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  ScrollView,
+  StyleSheet
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
@@ -14,7 +18,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView>
       <KeyboardAvoidingView>
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
           <AuthHeader />
           <ImageContainer />
           {step === 1 && (
@@ -27,10 +31,12 @@ export default function LoginScreen() {
               onLoginClick={() => setStep(0)}
             />
           )}
-          {step == 2 && <PasswordCard email={email} onLoginClick={() => setStep(0)} />}
+          {step == 2 && (
+            <PasswordCard email={email} onLoginClick={() => setStep(0)} />
+          )}
           {step == 0 && <Login onSignUpClick={() => setStep(1)} />}
           <TermsFooter />
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

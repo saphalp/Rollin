@@ -1,13 +1,20 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ProfileField } from '@/components/profile/profile-field';
-import { AppText } from '@/components/text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { AppView } from '@/components/view';
-import { Colors, Fonts } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import LogOutButton from "@/components/auth/LogoutButton";
+import { ProfileField } from "@/components/profile/profile-field";
+import { AppText } from "@/components/text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { AppView } from "@/components/view";
+import { Colors, Fonts } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type ProfileSnapshot = {
   fullName: string;
@@ -18,18 +25,19 @@ type ProfileSnapshot = {
 };
 
 export default function ProfileScreen() {
-  const theme = useColorScheme() ?? 'light';
+  const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
   const [isEditing, setIsEditing] = useState(false);
 
-  const [fullName, setFullName] = useState('Saphal Pant');
-  const [age, setAge] = useState('');
-  const [email, setEmail] = useState('saphal@pant.com');
-  const [phone, setPhone] = useState('');
-  const [gender, setGender] = useState('');
-  const [originalProfile, setOriginalProfile] = useState<ProfileSnapshot | null>(null);
+  const [fullName, setFullName] = useState("Saphal Pant");
+  const [age, setAge] = useState("");
+  const [email, setEmail] = useState("saphal@pant.com");
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
+  const [originalProfile, setOriginalProfile] =
+    useState<ProfileSnapshot | null>(null);
 
   function handleEdit() {
     setOriginalProfile({
@@ -59,7 +67,7 @@ export default function ProfileScreen() {
   function handleSave() {
     setOriginalProfile(null);
     setIsEditing(false);
-    Alert.alert('Profile saved', 'Your profile information has been updated.');
+    Alert.alert("Profile saved", "Your profile information has been updated.");
   }
 
   return (
@@ -70,7 +78,12 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]}>
+          <AppText
+            style={[
+              styles.title,
+              { color: colors.text, fontFamily: Fonts?.sans },
+            ]}
+          >
             Profile
           </AppText>
 
@@ -99,7 +112,7 @@ export default function ProfileScreen() {
                 </AppText>
               </TouchableOpacity>
             )}
-
+            <LogOutButton />
             <TouchableOpacity
               onPress={isEditing ? handleSave : handleEdit}
               style={[
@@ -118,7 +131,7 @@ export default function ProfileScreen() {
                   },
                 ]}
               >
-                {isEditing ? 'Save' : 'Edit'}
+                {isEditing ? "Save" : "Edit"}
               </AppText>
             </TouchableOpacity>
           </View>
@@ -133,23 +146,43 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <View style={[styles.avatar, { backgroundColor: colors.primaryContainer }]}>
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: colors.primaryContainer },
+            ]}
+          >
             <IconSymbol name="person.fill" size={38} color={colors.tint} />
           </View>
 
           <View style={styles.profileSummary}>
-            <AppText style={[styles.name, { color: colors.text, fontFamily: Fonts?.sans }]}>
-              {fullName || 'Your Name'}
+            <AppText
+              style={[
+                styles.name,
+                { color: colors.text, fontFamily: Fonts?.sans },
+              ]}
+            >
+              {fullName || "Your Name"}
             </AppText>
 
-            <AppText style={[styles.email, { color: colors.outline, fontFamily: Fonts?.sans }]}>
-              {email || 'your.email@example.com'}
+            <AppText
+              style={[
+                styles.email,
+                { color: colors.outline, fontFamily: Fonts?.sans },
+              ]}
+            >
+              {email || "your.email@example.com"}
             </AppText>
           </View>
         </View>
 
         <View style={styles.section}>
-          <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
+          <AppText
+            style={[
+              styles.sectionHeading,
+              { color: colors.text, fontFamily: Fonts?.sans },
+            ]}
+          >
             Personal Information
           </AppText>
 
@@ -212,13 +245,13 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   editButton: {
     borderRadius: 20,
@@ -227,29 +260,29 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   profileCard: {
     borderWidth: 1,
     borderRadius: 18,
     padding: 18,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 12,
   },
   avatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   profileSummary: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 4,
   },
   name: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   email: {
     fontSize: 14,
@@ -259,21 +292,21 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
-headerActions: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-},
-cancelButton: {
-  borderWidth: 1,
-  borderRadius: 20,
-  paddingHorizontal: 18,
-  paddingVertical: 8,
-},
-cancelButtonText: {
-  fontSize: 14,
-  fontWeight: '700',
-},
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });

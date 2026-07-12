@@ -19,7 +19,6 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       setClaims(data?.claims ?? null)
-      setIsLoading(false)
     }
 
     fetchClaims()
@@ -40,6 +39,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
   // Fetch the profile when the claims change
   useEffect(() => {
+    if (claims === undefined) return
+
     const fetchProfile = async () => {
       setIsLoading(true)
 

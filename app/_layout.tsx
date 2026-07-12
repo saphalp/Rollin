@@ -1,5 +1,8 @@
+import { SplashScreenController } from "@/components/splash";
 import { Colors, Fonts } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import AuthProvider from "@/providers/auth-provider";
 import { Stack } from "expo-router";
 import {
   MD3DarkTheme,
@@ -26,16 +29,29 @@ const appTheme = {
   fonts,
 };
 
+export function RootNavigator() {
+  const { isLoggedIn } = useAuthContext();
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={isLoggedIn}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!isLoggedIn}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <PaperProvider theme={appTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <AuthProvider>
+        <SplashScreenController />
+        <RootNavigator />
+      </AuthProvider>
     </PaperProvider>
   );
 }

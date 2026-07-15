@@ -36,6 +36,7 @@ const MAPPING = {
   'sportscourt.fill': 'sports',
   'gamecontroller.fill': 'sports-esports',
   'mappin': 'location-on',
+  'checkmark': 'check',
 } as IconMapping;
 
 /**

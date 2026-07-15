@@ -1,19 +1,12 @@
 import { useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import LogOutButton from "@/components/auth/LogoutButton";
-import { ProfileField } from "@/components/profile/profile-field";
-import { AppText } from "@/components/text";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import AvatarCard from "@/components/profile/AvatarCard";
+import ProfileInfo from "@/components/profile/ProfileInfo";
+import ProfileStats from "@/components/profile/ProfileStats";
 import { AppView } from "@/components/view";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type ProfileSnapshot = {
@@ -77,159 +70,25 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <AppText
-            style={[
-              styles.title,
-              { color: colors.text, fontFamily: Fonts?.sans },
-            ]}
-          >
-            Profile
-          </AppText>
-
-          <View style={styles.headerActions}>
-            {isEditing && (
-              <TouchableOpacity
-                onPress={handleCancel}
-                style={[
-                  styles.cancelButton,
-                  {
-                    borderColor: colors.outlineVariant,
-                    backgroundColor: colors.cardBackground,
-                  },
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.cancelButtonText,
-                    {
-                      color: colors.text,
-                      fontFamily: Fonts?.sans,
-                    },
-                  ]}
-                >
-                  Cancel
-                </AppText>
-              </TouchableOpacity>
-            )}
-            <LogOutButton />
-            <TouchableOpacity
-              onPress={isEditing ? handleSave : handleEdit}
-              style={[
-                styles.editButton,
-                {
-                  backgroundColor: colors.tint,
-                },
-              ]}
-            >
-              <AppText
-                style={[
-                  styles.editButtonText,
-                  {
-                    color: colors.onImageOverlay,
-                    fontFamily: Fonts?.sans,
-                  },
-                ]}
-              >
-                {isEditing ? "Save" : "Edit"}
-              </AppText>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.profileCard,
-            {
-              backgroundColor: colors.cardBackground,
-              borderColor: colors.outlineVariant,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.avatar,
-              { backgroundColor: colors.primaryContainer },
-            ]}
-          >
-            <IconSymbol name="person.fill" size={38} color={colors.tint} />
-          </View>
-
-          <View style={styles.profileSummary}>
-            <AppText
-              style={[
-                styles.name,
-                { color: colors.text, fontFamily: Fonts?.sans },
-              ]}
-            >
-              {fullName || "Your Name"}
-            </AppText>
-
-            <AppText
-              style={[
-                styles.email,
-                { color: colors.outline, fontFamily: Fonts?.sans },
-              ]}
-            >
-              {email || "your.email@example.com"}
-            </AppText>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <AppText
-            style={[
-              styles.sectionHeading,
-              { color: colors.text, fontFamily: Fonts?.sans },
-            ]}
-          >
-            Personal Information
-          </AppText>
-
-          <ProfileField
-            label="Full Name"
-            value={fullName}
-            onChangeText={setFullName}
-            editable={isEditing}
-            placeholder="Enter your full name"
-          />
-
-          <ProfileField
-            label="Age"
-            value={age}
-            onChangeText={setAge}
-            editable={isEditing}
-            placeholder="Enter your age"
-            keyboardType="numeric"
-          />
-
-          <ProfileField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            editable={isEditing}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <ProfileField
-            label="Phone Number"
-            value={phone}
-            onChangeText={setPhone}
-            editable={isEditing}
-            placeholder="Enter your phone number"
-            keyboardType="phone-pad"
-          />
-
-          <ProfileField
-            label="Gender"
-            value={gender}
-            onChangeText={setGender}
-            editable={isEditing}
-            placeholder="Enter your gender"
-          />
-        </View>
+        <AvatarCard
+          avatarImg={{
+            uri: "https://imageio.forbes.com/specials-images/imageserve/663e595b4509f97fdafb95f5/0x0.jpg?format=jpg&crop=383,383,x1045,y23,safe&height=416&width=416&fit=bounds",
+          }}
+          verified
+        />
+        <ProfileInfo
+          name="Saphal Pant"
+          university="Louisana Tech University"
+          major="Computer Science"
+        />
+        <ProfileStats
+          statsData={{
+            attended: 4,
+            hosted: 10,
+            rides: 12,
+            rating: 4.5,
+          }}
+        />
       </ScrollView>
     </AppView>
   );

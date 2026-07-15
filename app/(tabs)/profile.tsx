@@ -1,70 +1,23 @@
-import { useState } from "react";
-import { Alert, ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import AvatarCard from "@/components/profile/AvatarCard";
+import InterestChips from "@/components/profile/InterestChips";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
+import SectionHeader from "@/components/profile/SectionHeader";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-type ProfileSnapshot = {
-  fullName: string;
-  age: string;
-  email: string;
-  phone: string;
-  gender: string;
-};
+import { Chip } from "react-native-paper";
 
 export default function ProfileScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-
-  const [isEditing, setIsEditing] = useState(false);
-
-  const [fullName, setFullName] = useState("Saphal Pant");
-  const [age, setAge] = useState("");
-  const [email, setEmail] = useState("saphal@pant.com");
-  const [phone, setPhone] = useState("");
-  const [gender, setGender] = useState("");
-  const [originalProfile, setOriginalProfile] =
-    useState<ProfileSnapshot | null>(null);
-
-  function handleEdit() {
-    setOriginalProfile({
-      fullName,
-      age,
-      email,
-      phone,
-      gender,
-    });
-
-    setIsEditing(true);
-  }
-
-  function handleCancel() {
-    if (originalProfile) {
-      setFullName(originalProfile.fullName);
-      setAge(originalProfile.age);
-      setEmail(originalProfile.email);
-      setPhone(originalProfile.phone);
-      setGender(originalProfile.gender);
-    }
-
-    setOriginalProfile(null);
-    setIsEditing(false);
-  }
-
-  function handleSave() {
-    setOriginalProfile(null);
-    setIsEditing(false);
-    Alert.alert("Profile saved", "Your profile information has been updated.");
-  }
-
+  const interests = ["Board Games", "Soccer", "Study Nights"];
   return (
     <AppView style={styles.container}>
       <ScrollView
-        style={{ backgroundColor: colors.background }}
+        style={{ backgroundColor: colors.background, paddingTop: 25 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -87,6 +40,31 @@ export default function ProfileScreen() {
             rating: 4.5,
           }}
         />
+        <View style={{}}>
+          <SectionHeader header="Interests" />
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 10,
+              paddingTop: 15,
+            }}
+          >
+            {interests.map((interest, key) => {
+              return <InterestChips label={interest} key={key} />;
+            })}
+            <Chip
+              style={{
+                backgroundColor: colors.background,
+                borderStyle: "dashed",
+                borderWidth: 2,
+                borderColor: colors.icon
+              }}
+            >
+              +
+            </Chip>
+          </View>
+        </View>
       </ScrollView>
     </AppView>
   );
@@ -99,71 +77,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingBottom: 32,
-    gap: 18,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-  },
-  editButton: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-  },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  profileCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 18,
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileSummary: {
-    alignItems: "center",
-    gap: 4,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  email: {
-    fontSize: 14,
-  },
-  section: {
-    gap: 14,
-  },
-  sectionHeading: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  cancelButton: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
+    gap: 25,
   },
 });

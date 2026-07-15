@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActivityCard } from '@/components/activity-card';
 import { AppText } from '@/components/text';
@@ -47,7 +46,6 @@ const SAMPLE_ACTIVITIES = [
 export default function HomeScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
-  const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -55,20 +53,9 @@ export default function HomeScreen() {
     <AppView style={styles.container}>
       <ScrollView
         style={{ backgroundColor: colors.background }}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.avatar, { backgroundColor: colors.primaryContainer }]} />
-          <AppText style={[styles.logo, { color: colors.tint, fontFamily: Fonts?.rounded }]}>
-            Rollin'
-          </AppText>
-          <TouchableOpacity hitSlop={8}>
-            <IconSymbol name="bell.fill" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
         {/* Greeting */}
         <View style={styles.greeting}>
           <AppText style={[styles.greetingName, { color: colors.text, fontFamily: Fonts?.sans }]}>

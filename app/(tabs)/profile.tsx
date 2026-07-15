@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AvatarCard from "@/components/profile/AvatarCard";
 import ProfileInfo from "@/components/profile/ProfileInfo";
@@ -20,7 +19,6 @@ type ProfileSnapshot = {
 export default function ProfileScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-  const insets = useSafeAreaInsets();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -67,7 +65,7 @@ export default function ProfileScreen() {
     <AppView style={styles.container}>
       <ScrollView
         style={{ backgroundColor: colors.background }}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <AvatarCard

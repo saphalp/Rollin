@@ -1,7 +1,6 @@
-import { ScrollView, StyleSheet, View } from "react-native";
-
 import AvatarCard from "@/components/profile/AvatarCard";
 import InterestChips from "@/components/profile/InterestChips";
+import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
@@ -9,7 +8,32 @@ import SectionHeader from "@/components/profile/SectionHeader";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Chip } from "react-native-paper";
+
+const INTEREST_OPTIONS = [
+  "Board Games",
+  "Soccer",
+  "Study Nights",
+  "Basketball",
+  "Hiking",
+  "Music",
+  "Movies",
+  "Coding",
+  "Cooking",
+  "Photography",
+  "Gaming",
+  "Yoga",
+  "Running",
+  "Cycling",
+  "Concerts",
+  "Coffee",
+  "Reading",
+  "Volunteering",
+  "Art",
+  "Dance",
+];
 
 const MY_ACTIVITIES = [
   {
@@ -38,7 +62,12 @@ const MY_ACTIVITIES = [
 export default function ProfileScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-  const interests = ["Board Games", "Soccer", "Study Nights"];
+  const [interests, setInterests] = useState<string[]>([
+    "Board Games",
+    "Soccer",
+    "Study Nights",
+  ]);
+  const [pickerVisible, setPickerVisible] = useState(false);
   return (
     <AppView style={styles.container}>
       <ScrollView
@@ -79,6 +108,7 @@ export default function ProfileScreen() {
               return <InterestChips label={interest} key={key} />;
             })}
             <Chip
+              onPress={() => setPickerVisible(true)}
               style={{
                 backgroundColor: colors.background,
                 borderStyle: "dashed",
@@ -105,6 +135,17 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <InterestPickerSheet
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        currentInterests={interests}
+        options={INTEREST_OPTIONS}
+        onSave={(next) => {
+          setInterests(next);
+          setPickerVisible(false);
+        }}
+      />
     </AppView>
   );
 }

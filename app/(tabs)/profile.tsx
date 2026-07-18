@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 
 import AvatarCard from "@/components/profile/AvatarCard";
 import InterestChips from "@/components/profile/InterestChips";
+import MyActivities from "@/components/profile/MyActivities";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
@@ -9,6 +10,30 @@ import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Chip } from "react-native-paper";
+
+const MY_ACTIVITIES = [
+  {
+    id: "1",
+    title: "Board Game Night",
+    date: "Nov 12, 2026",
+    time: "8:00 PM",
+    image: { uri: "https://picsum.photos/seed/boardgames/240/240" },
+  },
+  {
+    id: "2",
+    title: "Weekend Pickleball at Lambright",
+    date: "Nov 15, 2026",
+    time: "7:00 AM",
+    image: { uri: "https://picsum.photos/seed/pickleball/240/240" },
+  },
+  {
+    id: "3",
+    title: "Hike to Lost Valley",
+    date: "Nov 20, 2026",
+    time: "6:30 AM",
+    image: { uri: "https://picsum.photos/seed/hike/240/240" },
+  },
+];
 
 export default function ProfileScreen() {
   const theme = useColorScheme() ?? "light";
@@ -58,11 +83,25 @@ export default function ProfileScreen() {
                 backgroundColor: colors.background,
                 borderStyle: "dashed",
                 borderWidth: 2,
-                borderColor: colors.icon
+                borderColor: colors.icon,
               }}
             >
               +
             </Chip>
+          </View>
+        </View>
+        <View>
+          <SectionHeader header="My Activities" />
+          <View style={styles.activitiesList}>
+            {MY_ACTIVITIES.map((activity) => (
+              <MyActivities
+                key={activity.id}
+                title={activity.title}
+                date={activity.date}
+                time={activity.time}
+                image={activity.image}
+              />
+            ))}
           </View>
         </View>
       </ScrollView>
@@ -78,5 +117,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 32,
     gap: 25,
+  },
+  activitiesList: {
+    gap: 12,
+    paddingTop: 15,
   },
 });

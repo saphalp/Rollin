@@ -37,6 +37,8 @@ const MAPPING = {
   'gamecontroller.fill': 'sports-esports',
   'mappin': 'location-on',
   'checkmark': 'check',
+  'calendar': 'calendar-today',
+  'clock': 'access-time',
 } as IconMapping;
 
 /**

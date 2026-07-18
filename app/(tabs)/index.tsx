@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,7 +65,7 @@ export default function HomeScreen() {
           <AppText style={[styles.logo, { color: colors.tint, fontFamily: Fonts?.rounded }]}>
             Rollin'
           </AppText>
-          <TouchableOpacity hitSlop={8}>
+          <TouchableOpacity hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
             <IconSymbol name="bell.fill" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>

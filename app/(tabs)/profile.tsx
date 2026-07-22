@@ -1,4 +1,3 @@
-import AvatarCard from "@/components/profile/AvatarCard";
 import InterestChips from "@/components/profile/InterestChips";
 import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
@@ -11,6 +10,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Chip } from "react-native-paper";
+
+import ProfileAvatar from "@/components/profile/ProfileAvatar";
+
+const DEFAULT_PROFILE_PICTURE =
+  "https://imageio.forbes.com/specials-images/imageserve/663e595b4509f97fdafb95f5/0x0.jpg?format=jpg&crop=383,383,x1045,y23,safe&height=416&width=416&fit=bounds";
 
 const INTEREST_OPTIONS = [
   "Board Games",
@@ -59,6 +63,8 @@ const MY_ACTIVITIES = [
   },
 ];
 
+
+
 export default function ProfileScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -68,6 +74,8 @@ export default function ProfileScreen() {
     "Study Nights",
   ]);
   const [pickerVisible, setPickerVisible] = useState(false);
+
+
   return (
     <AppView style={styles.container}>
       <ScrollView
@@ -75,12 +83,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <AvatarCard
-          avatarImg={{
-            uri: "https://imageio.forbes.com/specials-images/imageserve/663e595b4509f97fdafb95f5/0x0.jpg?format=jpg&crop=383,383,x1045,y23,safe&height=416&width=416&fit=bounds",
-          }}
-          verified
-        />
+        <ProfileAvatar verified editable />
         <ProfileInfo
           name="Saphal Pant"
           university="Louisana Tech University"

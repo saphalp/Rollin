@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 import ChatCards from "@/components/chats/ChatCards";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
+import { router } from "expo-router";
 import { Text } from "react-native-paper";
 
 const DUMMY_CHATS = [
@@ -114,6 +115,16 @@ export default function ChatsScreen() {
                 last_message={chat.last_message}
                 is_read={chat.is_read}
                 time={chat.time}
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat/[id]",
+                    params: {
+                      id: chat.id,
+                      name: chat.user,
+                      avatar: chat.avatar.uri,
+                    },
+                  })
+                }
               />
               {index < DUMMY_CHATS.length - 1 && (
                 <View

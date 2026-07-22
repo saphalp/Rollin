@@ -6,7 +6,7 @@ const tintColorDark = "#adc6ff"; // inverse-primary
 export const Colors = {
   light: {
     text: "#191b23", // on-surface
-    background: "#f9f9ff", // surface / background
+    background: "#f0f3fa", // surface / background
     tint: tintColorLight,
     icon: "#424754", // on-surface-variant
     tabIconDefault: "#727785", // outline

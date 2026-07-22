@@ -1,6 +1,8 @@
 import { Redirect, Tabs } from "expo-router";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import Header from "@/components/Header";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
@@ -9,12 +11,31 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
+  const insets = useSafeAreaInsets();
 
   const { isLoggedIn, isLoading } = useAuthContext();
   if (!isLoading && !isLoggedIn) return <Redirect href="/(auth)" />;
 
   return (
-    <Tabs
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: Colors[colorScheme].background },
+      ]}
+    >
+      <View
+        style={[
+          styles.headerWrap,
+          {
+            paddingTop: insets.top + 8,
+            backgroundColor: Colors[colorScheme].background,
+            borderBottomColor: Colors[colorScheme].outlineVariant,
+          },
+        ]}
+      >
+        <Header />
+      </View>
+      <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
         tabBarInactiveTintColor: Colors[colorScheme].tabIconDefault,
@@ -93,5 +114,17 @@ export default function TabLayout() {
         options={{ href: null }}
       />
     </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  headerWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+});

@@ -1,12 +1,9 @@
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
 import { NotificationItem, NotificationRow } from '@/components/notification-row';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
@@ -26,7 +23,6 @@ function formatTimestamp(dateStr: string): string {
 export default function NotificationsScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
-  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,25 +63,6 @@ export default function NotificationsScreen() {
 
   return (
     <AppView style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.outlineVariant }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <IconSymbol name="chevron.left" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <AppText style={[styles.title, { color: colors.tint, fontFamily: Fonts?.rounded }]}>
-          Rollin'
-        </AppText>
-        <View style={styles.bellWrapper}>
-          <IconSymbol name="bell.fill" size={24} color={colors.text} />
-          {unreadCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: colors.tint }]}>
-              <AppText style={[styles.badgeText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
-                {unreadCount}
-              </AppText>
-            </View>
-          )}
-        </View>
-      </View>
-
       {loading ? (
         <ActivityIndicator style={styles.loader} color={colors.tint} />
       ) : notifications.length === 0 ? (
@@ -101,7 +78,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <NotificationRow {...item} onPress={markAsRead} />
           )}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
         />
       )}
     </AppView>
@@ -110,28 +87,6 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  title: { fontSize: 22, fontWeight: '700' },
-  bellWrapper: { position: 'relative' },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: { fontSize: 10, fontWeight: '700' },
   loader: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 15 },

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { NotificationItem, NotificationRow } from '@/components/notification-row';
 import { AppText } from '@/components/text';
@@ -25,6 +25,12 @@ export default function NotificationsScreen() {
   const colors = Colors[theme];
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchNotifications().finally(() => setRefreshing(false));
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
@@ -79,6 +85,7 @@ export default function NotificationsScreen() {
             <NotificationRow {...item} onPress={markAsRead} />
           )}
           contentContainerStyle={{ paddingBottom: 16 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
     </AppView>

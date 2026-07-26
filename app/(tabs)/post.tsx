@@ -1,6 +1,9 @@
+import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +19,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = ['Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming', 'Grocery'];
 
@@ -33,33 +37,103 @@ export default function PostScreen() {
   const [maxAttendees, setMaxAttendees] = useState('');
   const [ridesAvailable, setRidesAvailable] = useState(false);
   const [rideSeats, setRideSeats] = useState('');
+  const [imageAsset, setImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  function handleCreatePost() {
+  async function pickImage() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Photo library access is needed to select an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) setImageAsset(result.assets[0]);
+  }
+
+  async function uploadImage(userId: string): Promise<string | null> {
+    if (!imageAsset) return null;
+    const contentType = imageAsset.mimeType ?? 'image/jpeg';
+    const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+    const path = `${userId}/${Date.now()}.${ext}`;
+    const body = new FormData();
+    body.append('file', { uri: imageAsset.uri, name: `image.${ext}`, type: contentType } as any);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/activity-images/${path}`,
+      { method: 'POST', headers: { authorization: `Bearer ${session?.access_token}`, 'x-upsert': 'true' }, body }
+    );
+    if (!res.ok) {
+      const msg = await res.text();
+      Alert.alert('Photo upload failed', msg);
+      return null;
+    }
+    return supabase.storage.from('activity-images').getPublicUrl(path).data.publicUrl;
+  }
+
+  async function handleCreatePost() {
     if (!title.trim()) {
       Alert.alert('Missing title', 'Please enter an activity title.');
       return;
     }
-
     if (!location.trim()) {
       Alert.alert('Missing location', 'Please enter a location.');
       return;
     }
 
-    const activityDraft = {
-      title,
-      category,
-      description,
-      location,
-      date,
-      time,
-      maxAttendees,
-      ridesAvailable,
-      rideSeats: ridesAvailable ? rideSeats : '',
-    };
+    setSaving(true);
 
-    console.log('Activity draft:', activityDraft);
+    const { data: { user } } = await supabase.auth.getUser();
 
-    Alert.alert('Activity created', 'This activity is ready to be saved later.');
+    if (!user) {
+      Alert.alert('Not logged in', 'Please log in to create an activity.');
+      setSaving(false);
+      return;
+    }
+
+    const imageUrl = await uploadImage(user.id);
+
+    let dateTime: string | null = null;
+    if (date.trim() && time.trim()) {
+      const parsed = new Date(`${date.trim()} ${time.trim()}`);
+      if (!isNaN(parsed.getTime())) dateTime = parsed.toISOString();
+    }
+
+    const { error } = await supabase.from('activities').insert({
+      host_id: user.id,
+      title: title.trim(),
+      category: category.toLowerCase(),
+      description: description.trim() || null,
+      image_url: imageUrl,
+      location: location.trim(),
+      date_time: dateTime,
+      max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
+      rides_available: ridesAvailable ? (rideSeats ? parseInt(rideSeats) : 1) : 0,
+    });
+
+    setSaving(false);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setTitle('');
+    setCategory('Social');
+    setDescription('');
+    setLocation('');
+    setDate('');
+    setTime('');
+    setMaxAttendees('');
+    setRidesAvailable(false);
+    setRideSeats('');
+    setImageAsset(null);
+
+    router.replace('/(tabs)');
   }
 
   return (
@@ -255,21 +329,38 @@ export default function PostScreen() {
             )}
           </View>
 
+          {/* Image */}
+          <View style={[styles.imageSection, { borderColor: colors.outlineVariant, backgroundColor: colors.cardBackground }]}>
+            <AppText style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts?.sans }]}>
+              Activity Photo
+            </AppText>
+            {imageAsset ? (
+              <TouchableOpacity onPress={pickImage} activeOpacity={0.85}>
+                <Image source={{ uri: imageAsset.uri }} style={styles.imagePreview} resizeMode="cover" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={pickImage}
+                style={[styles.imagePlaceholder, { borderColor: colors.outline }]}
+              >
+                <IconSymbol name="plus" size={28} color={colors.outline} />
+                <AppText style={[styles.imagePlaceholderText, { color: colors.outline, fontFamily: Fonts?.sans }]}>
+                  Tap to add a photo
+                </AppText>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Submit */}
           <TouchableOpacity
             onPress={handleCreatePost}
-            style={[styles.submitButton, { backgroundColor: colors.tint }]}
+            disabled={saving}
+            style={[styles.submitButton, { backgroundColor: saving ? colors.outline : colors.tint }]}
           >
             <AppText
-              style={[
-                styles.submitText,
-                {
-                  color: colors.onImageOverlay,
-                  fontFamily: Fonts?.sans,
-                },
-              ]}
+              style={[styles.submitText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}
             >
-              Create Activity
+              {saving ? 'Creating...' : 'Create Activity'}
             </AppText>
           </TouchableOpacity>
         </ScrollView>
@@ -384,5 +475,28 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  imageSection: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+  },
+  imagePlaceholder: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    height: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  imagePlaceholderText: {
+    fontSize: 14,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
   },
 });

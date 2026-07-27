@@ -204,7 +204,11 @@ export default function ActivityDetailScreen() {
           </AppText>
 
           {/* Host */}
-          <View style={styles.hostRow}>
+          <TouchableOpacity
+            style={styles.hostRow}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/profile/${activity.host_id}`)}
+          >
             {hostAvatarUrl ? (
               <Image source={{ uri: hostAvatarUrl }} style={styles.hostAvatar} />
             ) : (
@@ -214,11 +218,12 @@ export default function ActivityDetailScreen() {
                 </AppText>
               </View>
             )}
-            <View>
+            <View style={styles.hostText}>
               <AppText style={[styles.hostedByLabel, { color: colors.outline, fontFamily: Fonts?.sans }]}>Hosted by</AppText>
               <AppText style={[styles.hostName, { color: colors.text, fontFamily: Fonts?.sans }]}>{hostName}</AppText>
             </View>
-          </View>
+            <IconSymbol name="chevron.right" size={18} color={colors.outline} />
+          </TouchableOpacity>
 
           {/* Meta info */}
           <View style={[styles.metaCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
@@ -359,6 +364,7 @@ const styles = StyleSheet.create({
   body: { padding: 20, gap: 20 },
   title: { fontSize: 26, fontWeight: '700', lineHeight: 32 },
   hostRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hostText: { flex: 1 },
   hostAvatar: { width: 48, height: 48, borderRadius: 24 },
   hostInitials: { alignItems: 'center', justifyContent: 'center' },
   initialsText: { fontSize: 16, fontWeight: '700' },

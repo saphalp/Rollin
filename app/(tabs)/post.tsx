@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -22,6 +23,65 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = ['Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming', 'Grocery'];
+
+type ActivityCoordinate = {
+  latitude: number;
+  longitude: number;
+};
+
+async function geocodeActivityLocation(
+  address: string,
+): Promise<ActivityCoordinate | null> {
+  try {
+    // Expo's native geocoder supports Android and iOS.
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Mobile app required',
+        'Activity map coordinates are currently created from the iOS or Android app.',
+      );
+      return null;
+    }
+
+    // Android requires foreground location permission before geocoding.
+    if (Platform.OS === 'android') {
+      const permission =
+        await Location.requestForegroundPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          'Location permission required',
+          'Allow location access so Roli can place this activity on the map.',
+        );
+        return null;
+      }
+    }
+
+    const matches = await Location.geocodeAsync(address);
+    const bestMatch = matches[0];
+
+    if (!bestMatch) {
+      Alert.alert(
+        'Location not found',
+        'Enter a more specific location, including the city and state.',
+      );
+      return null;
+    }
+
+    return {
+      latitude: bestMatch.latitude,
+      longitude: bestMatch.longitude,
+    };
+  } catch (error) {
+    Alert.alert(
+      'Location lookup failed',
+      error instanceof Error
+        ? error.message
+        : 'Roli could not find coordinates for this location.',
+    );
+
+    return null;
+  }
+}
 
 export default function PostScreen() {
   const theme = useColorScheme() ?? 'light';
@@ -95,6 +155,14 @@ export default function PostScreen() {
       return;
     }
 
+    const activityCoordinate =
+      await geocodeActivityLocation(location.trim());
+
+    if (!activityCoordinate) {
+      setSaving(false);
+      return;
+    }
+
     const imageUrl = await uploadImage(user.id);
 
     let dateTime: string | null = null;
@@ -110,6 +178,8 @@ export default function PostScreen() {
       description: description.trim() || null,
       image_url: imageUrl,
       location: location.trim(),
+      latitude: activityCoordinate.latitude,
+      longitude: activityCoordinate.longitude,
       date_time: dateTime,
       max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
       rides_available: ridesAvailable ? (rideSeats ? parseInt(rideSeats) : 1) : 0,
@@ -235,7 +305,7 @@ export default function PostScreen() {
               label="Location"
               value={location}
               onChangeText={setLocation}
-              placeholder="Lambright, Starbucks, Walmart..."
+              placeholder="Lambright Sports Center, Ruston, LA"
             />
           </View>
 

@@ -119,7 +119,6 @@ export default function NotificationsScreen() {
   async function handleAccept(n: Notification) {
     if (!n.actor || !currentUserId) return;
 
-    // Optimistic: flip to accepted state
     setNotifications((prev) =>
       prev.map((x) =>
         x.id === n.id ? { ...x, isAccepted: true, isRead: true } : x
@@ -133,7 +132,6 @@ export default function NotificationsScreen() {
       .eq('following_id', currentUserId);
 
     if (followErr) {
-      // Roll back optimistic update
       setNotifications((prev) =>
         prev.map((x) =>
           x.id === n.id ? { ...x, isAccepted: false } : x
@@ -148,7 +146,6 @@ export default function NotificationsScreen() {
   async function handleReject(n: Notification) {
     if (!n.actor || !currentUserId) return;
 
-    // Optimistic: remove from list
     const previous = notifications;
     setNotifications((prev) => prev.filter((x) => x.id !== n.id));
 

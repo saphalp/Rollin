@@ -1,8 +1,9 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
+import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -17,6 +18,7 @@ import InterestChips from "@/components/profile/InterestChips";
 import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
 import ProfileActionBar from "@/components/profile/ProfileActionBar";
+import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
@@ -28,13 +30,47 @@ const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
 
 const PLACEHOLDER_INTERESTS: string[] = [];
 
-const PLACEHOLDER_ACTIVITIES: {
+type ActivityRow = {
   id: string;
   title: string;
   date: string;
   time: string;
   imageUri: string;
-}[] = [];
+};
+
+const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
+  social: "https://picsum.photos/seed/social/240/240",
+  sports: "https://picsum.photos/seed/sports/240/240",
+  music: "https://picsum.photos/seed/music/240/240",
+  study: "https://picsum.photos/seed/study/240/240",
+  outdoor: "https://picsum.photos/seed/outdoor/240/240",
+  gaming: "https://picsum.photos/seed/gaming/240/240",
+  grocery: "https://picsum.photos/seed/grocery/240/240",
+};
+
+function resolveAvatarUri(profilePicture: string | null | undefined): string {
+  if (!profilePicture) return FALLBACK_AVATAR;
+  if (profilePicture.startsWith("http")) return profilePicture;
+  return supabase.storage.from("avatars").getPublicUrl(profilePicture).data
+    .publicUrl;
+}
+
+function formatActivityDate(iso: string | null): string {
+  if (!iso) return "Date TBD";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatActivityTime(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 const INTEREST_OPTIONS = [
   "Board Games",
@@ -73,6 +109,45 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
   const [interests, setInterests] = useState<string[]>(PLACEHOLDER_INTERESTS);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("id, title, date_time, image_url, category")
+        .eq("host_id", userId)
+        .order("date_time", { ascending: false })
+        .limit(10);
+
+      if (cancelled) return;
+      if (error) {
+        console.error("[profile] fetch activities failed:", error);
+        setActivities([]);
+        return;
+      }
+
+      setActivities(
+        (data ?? []).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          date: formatActivityDate(a.date_time),
+          time: formatActivityTime(a.date_time),
+          imageUri:
+            a.image_url ||
+            CATEGORY_FALLBACK_IMAGE[a.category as string] ||
+            CATEGORY_FALLBACK_IMAGE.social,
+        })),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   function handleMessagePress() {
     if (!profile) return;
@@ -109,7 +184,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   }
 
   const name = profile.full_name || "Complete your profile";
-  const avatarUri = profile.profile_picture || FALLBACK_AVATAR;
+  const avatarUri = resolveAvatarUri(profile.profile_picture);
   const verified = !!profile.is_educational_email;
   const university = profile.university || "";
   const major = profile.major || "";
@@ -121,7 +196,11 @@ export default function UserProfile({ userId }: UserProfileProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
+        {isOwnProfile ? (
+          <ProfileAvatar verified={verified} editable />
+        ) : (
+          <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
+        )}
 
         <ProfileInfo name={name} university={university} major={major} />
 
@@ -162,15 +241,31 @@ export default function UserProfile({ userId }: UserProfileProps) {
             header={isOwnProfile ? "My Activities" : "Recent Activities"}
           />
           <View style={styles.activitiesList}>
-            {PLACEHOLDER_ACTIVITIES.map((activity) => (
-              <MyActivities
-                key={activity.id}
-                title={activity.title}
-                date={activity.date}
-                time={activity.time}
-                image={{ uri: activity.imageUri }}
-              />
-            ))}
+            {activities.length === 0 ? (
+              <Text
+                style={{
+                  color: colors.icon,
+                  fontFamily: Fonts.sans,
+                  fontSize: 14,
+                  paddingTop: 15,
+                }}
+              >
+                {isOwnProfile
+                  ? "You haven't posted an activity yet."
+                  : "No activities yet."}
+              </Text>
+            ) : (
+              activities.map((activity) => (
+                <MyActivities
+                  key={activity.id}
+                  title={activity.title}
+                  date={activity.date}
+                  time={activity.time}
+                  image={{ uri: activity.imageUri }}
+                  onPress={() => router.push(`/activity/${activity.id}`)}
+                />
+              ))
+            )}
           </View>
         </View>
       </ScrollView>

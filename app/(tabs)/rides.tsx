@@ -10,12 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type {
-  Region,
-} from 'react-native-maps';
-import MapView, {
-  Marker,
-} from 'react-native-maps';
+import type { Region } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
@@ -117,11 +113,15 @@ export default function RidesScreen() {
     router.push('/ride/find');
   }
 
+  function handleOpenFullMap() {
+    router.push('/ride/map');
+  }
+
   function showHowItWorks() {
     Alert.alert(
       'How ride sharing works',
       [
-        'Offer a ride for any trip or link it to a public activity.',
+        'Offer a ride for any trip or connect it to a public activity.',
         'Find a ride by pickup, destination, date, time, or activity.',
         'Passengers request a seat.',
         'Drivers accept or decline requests.',
@@ -160,11 +160,14 @@ export default function RidesScreen() {
                 name={tab.icon}
                 size={19}
                 color={
-                  selected ? colors.tint : colors.tabIconDefault
+                  selected
+                    ? colors.tint
+                    : colors.tabIconDefault
                 }
               />
 
               <AppText
+                numberOfLines={1}
                 style={[
                   styles.tabLabel,
                   {
@@ -219,7 +222,8 @@ export default function RidesScreen() {
                   },
                 ]}
               >
-                Public activity locations will appear here.
+                Public activity locations and ride offers will
+                appear here.
               </AppText>
             </View>
 
@@ -321,6 +325,7 @@ export default function RidesScreen() {
                 </AppText>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
                   onPress={loadCurrentLocation}
                   style={[
                     styles.retryButton,
@@ -344,6 +349,25 @@ export default function RidesScreen() {
               </View>
             )}
           </View>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Open full screen map"
+            onPress={handleOpenFullMap}
+            style={[
+              styles.expandMapButton,
+              {
+                backgroundColor: colors.cardBackground,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="arrow-expand"
+              size={22}
+              color={colors.tint}
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.actionRow}>
@@ -658,6 +682,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mapCard: {
+    position: 'relative',
     borderWidth: 1,
     borderRadius: 20,
     padding: 14,
@@ -712,6 +737,17 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  expandMapButton: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 46,
+    height: 46,
+    borderWidth: 1,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionRow: {
     flexDirection: 'row',

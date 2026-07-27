@@ -35,6 +35,8 @@ export function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="chat/[id]" />
+        <Stack.Screen name="profile/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn}>
         <Stack.Screen name="(auth)" />

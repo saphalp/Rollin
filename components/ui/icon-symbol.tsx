@@ -18,6 +18,8 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.left': 'chevron-left',
+  'arrow.up': 'arrow-upward',
   'safari': 'explore',
   'plus.circle': 'add-circle-outline',
   'car.fill': 'directions-car',
@@ -36,6 +38,9 @@ const MAPPING = {
   'sportscourt.fill': 'sports',
   'gamecontroller.fill': 'sports-esports',
   'mappin': 'location-on',
+  'checkmark': 'check',
+  'calendar': 'calendar-today',
+  'clock': 'access-time',
 } as IconMapping;
 
 /**

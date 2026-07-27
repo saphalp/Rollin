@@ -72,7 +72,8 @@ export default function ProfileActionBar({
         mode="outlined"
         icon="clock-outline"
         onPress={onFollowPress}
-        style={styles.button}
+        textColor={colors.tint}
+        style={[styles.button, { borderColor: colors.tint }]}
         contentStyle={styles.buttonContent}
         labelStyle={styles.buttonLabel}
       >

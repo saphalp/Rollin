@@ -52,12 +52,8 @@ export default function NotificationsScreen() {
     fetchNotifications();
   }, []);
 
-  // Live-prepend when a new notification lands for this user
   useNotificationRealtime(async (incoming) => {
-    // Ignore if we already have this row (dedupe against local optimism)
     if (notifications.some((n) => n.id === incoming.id)) return;
-
-    // Re-fetch just this row with the actor join so the row can render fully
     const { data } = await supabase
       .from('notifications')
       .select(
@@ -196,6 +192,7 @@ export default function NotificationsScreen() {
                 message={item.message}
                 timestamp={item.timestamp}
                 isRead={item.isRead}
+                actor={item.actor}
                 onPress={markAsRead}
               />
             );

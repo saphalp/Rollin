@@ -1,23 +1,42 @@
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Avatar } from 'react-native-paper';
 
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
+
+export type NotificationActor = {
+  id: string;
+  full_name: string | null;
+  profile_picture: string | null;
+};
 
 export type NotificationItem = {
   id: string;
   message: string;
   timestamp: string;
   isRead: boolean;
+  actor?: NotificationActor | null;
 };
 
 type Props = NotificationItem & {
   onPress: (id: string) => void;
 };
 
-export function NotificationRow({ id, message, timestamp, isRead, onPress }: Props) {
+export function NotificationRow({
+  id,
+  message,
+  timestamp,
+  isRead,
+  actor,
+  onPress,
+}: Props) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
+
+  const actorName = actor?.full_name ?? '';
+  const initial = actorName.trim()[0]?.toUpperCase() ?? '?';
 
   return (
     <TouchableOpacity
@@ -25,7 +44,27 @@ export function NotificationRow({ id, message, timestamp, isRead, onPress }: Pro
       onPress={() => onPress(id)}
       activeOpacity={0.7}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.surfaceContainerHigh }]} />
+      {actor?.profile_picture ? (
+        <Avatar.Image
+          size={44}
+          source={{ uri: resolveAvatarUri(actor.profile_picture) }}
+        />
+      ) : actor ? (
+        <Avatar.Text
+          size={44}
+          label={initial}
+          style={{ backgroundColor: colors.tint }}
+          labelStyle={{ color: colors.onPrimary }}
+        />
+      ) : (
+        <View
+          style={[
+            styles.placeholder,
+            { backgroundColor: colors.surfaceContainerHigh },
+          ]}
+        />
+      )}
+
       <View style={styles.body}>
         <AppText style={[styles.message, { color: colors.text, fontFamily: Fonts?.sans }]}>
           {message}
@@ -50,7 +89,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
-  avatar: {
+  placeholder: {
     width: 44,
     height: 44,
     borderRadius: 22,

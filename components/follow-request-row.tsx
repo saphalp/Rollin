@@ -4,6 +4,7 @@ import { Avatar, Button, Text } from "react-native-paper";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
+import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 
 export type FollowRequestActor = {
   id: string;
@@ -42,7 +43,10 @@ export function FollowRequestRow({
     <View style={[styles.row, { borderBottomColor: colors.outlineVariant }]}>
       <Pressable onPress={openProfile} hitSlop={4}>
         {actor.profile_picture ? (
-          <Avatar.Image size={44} source={{ uri: actor.profile_picture }} />
+          <Avatar.Image
+            size={44}
+            source={{ uri: resolveAvatarUri(actor.profile_picture) }}
+          />
         ) : (
           <Avatar.Text
             size={44}
@@ -58,7 +62,7 @@ export function FollowRequestRow({
           <Text
             style={[styles.message, { color: colors.text, fontFamily: Fonts.sans }]}
           >
-            <Text style={styles.actorName}>{actorName}</Text>
+            <Text style={[styles.actorName, { color: colors.text }]}>{actorName}</Text>
             {isAccepted
               ? " — you accepted their request"
               : " requested to follow you"}

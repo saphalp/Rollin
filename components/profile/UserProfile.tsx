@@ -1,6 +1,7 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
+import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -23,9 +24,6 @@ import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 
-const FALLBACK_AVATAR =
-  "https://ui-avatars.com/api/?background=e0e0e0&color=666&name=?";
-
 const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
 
 const PLACEHOLDER_INTERESTS: string[] = [];
@@ -47,13 +45,6 @@ const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
   gaming: "https://picsum.photos/seed/gaming/240/240",
   grocery: "https://picsum.photos/seed/grocery/240/240",
 };
-
-function resolveAvatarUri(profilePicture: string | null | undefined): string {
-  if (!profilePicture) return FALLBACK_AVATAR;
-  if (profilePicture.startsWith("http")) return profilePicture;
-  return supabase.storage.from("avatars").getPublicUrl(profilePicture).data
-    .publicUrl;
-}
 
 function formatActivityDate(iso: string | null): string {
   if (!iso) return "Date TBD";
@@ -156,7 +147,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
       params: {
         id: profile.id,
         name: profile.full_name ?? "",
-        avatar: profile.profile_picture ?? FALLBACK_AVATAR,
+        avatar: resolveAvatarUri(profile.profile_picture),
       },
     });
   }

@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { AppText } from "@/components/text";
@@ -21,7 +22,7 @@ export default function Header() {
       >
         Rollin'
       </AppText>
-      <TouchableOpacity hitSlop={8}>
+      <TouchableOpacity hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
         <IconSymbol name="bell.fill" size={24} color={colors.text} />
       </TouchableOpacity>
     </View>

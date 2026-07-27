@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { AppText } from '@/components/text';
@@ -5,26 +6,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const CATEGORY_ICONS = {
-  grocery: 'cart',
-  music: 'music.note',
-  study: 'book.fill',
-  outdoor: 'mountain.2',
-  social: 'person.2.fill',
-  sports: 'sportscourt.fill',
-  gaming: 'gamecontroller.fill',
-} as const;
-
-type Category = keyof typeof CATEGORY_ICONS;
-
 type ActivityCardProps = {
   title: string;
-  category: Category;
+  category: string;
   date?: string;
   host?: string;
+  imageUrl?: string;
   attendeeCount: number;
   maxAttendees: number;
-  distance?: string;
   ridesAvailable?: number;
   onPress?: () => void;
 };
@@ -33,10 +22,9 @@ export function ActivityCard({
   title,
   category,
   date,
-  host,
+  imageUrl,
   attendeeCount,
   maxAttendees,
-  distance,
   ridesAvailable,
   onPress,
 }: ActivityCardProps) {
@@ -47,43 +35,58 @@ export function ActivityCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
+      style={[styles.card, { backgroundColor: colors.primaryContainer }]}
     >
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+      ) : null}
+
+      {/* dark overlay so text is always readable */}
+      <View style={styles.dim} />
+
+      {/* top row: category badge + ride badge */}
       <View style={styles.topRow}>
-        <IconSymbol name={CATEGORY_ICONS[category]} size={32} color={colors.text} />
+        <View style={[styles.categoryBadge, { backgroundColor: colors.tint }]}>
+          <AppText style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+            {category.charAt(0).toUpperCase() + category.slice(1)}
+          </AppText>
+        </View>
         {ridesAvailable !== undefined && ridesAvailable > 0 && (
-          <View style={[styles.badge, { backgroundColor: colors.secondaryContainer }]}>
-            <AppText style={[styles.badgeText, { color: colors.onSecondaryContainer }]}>
-              {ridesAvailable} seat{ridesAvailable !== 1 ? 's' : ''} left
+          <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
+            <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
+            <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
+              {ridesAvailable} seat{ridesAvailable !== 1 ? 's' : ''}
             </AppText>
           </View>
         )}
       </View>
 
-      <AppText style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-        {title}
-      </AppText>
-
-      {(date || host) && (
-        <AppText style={[styles.meta, { color: colors.outline }]}>
-          {host ? `Hosted by ${host}` : ''}{host && date ? '  ·  ' : ''}{date ?? ''}
+      {/* bottom: title + meta */}
+      <View style={styles.bottom}>
+        <AppText style={[styles.title, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]} numberOfLines={2}>
+          {title}
         </AppText>
-      )}
-
-      <View style={styles.infoRow}>
-        {distance && (
-          <View style={styles.infoItem}>
-            <IconSymbol name="mappin" size={14} color={colors.outline} />
-            <AppText style={[styles.infoText, { color: colors.outline }]}>{distance}</AppText>
+        <View style={styles.metaRow}>
+          {date ? (
+            <View style={styles.metaItem}>
+              <IconSymbol name="calendar" size={12} color={colors.onImageOverlay} />
+              <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                {date}
+              </AppText>
+            </View>
+          ) : null}
+          <View style={styles.metaItem}>
+            <IconSymbol name="person.2.fill" size={12} color={colors.onImageOverlay} />
+            <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              {attendeeCount}/{maxAttendees}
+            </AppText>
           </View>
-        )}
-      </View>
-
-      <View style={styles.infoItem}>
-        <IconSymbol name="person.2.fill" size={16} color={colors.outline} />
-        <AppText style={[styles.infoText, { color: colors.outline }]}>
-          {attendeeCount}/{maxAttendees} joined
-        </AppText>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -91,47 +94,39 @@ export function ActivityCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    gap: 8,
+    borderRadius: 14,
+    height: 150,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  dim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.38)',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  badge: {
+  categoryBadge: {
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: Fonts?.sans,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 22,
-    fontFamily: Fonts?.sans,
-  },
-  meta: {
-    fontSize: 13,
-    fontFamily: Fonts?.sans,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  infoItem: {
+  categoryText: { fontSize: 11, fontWeight: '600' },
+  rideBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  infoText: {
-    fontSize: 13,
-    fontFamily: Fonts?.sans,
-  },
+  rideBadgeText: { fontSize: 11, fontWeight: '600' },
+  bottom: { gap: 6 },
+  title: { fontSize: 16, fontWeight: '700', lineHeight: 21 },
+  metaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 12 },
 });

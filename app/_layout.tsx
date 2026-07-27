@@ -1,7 +1,6 @@
 import { SplashScreenController } from "@/components/splash";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
 import { Stack } from "expo-router";
 import {
@@ -19,7 +18,10 @@ const fontConfig = {
   fontFamily: Fonts.sans,
 };
 
-const fonts = configureFonts({ config: fontConfig });
+const fonts = configureFonts({
+  config: fontConfig,
+});
+
 const appTheme = {
   ...MD3DarkTheme,
   colors: {
@@ -30,14 +32,32 @@ const appTheme = {
 };
 
 export function RootNavigator() {
-  const { isLoggedIn } = useAuthContext();
+  const {
+    isLoggedIn,
+    isProfileComplete,
+    isLoading,
+  } = useAuthContext();
+
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isLoggedIn}>
+      <Stack.Protected
+        guard={isLoggedIn && isProfileComplete}
+      >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="profile/[id]" />
       </Stack.Protected>
+
+      <Stack.Protected
+        guard={isLoggedIn && !isProfileComplete}
+      >
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+
       <Stack.Protected guard={!isLoggedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
@@ -46,8 +66,6 @@ export function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <PaperProvider theme={appTheme}>
       <AuthProvider>

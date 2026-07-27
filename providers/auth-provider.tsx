@@ -1,74 +1,126 @@
-import { AuthContext } from '@/hooks/use-auth-context'
-import { supabase } from '@/lib/supabase'
-import { PropsWithChildren, useEffect, useState } from 'react'
+import { AuthContext } from "@/hooks/use-auth-context";
+import { supabase } from "@/lib/supabase";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
-export default function AuthProvider({ children }: PropsWithChildren) {
-  const [claims, setClaims] = useState<Record<string, any> | undefined | null>()
-  const [profile, setProfile] = useState<any>()
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+type Claims = Record<string, any>;
 
-  // Fetch the claims once, and subscribe to auth state changes
-  useEffect(() => {
-    const fetchClaims = async () => {
-      setIsLoading(true)
+export default function AuthProvider({
+  children,
+}: PropsWithChildren) {
+  const [claims, setClaims] = useState<
+    Claims | null | undefined
+  >(undefined);
 
-      const { data, error } = await supabase.auth.getClaims()
+  const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-      if (error) {
-        console.error('Error fetching claims:', error)
-      }
+  const isLoggedIn = claims != null;
 
-      setClaims(data?.claims ?? null)
+  const isProfileComplete =
+    profile?.profile_completed === true;
+
+  const refreshProfile = useCallback(async () => {
+    if (!claims?.sub) {
+      setProfile(null);
+      return;
     }
 
-    fetchClaims()
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", claims.sub)
+      .single();
+
+    if (error) {
+      console.error("Error fetching profile:", error);
+      setProfile(null);
+      return;
+    }
+
+    setProfile(data);
+  }, [claims?.sub]);
+
+  useEffect(() => {
+    const fetchClaims = async () => {
+      setIsLoading(true);
+
+      const { data, error } =
+        await supabase.auth.getClaims();
+
+      if (error) {
+        console.error("Error fetching claims:", error);
+        setClaims(null);
+        return;
+      }
+
+      setClaims(data?.claims ?? null);
+    };
+
+    fetchClaims();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, _session) => {
-      console.log('Auth state changed:', { event: _event })
-      const { data } = await supabase.auth.getClaims()
-      setClaims(data?.claims ?? null)
-    })
+    } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        console.log("Auth state changed:", { event });
 
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+        const { data, error } =
+          await supabase.auth.getClaims();
 
-  // Fetch the profile when the claims change
-  useEffect(() => {
-    if (claims === undefined) return
+        if (error) {
+          console.error(
+            "Error refreshing claims:",
+            error
+          );
 
-    const fetchProfile = async () => {
-      setIsLoading(true)
+          setClaims(null);
+          return;
+        }
 
-      if (claims) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', claims.sub).single()
-
-        setProfile(data)
-      } else {
-        setProfile(null)
+        setClaims(data?.claims ?? null);
       }
+    );
 
-      setIsLoading(false)
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (claims === undefined) {
+      return;
     }
 
-    fetchProfile()
-  }, [claims])
+    const loadProfile = async () => {
+      setIsLoading(true);
+
+      try {
+        await refreshProfile();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [claims, refreshProfile]);
 
   return (
     <AuthContext.Provider
       value={{
         claims,
-        isLoading,
         profile,
-        isLoggedIn: claims != undefined
+        isLoading,
+        isLoggedIn,
+        isProfileComplete,
+        refreshProfile,
       }}
     >
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
-

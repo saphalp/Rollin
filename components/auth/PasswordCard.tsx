@@ -2,25 +2,52 @@ import { Colors, Fonts } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, View, useColorScheme } from "react-native";
+import { Alert, StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 
 interface PasswordCardProps {
   email: string;
   onLoginClick: () => void;
+  onSignUpSuccess: () => void;
 }
 
 export default function PasswordCard({
   email,
   onLoginClick,
+  onSignUpSuccess,
 }: PasswordCardProps) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const passwordsMatch = password.length > 0 && password === confirmPassword;
+    const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const hasMinimumLength = password.length >= 8;
+  const hasNumber = /\d/.test(password);
 
+  const handleSignUp = () => {
+    if (!hasMinimumLength) {
+      Alert.alert("Invalid Password", "Password must be at least 8 characters.");
+      return;
+    }
+
+    if (!hasNumber) {
+      Alert.alert("Invalid Password", "Password must include at least one number.");
+      return;
+    }
+
+    if (!passwordsMatch) {
+      Alert.alert("Passwords Do Not Match", "Please make sure both passwords match.");
+      return;
+    }
+
+    console.log("Signed up with:", {
+      email,
+      password,
+    });
+
+    onSignUpSuccess();
+  };
   return (
     <View
       style={[

@@ -79,7 +79,7 @@ export default function ActivityDetailScreen() {
       supabase.auth.getUser(),
       supabase
         .from('activities')
-        .select('id, title, category, description, image_url, date_time, location, max_attendees, rides_available, host_id, rsvps(id)')
+        .select('id, title, category, description, image_url, date_time, location, max_attendees, rides_available, host_id, rsvps(id, user_id)')
         .eq('id', id)
         .single(),
     ]);
@@ -89,7 +89,7 @@ export default function ActivityDetailScreen() {
     setActivity(act as ActivityDetail);
     setCurrentUserId(user?.id ?? null);
     setRsvpCount((act as any).rsvps?.length ?? 0);
-    setHasRsvp(user ? (act as any).rsvps?.some((r: any) => r.id === user.id) : false);
+    setHasRsvp(user ? (act as any).rsvps?.some((r: any) => r.user_id === user.id) : false);
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -140,13 +140,29 @@ export default function ActivityDetailScreen() {
     setRsvpLoading(true);
 
     if (hasRsvp) {
-      await supabase.from('rsvps').delete().eq('activity_id', activity.id).eq('user_id', currentUserId);
-      setHasRsvp(false);
-      setRsvpCount(c => c - 1);
+      const { error } = await supabase
+        .from('rsvps')
+        .delete()
+        .eq('activity_id', activity.id)
+        .eq('user_id', currentUserId);
+      if (error) {
+        console.error('[rsvp] delete failed:', error);
+        Alert.alert('Could not leave activity', error.message);
+      } else {
+        setHasRsvp(false);
+        setRsvpCount(c => c - 1);
+      }
     } else {
-      await supabase.from('rsvps').insert({ activity_id: activity.id, user_id: currentUserId });
-      setHasRsvp(true);
-      setRsvpCount(c => c + 1);
+      const { error } = await supabase
+        .from('rsvps')
+        .insert({ activity_id: activity.id, user_id: currentUserId });
+      if (error) {
+        console.error('[rsvp] insert failed:', error);
+        Alert.alert('Could not join activity', error.message);
+      } else {
+        setHasRsvp(true);
+        setRsvpCount(c => c + 1);
+      }
     }
 
     setRsvpLoading(false);
@@ -293,17 +309,17 @@ export default function ActivityDetailScreen() {
           <>
             <TouchableOpacity
               onPress={() => router.push(`/activity/edit/${activity.id}`)}
-              style={[styles.rsvpButton, { backgroundColor: colors.primaryContainer, borderColor: colors.primaryContainer, flex: 1 }]}
+              style={[styles.rsvpButton, { backgroundColor: colors.tint, borderColor: colors.tint, flex: 1 }]}
             >
-              <IconSymbol name="pencil" size={18} color={colors.tint} />
-              <AppText style={[styles.rsvpText, { color: colors.tint, fontFamily: Fonts?.sans }]}>Edit</AppText>
+              <IconSymbol name="pencil" size={18} color={colors.onPrimary} />
+              <AppText style={[styles.rsvpText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>Edit</AppText>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={deleteActivity}
-              style={[styles.rideButton, { borderColor: '#EF4444', backgroundColor: '#FEE2E2' }]}
+              style={[styles.rideButton, { borderColor: colors.error, backgroundColor: colors.errorContainer }]}
             >
-              <IconSymbol name="trash" size={16} color="#EF4444" />
-              <AppText style={[styles.rideText, { color: '#EF4444', fontFamily: Fonts?.sans }]}>Delete</AppText>
+              <IconSymbol name="trash" size={16} color={colors.error} />
+              <AppText style={[styles.rideText, { color: colors.error, fontFamily: Fonts?.sans }]}>Delete</AppText>
             </TouchableOpacity>
           </>
         ) : (

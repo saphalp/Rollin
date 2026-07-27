@@ -17,7 +17,7 @@ const DUMMY_CHATS = [
   },
   {
     id: "2",
-    user: "Maya Chen",
+    user: "Salina Bhattarai",
     avatar: { uri: "https://i.pravatar.cc/150?img=32" },
     last_message: "I'll bring the board games 🎲",
     is_read: false,
@@ -25,7 +25,7 @@ const DUMMY_CHATS = [
   },
   {
     id: "3",
-    user: "Devon Alvarez",
+    user: "Jack Revelett",
     avatar: { uri: "https://i.pravatar.cc/150?img=15" },
     last_message: "Can you pick me up on the way?",
     is_read: true,
@@ -33,35 +33,11 @@ const DUMMY_CHATS = [
   },
   {
     id: "4",
-    user: "Priya Sharma",
+    user: "Sandip Thapa",
     avatar: { uri: "https://i.pravatar.cc/150?img=47" },
     last_message: "Thanks for the ride!",
     is_read: true,
     time: "Yesterday",
-  },
-  {
-    id: "5",
-    user: "Jordan Miles",
-    avatar: { uri: "https://i.pravatar.cc/150?img=8" },
-    last_message: "Let me know if you can make it",
-    is_read: true,
-    time: "Mon",
-  },
-  {
-    id: "6",
-    user: "Rina Patel",
-    avatar: { uri: "https://i.pravatar.cc/150?img=25" },
-    last_message: "The hike was amazing, we should do it again soon",
-    is_read: true,
-    time: "Mon",
-  },
-  {
-    id: "7",
-    user: "Ethan Wright",
-    avatar: { uri: "https://i.pravatar.cc/150?img=17" },
-    last_message: "Rescheduling to Friday works for me",
-    is_read: true,
-    time: "Sun",
   },
 ];
 
@@ -88,12 +64,7 @@ export default function ChatsScreen() {
             Messages
           </Text>
           {unreadCount > 0 && (
-            <View
-              style={[
-                styles.unreadPill,
-                { backgroundColor: colors.tint },
-              ]}
-            >
+            <View style={[styles.unreadPill, { backgroundColor: colors.tint }]}>
               <Text
                 style={[
                   styles.unreadPillText,

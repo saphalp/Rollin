@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthContext } from "./use-auth-context";
+import { useNotificationRealtime } from "./use-notification-realtime";
 
 export type FollowState = "not_following" | "requested" | "following";
 
@@ -48,24 +49,43 @@ export function useFollow(targetUserId: string | undefined) {
     refresh();
   }, [canQuery, refresh]);
 
+  useNotificationRealtime((n) => {
+    if (!canQuery) return;
+    if (n.actor_id !== targetUserId) return;
+    if (n.type === "follow_accepted" || n.type === "follow_rejected") {
+      refresh();
+    }
+  });
+
   async function follow() {
     if (!canQuery) return;
     const previous = followState;
     setIsMutating(true);
-    setFollowState("requested"); 
-    await supabase
+    setFollowState("requested");
+
+    const { error: deleteError } = await supabase
       .from("follows")
       .delete()
       .eq("follower_id", currentUserId!)
       .eq("following_id", targetUserId!);
 
-    const { error } = await supabase.from("follows").insert({
+    if (deleteError) {
+      console.error("[useFollow] delete before insert failed:", deleteError);
+      setFollowState(previous);
+      setIsMutating(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("follows").insert({
       follower_id: currentUserId!,
       following_id: targetUserId!,
       status: "pending",
     });
 
-    if (error) setFollowState(previous);
+    if (insertError) {
+      console.error("[useFollow] insert follow failed:", insertError);
+      setFollowState(previous);
+    }
     setIsMutating(false);
   }
 
@@ -73,7 +93,7 @@ export function useFollow(targetUserId: string | undefined) {
     if (!canQuery) return;
     const previous = followState;
     setIsMutating(true);
-    setFollowState("not_following"); 
+    setFollowState("not_following");
 
     const { error } = await supabase
       .from("follows")
@@ -81,7 +101,10 @@ export function useFollow(targetUserId: string | undefined) {
       .eq("follower_id", currentUserId!)
       .eq("following_id", targetUserId!);
 
-    if (error) setFollowState(previous);
+    if (error) {
+      console.error("[useFollow] unfollow/cancel failed:", error);
+      setFollowState(previous);
+    }
     setIsMutating(false);
   }
 

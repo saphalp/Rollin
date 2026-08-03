@@ -14,7 +14,7 @@ type ActivityCardProps = {
   imageUrl?: string;
   attendeeCount: number;
   maxAttendees: number;
-  ridesAvailable?: number;
+  rideSharing?: boolean;
   onPress?: () => void;
 };
 
@@ -25,7 +25,7 @@ export function ActivityCard({
   imageUrl,
   attendeeCount,
   maxAttendees,
-  ridesAvailable,
+  rideSharing,
   onPress,
 }: ActivityCardProps) {
   const theme = useColorScheme() ?? 'light';
@@ -56,11 +56,11 @@ export function ActivityCard({
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </AppText>
         </View>
-        {ridesAvailable !== undefined && ridesAvailable > 0 && (
+        {rideSharing && (
           <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
             <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
             <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-              {ridesAvailable} seat{ridesAvailable !== 1 ? 's' : ''}
+              Ride sharing
             </AppText>
           </View>
         )}

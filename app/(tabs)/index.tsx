@@ -32,7 +32,7 @@ type Activity = {
   imageUrl?: string;
   attendeeCount: number;
   maxAttendees: number;
-  ridesAvailable?: number;
+  rideSharing?: boolean;
 };
 
 function formatDate(dateStr: string | null): string | undefined {
@@ -60,10 +60,35 @@ export default function HomeScreen() {
 
   async function fetchActivities() {
     setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = user?.id;
+
+    // A viewer can always see their own activities, plus anyone they follow.
+    const visibleHostIds = currentUserId ? [currentUserId] : [];
+
+    if (currentUserId) {
+      const { data: followedRows } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', currentUserId)
+        .eq('status', 'accepted');
+
+      if (followedRows) {
+        visibleHostIds.push(...followedRows.map((f) => f.following_id));
+      }
+    }
+
     let query = supabase
       .from('activities')
-      .select('id, title, category, date_time, max_attendees, rides_available, image_url, rsvps(id)')
+      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, rsvps(id)')
       .order('date_time', { ascending: true });
+
+    // Public activities are visible to everyone; private ones only to
+    // followed hosts (and the host themselves).
+    query = visibleHostIds.length > 0
+      ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
+      : query.eq('event_type', 'public');
 
     if (selectedCategory !== 'All') {
       query = query.eq('category', selectedCategory.toLowerCase());
@@ -87,7 +112,7 @@ export default function HomeScreen() {
           imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category as string] ?? undefined,
           attendeeCount: a.rsvps?.length ?? 0,
           maxAttendees: a.max_attendees ?? 10,
-          ridesAvailable: a.rides_available ?? 0,
+          rideSharing: a.ride_sharing ?? false,
         }))
       );
     }
@@ -189,7 +214,7 @@ export default function HomeScreen() {
                     />
                   ) : null}
                   <View style={styles.featuredDim} />
-                  {featured.ridesAvailable !== undefined && featured.ridesAvailable > 0 && (
+                  {featured.rideSharing && (
                     <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
                       <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
                       <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
@@ -236,7 +261,7 @@ export default function HomeScreen() {
                       imageUrl={activity.imageUrl}
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
-                      ridesAvailable={activity.ridesAvailable}
+                      rideSharing={activity.rideSharing}
                       onPress={() => router.push(`/activity/${activity.id}`)}
                     />
                   ))}
@@ -253,7 +278,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: 16,
     paddingBottom: 32,
     gap: 16,
   },

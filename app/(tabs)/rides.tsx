@@ -5,6 +5,7 @@ import { Alert, ScrollView, StyleSheet } from 'react-native';
 import type { Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AttendingActivityPickerSheet } from '@/components/rides/attending-activity-picker-sheet';
 import { RideActionCards } from '@/components/rides/ride-action-cards';
 import { RideEmptyState } from '@/components/rides/ride-empty-state';
 import { RideHeader } from '@/components/rides/ride-header';
@@ -13,6 +14,19 @@ import { RideTab, RideTabBar } from '@/components/rides/ride-tab-bar';
 import { AppView } from '@/components/view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+
+type RideIntent = 'find' | 'offer';
+
+const PICKER_COPY: Record<RideIntent, { title: string; subtitle: string }> = {
+  offer: {
+    title: 'Offer a ride for...',
+    subtitle: 'Pick an activity you\'re attending to connect this ride to, or continue without one.',
+  },
+  find: {
+    title: 'Find a ride for...',
+    subtitle: 'Pick an activity you\'re attending to search rides for, or continue without one.',
+  },
+};
 
 export default function RidesScreen() {
   const theme = useColorScheme() ?? 'light';
@@ -23,6 +37,7 @@ export default function RidesScreen() {
   const [region, setRegion] = useState<Region | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [rideIntent, setRideIntent] = useState<RideIntent | null>(null);
 
   useEffect(() => {
     loadCurrentLocation();
@@ -60,11 +75,21 @@ export default function RidesScreen() {
   }
 
   function handleOfferRide() {
-    router.push('/ride/offer');
+    setRideIntent('offer');
   }
 
   function handleFindRide() {
-    router.push('/ride/find');
+    setRideIntent('find');
+  }
+
+  function closeRidePicker() {
+    setRideIntent(null);
+  }
+
+  function goToRideScreen(intent: RideIntent, activityId?: string) {
+    const pathname = intent === 'offer' ? '/ride/offer' : '/ride/find';
+    setRideIntent(null);
+    router.push(activityId ? { pathname, params: { activityId } } : pathname);
   }
 
   function handleOpenFullMap() {
@@ -131,6 +156,17 @@ export default function RidesScreen() {
           />
         )}
       </ScrollView>
+
+      {rideIntent && (
+        <AttendingActivityPickerSheet
+          visible
+          title={PICKER_COPY[rideIntent].title}
+          subtitle={PICKER_COPY[rideIntent].subtitle}
+          onClose={closeRidePicker}
+          onSelectActivity={(activityId) => goToRideScreen(rideIntent, activityId)}
+          onSkip={() => goToRideScreen(rideIntent)}
+        />
+      )}
     </AppView>
   );
 }

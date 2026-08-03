@@ -253,7 +253,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: 16,
     paddingBottom: 32,
     gap: 16,
   },

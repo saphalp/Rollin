@@ -53,6 +53,7 @@ export default function TabLayout() {
             ]}
           />
         ),
+        sceneStyle: styles.scenePadding,
       }}
     >
       <Tabs.Screen
@@ -107,11 +108,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={24} name="person.fill" color={color} />
           ),
+          sceneStyle: styles.noScenePadding,
         }}
       />
       <Tabs.Screen
         name="notifications"
-        options={{ href: null }}
+        options={{ href: null, sceneStyle: styles.scenePaddingNoHorizontal }}
       />
     </Tabs>
     </View>
@@ -126,5 +128,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  scenePadding: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  scenePaddingNoHorizontal: {
+    paddingTop: 20,
+  },
+  noScenePadding: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
 });

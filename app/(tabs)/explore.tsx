@@ -124,8 +124,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F3F3',
   },
   postList: {
-    paddingHorizontal: 12,
-    paddingTop: 14,
     paddingBottom: 24,
   },
 });

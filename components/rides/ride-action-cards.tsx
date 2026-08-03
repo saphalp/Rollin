@@ -40,7 +40,7 @@ export function RideActionCards({ onFindRide, onOfferRide }: RideActionCardsProp
         style={[styles.actionCard, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
       >
         <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
-          <MaterialCommunityIcons name="car-plus" size={25} color={colors.onPrimary} />
+          <MaterialCommunityIcons name="car-multiple" size={25} color={colors.onPrimary} />
         </View>
 
         <AppText style={[styles.actionTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>

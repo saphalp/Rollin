@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EventType, EventTypeDropdown } from '@/components/post/event-type-dropdown';
 import { PostField } from '@/components/post/post-field';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -95,8 +96,8 @@ export default function PostScreen() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
+  const [eventType, setEventType] = useState<EventType>('public');
   const [ridesAvailable, setRidesAvailable] = useState(false);
-  const [rideSeats, setRideSeats] = useState('');
   const [imageAsset, setImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -182,7 +183,8 @@ export default function PostScreen() {
       longitude: activityCoordinate.longitude,
       date_time: dateTime,
       max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
-      rides_available: ridesAvailable ? (rideSeats ? parseInt(rideSeats) : 1) : 0,
+      event_type: eventType,
+      ride_sharing: ridesAvailable,
     });
 
     setSaving(false);
@@ -199,8 +201,8 @@ export default function PostScreen() {
     setDate('');
     setTime('');
     setMaxAttendees('');
+    setEventType('public');
     setRidesAvailable(false);
-    setRideSeats('');
     setImageAsset(null);
 
     router.replace('/(tabs)');
@@ -293,6 +295,8 @@ export default function PostScreen() {
               </ScrollView>
             </View>
 
+            <EventTypeDropdown label="Event Type" value={eventType} onChange={setEventType} />
+
             <PostField
               label="Description"
               value={description}
@@ -357,7 +361,7 @@ export default function PostScreen() {
             <View style={styles.rideHeader}>
               <View style={styles.rideTextContainer}>
                 <AppText style={[styles.rideTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                  Ride sharing
+                  Enable ride sharing
                 </AppText>
 
                 <AppText style={[styles.rideSubtitle, { color: colors.outline, fontFamily: Fonts?.sans }]}>
@@ -387,16 +391,6 @@ export default function PostScreen() {
                 </AppText>
               </TouchableOpacity>
             </View>
-
-            {ridesAvailable && (
-              <PostField
-                label="Available Seats"
-                value={rideSeats}
-                onChangeText={setRideSeats}
-                placeholder="3"
-                keyboardType="numeric"
-              />
-            )}
           </View>
 
           {/* Image */}

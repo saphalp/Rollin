@@ -53,7 +53,10 @@ export default function TabLayout() {
             ]}
           />
         ),
-        sceneStyle: styles.scenePadding,
+        sceneStyle: [
+          styles.scenePadding,
+          { backgroundColor: Colors[colorScheme].background },
+        ],
       }}
     >
       <Tabs.Screen
@@ -108,12 +111,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={24} name="person.fill" color={color} />
           ),
-          sceneStyle: styles.noScenePadding,
+          sceneStyle: [
+            styles.noScenePadding,
+            { backgroundColor: Colors[colorScheme].background },
+          ],
         }}
       />
       <Tabs.Screen
         name="notifications"
-        options={{ href: null, sceneStyle: styles.scenePaddingNoHorizontal }}
+        options={{
+          href: null,
+          sceneStyle: [
+            styles.scenePaddingNoHorizontal,
+            { backgroundColor: Colors[colorScheme].background },
+          ],
+        }}
       />
     </Tabs>
     </View>

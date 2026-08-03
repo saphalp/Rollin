@@ -37,7 +37,7 @@ type ActivityDetail = {
   date_time: string | null;
   location: string | null;
   max_attendees: number;
-  rides_available: number;
+  ride_sharing: boolean;
   host_id: string;
   rsvps: { id: string }[];
 };
@@ -79,7 +79,7 @@ export default function ActivityDetailScreen() {
       supabase.auth.getUser(),
       supabase
         .from('activities')
-        .select('id, title, category, description, image_url, date_time, location, max_attendees, rides_available, host_id, rsvps(id, user_id)')
+        .select('id, title, category, description, image_url, date_time, location, max_attendees, ride_sharing, host_id, rsvps(id, user_id)')
         .eq('id', id)
         .single(),
     ]);
@@ -278,13 +278,13 @@ export default function ActivityDetailScreen() {
                 {rsvpCount} / {activity.max_attendees} joined
               </AppText>
             </View>
-            {activity.rides_available > 0 && (
+            {activity.ride_sharing && (
               <>
                 <View style={styles.metaDivider} />
                 <View style={styles.metaRow}>
                   <IconSymbol name="car.fill" size={18} color={colors.tint} />
                   <AppText style={[styles.metaText, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                    {activity.rides_available} ride{activity.rides_available !== 1 ? 's' : ''} available
+                    Ride sharing available
                   </AppText>
                 </View>
               </>
@@ -338,7 +338,7 @@ export default function ActivityDetailScreen() {
               </AppText>
             </TouchableOpacity>
 
-            {activity.rides_available > 0 && !hasRsvp && (
+            {activity.ride_sharing && !hasRsvp && (
               <TouchableOpacity style={[styles.rideButton, { borderColor: colors.outline }]}>
                 <IconSymbol name="car.fill" size={16} color={colors.text} />
                 <AppText style={[styles.rideText, { color: colors.text, fontFamily: Fonts?.sans }]}>Request Ride</AppText>

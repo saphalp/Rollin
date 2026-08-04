@@ -1,0 +1,97 @@
+begin;
+
+create table if not exists public.ride_locations (
+    id uuid primary key default gen_random_uuid(),
+    ride_id uuid not null unique
+        references public.rides_offered(id)
+        on delete cascade,
+    driver_id uuid not null
+        references public.profiles(id)
+        on delete cascade,
+    latitude double precision not null,
+    longitude double precision not null,
+    heading double precision,
+    speed_mps double precision,
+    is_active boolean not null default true,
+    updated_at timestamp with time zone not null default now()
+);
+
+alter table public.ride_locations enable row level security;
+
+grant select, insert, update
+on public.ride_locations
+to authenticated;
+
+drop policy if exists "Ride participants can view live location"
+on public.ride_locations;
+
+drop policy if exists "Drivers can publish their ride location"
+on public.ride_locations;
+
+drop policy if exists "Drivers can update their ride location"
+on public.ride_locations;
+
+create policy "Ride participants can view live location"
+on public.ride_locations
+for select
+to authenticated
+using (
+    driver_id = (select auth.uid())
+    or exists (
+        select 1
+        from public.ride_requests request
+        where request.ride_id = ride_locations.ride_id
+          and request.requester_id = (select auth.uid())
+          and request.status = 'accepted'
+    )
+);
+
+create policy "Drivers can publish their ride location"
+on public.ride_locations
+for insert
+to authenticated
+with check (
+    driver_id = (select auth.uid())
+    and exists (
+        select 1
+        from public.rides_offered ride
+        where ride.id = ride_locations.ride_id
+          and ride.driver_id = (select auth.uid())
+          and ride.status in ('open', 'in_progress')
+    )
+);
+
+create policy "Drivers can update their ride location"
+on public.ride_locations
+for update
+to authenticated
+using (
+    driver_id = (select auth.uid())
+)
+with check (
+    driver_id = (select auth.uid())
+    and exists (
+        select 1
+        from public.rides_offered ride
+        where ride.id = ride_locations.ride_id
+          and ride.driver_id = (select auth.uid())
+          and ride.status in ('open', 'in_progress', 'completed')
+    )
+);
+
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'ride_locations'
+    ) then
+        alter publication supabase_realtime
+        add table public.ride_locations;
+    end if;
+end
+$$;
+
+commit;

@@ -77,6 +77,8 @@ export default function ActivityDetailScreen() {
   const [hasRsvp, setHasRsvp] = useState(false);
   const [rsvpCount, setRsvpCount] = useState(0);
   const [myRequestStatus, setMyRequestStatus] = useState<JoinRequestStatus>('none');
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [attendeesOpen, setAttendeesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState(false);
 

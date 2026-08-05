@@ -1,6 +1,6 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image } from 'expo-image';
 import {
   ActivityIndicator,
   Alert,
@@ -47,6 +47,12 @@ type Profile = {
   profile_picture: string | null;
 };
 
+type Attendee = {
+  id: string;
+  full_name: string;
+  avatarUrl: string | null;
+};
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
@@ -67,6 +73,8 @@ export default function ActivityDetailScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [hasRsvp, setHasRsvp] = useState(false);
   const [rsvpCount, setRsvpCount] = useState(0);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [attendeesOpen, setAttendeesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState(false);
 
@@ -103,6 +111,25 @@ export default function ActivityDetailScreen() {
         setHostAvatarUrl(
           supabase.storage.from('avatars').getPublicUrl(profile.profile_picture).data.publicUrl
         );
+      }
+    }
+
+    // Fetch profiles of everyone who RSVPed
+    const rsvpUserIds = (act as any).rsvps?.map((r: any) => r.user_id).filter(Boolean) ?? [];
+    if (rsvpUserIds.length > 0) {
+      const { data: attendeeProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, profile_picture')
+        .in('id', rsvpUserIds);
+
+      if (attendeeProfiles) {
+        setAttendees(attendeeProfiles.map((p: any) => ({
+          id: p.id,
+          full_name: p.full_name ?? p.email?.split('@')[0] ?? 'Rollin\' User',
+          avatarUrl: p.profile_picture
+            ? supabase.storage.from('avatars').getPublicUrl(p.profile_picture).data.publicUrl
+            : null,
+        })));
       }
     }
 
@@ -300,6 +327,59 @@ export default function ActivityDetailScreen() {
               </AppText>
             </View>
           ) : null}
+
+          {/* Who's joining */}
+          {attendees.length > 0 && (
+            <View style={[styles.attendeesCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
+              <TouchableOpacity
+                style={styles.attendeesHeader}
+                activeOpacity={0.7}
+                onPress={() => setAttendeesOpen(o => !o)}
+              >
+                <IconSymbol name="person.2.fill" size={18} color={colors.tint} />
+                <AppText style={[styles.attendeesHeaderText, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  {attendees.length} {attendees.length === 1 ? 'person' : 'people'} joining
+                </AppText>
+                <IconSymbol
+                  name={attendeesOpen ? 'chevron.up' : 'chevron.down'}
+                  size={16}
+                  color={colors.outline}
+                />
+              </TouchableOpacity>
+
+              {attendeesOpen && (
+                <View style={styles.attendeesList}>
+                  {attendees.map((attendee, index) => {
+                    const aInitials = attendee.full_name.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    return (
+                      <View key={attendee.id}>
+                        {index > 0 && <View style={styles.metaDivider} />}
+                        <TouchableOpacity
+                          style={styles.attendeeRow}
+                          activeOpacity={0.7}
+                          onPress={() => router.push(`/profile/${attendee.id}`)}
+                        >
+                          {attendee.avatarUrl ? (
+                            <Image source={{ uri: attendee.avatarUrl }} style={styles.attendeeAvatar} contentFit="cover" />
+                          ) : (
+                            <View style={[styles.attendeeAvatar, styles.attendeeInitials, { backgroundColor: colors.tint }]}>
+                              <AppText style={[styles.attendeeInitialsText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                                {aInitials}
+                              </AppText>
+                            </View>
+                          )}
+                          <AppText style={[styles.attendeeName, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                            {attendee.full_name}
+                          </AppText>
+                          <IconSymbol name="chevron.right" size={16} color={colors.outline} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -398,6 +478,30 @@ const styles = StyleSheet.create({
   descSection: { gap: 8 },
   sectionHeading: { fontSize: 18, fontWeight: '700' },
   description: { fontSize: 15, lineHeight: 24 },
+  attendeesCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  attendeesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  attendeesHeaderText: { flex: 1, fontSize: 15, fontWeight: '600' },
+  attendeesList: { paddingHorizontal: 16 },
+  attendeeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  attendeeAvatar: { width: 38, height: 38, borderRadius: 19 },
+  attendeeInitials: { alignItems: 'center', justifyContent: 'center' },
+  attendeeInitialsText: { fontSize: 14, fontWeight: '700' },
+  attendeeName: { flex: 1, fontSize: 15 },
   bottomBar: {
     position: 'absolute',
     bottom: 0,

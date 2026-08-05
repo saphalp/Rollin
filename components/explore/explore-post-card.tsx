@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -10,6 +11,7 @@ export type ExplorePost = {
   category: string;
   description: string;
   eventImage: string;
+  eventType: 'public' | 'private';
 };
 
 const AVATAR_COLORS = ['#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
@@ -49,6 +51,13 @@ export function ExplorePostCard({ post, onPress }: ExplorePostCardProps) {
           <Text style={styles.userName}>{post.userName}</Text>
           <Text style={styles.timePosted}>{post.timePosted}</Text>
         </View>
+
+        {post.eventType === 'private' && (
+          <View style={styles.privateBadge}>
+            <MaterialCommunityIcons name="lock-outline" size={11} color="#FFFFFF" />
+            <Text style={styles.privateText}>Private</Text>
+          </View>
+        )}
 
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{post.category}</Text>
@@ -110,6 +119,21 @@ const styles = StyleSheet.create({
     color: '#8A8A8A',
     fontSize: 12,
     marginTop: 2,
+  },
+  privateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#4B5563',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 6,
+  },
+  privateText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
   },
   categoryBadge: {
     maxWidth: '48%',

@@ -10,6 +10,7 @@ export const sampleExplorePosts: ExplorePost[] = [
     description: 'Was a good game! Happy to score a brace for the team!',
     eventImage:
       'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=900',
+    eventType: 'public',
   },
   {
     id: '2',
@@ -21,6 +22,7 @@ export const sampleExplorePosts: ExplorePost[] = [
       'We play pickleball every weekend. We would love for you to join us!',
     eventImage:
       'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=900',
+    eventType: 'public',
   },
   {
     id: '3',
@@ -31,5 +33,6 @@ export const sampleExplorePosts: ExplorePost[] = [
     description: 'Easy hike! Anyone down for a hike next month?',
     eventImage:
       'https://images.unsplash.com/photo-1551632811-561732d1e306?w=900',
+    eventType: 'public',
   },
 ];

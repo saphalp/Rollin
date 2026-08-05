@@ -15,6 +15,9 @@ import {
 import { Chip, Text } from "react-native-paper";
 
 import AvatarCard from "@/components/profile/AvatarCard";
+import ActivitySegmentedControl, {
+  type ActivityView,
+} from "@/components/profile/ActivitySegmentedControl";
 import InterestChips from "@/components/profile/InterestChips";
 import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
@@ -34,6 +37,19 @@ type ActivityRow = {
   date: string;
   time: string;
   imageUri: string;
+  dateTime: string | null;
+};
+
+type ActivityRecord = {
+  id: string;
+  title: string;
+  date_time: string | null;
+  image_url: string | null;
+  category: string | null;
+};
+
+type JoinedActivityRecord = {
+  activity: ActivityRecord | ActivityRecord[] | null;
 };
 
 const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
@@ -60,6 +76,28 @@ function formatActivityTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
+  });
+}
+
+function toActivityRow(activity: ActivityRecord): ActivityRow {
+  return {
+    id: activity.id,
+    title: activity.title,
+    date: formatActivityDate(activity.date_time),
+    time: formatActivityTime(activity.date_time),
+    imageUri:
+      activity.image_url ||
+      CATEGORY_FALLBACK_IMAGE[activity.category ?? ""] ||
+      CATEGORY_FALLBACK_IMAGE.social,
+    dateTime: activity.date_time,
+  };
+}
+
+function sortActivitiesByDate(activities: ActivityRow[]): ActivityRow[] {
+  return [...activities].sort((a, b) => {
+    if (!a.dateTime) return 1;
+    if (!b.dateTime) return -1;
+    return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
   });
 }
 
@@ -100,45 +138,73 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
   const [interests, setInterests] = useState<string[]>(PLACEHOLDER_INTERESTS);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [activityView, setActivityView] =
+    useState<ActivityView>("created");
+  const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
+  const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
 
     (async () => {
-      const { data, error } = await supabase
+      setActivitiesLoading(true);
+      setActivitiesError(null);
+
+      const createdRequest = supabase
         .from("activities")
         .select("id, title, date_time, image_url, category")
         .eq("host_id", userId)
-        .order("date_time", { ascending: false })
-        .limit(10);
+        .order("date_time", { ascending: false });
+
+      const joinedRequest = isOwnProfile
+        ? supabase
+            .from("rsvps")
+            .select(
+              "activity:activities(id, title, date_time, image_url, category)",
+            )
+            .eq("user_id", userId)
+        : Promise.resolve({ data: [], error: null });
+
+      const [createdResult, joinedResult] = await Promise.all([
+        createdRequest,
+        joinedRequest,
+      ]);
 
       if (cancelled) return;
-      if (error) {
+
+      if (createdResult.error || joinedResult.error) {
+        const error = createdResult.error ?? joinedResult.error;
         console.error("[profile] fetch activities failed:", error);
-        setActivities([]);
-        return;
+        setActivitiesError("Unable to load activities. Please try again.");
       }
 
-      setActivities(
-        (data ?? []).map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          date: formatActivityDate(a.date_time),
-          time: formatActivityTime(a.date_time),
-          imageUri:
-            a.image_url ||
-            CATEGORY_FALLBACK_IMAGE[a.category as string] ||
-            CATEGORY_FALLBACK_IMAGE.social,
-        })),
+      const created = (createdResult.data ?? []) as ActivityRecord[];
+      setCreatedActivities(
+        sortActivitiesByDate(created.map(toActivityRow)),
       );
+
+      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+      const joined = joinedRows.flatMap((row) => {
+        if (!row.activity) return [];
+        return Array.isArray(row.activity) ? row.activity : [row.activity];
+      });
+
+      setJoinedActivities(
+        sortActivitiesByDate(joined.map(toActivityRow)),
+      );
+      setActivitiesLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [isOwnProfile, userId]);
+
+  const displayedActivities =
+    activityView === "created" ? createdActivities : joinedActivities;
 
   function handleMessagePress() {
     if (!profile) return;
@@ -231,22 +297,46 @@ export default function UserProfile({ userId }: UserProfileProps) {
           <SectionHeader
             header={isOwnProfile ? "My Activities" : "Recent Activities"}
           />
+
+          {isOwnProfile && (
+            <View style={styles.activityFilter}>
+              <ActivitySegmentedControl
+                value={activityView}
+                onChange={setActivityView}
+              />
+            </View>
+          )}
+
           <View style={styles.activitiesList}>
-            {activities.length === 0 ? (
+            {activitiesLoading ? (
+              <ActivityIndicator
+                color={colors.tint}
+                style={styles.activitiesLoader}
+              />
+            ) : activitiesError ? (
               <Text
-                style={{
-                  color: colors.icon,
-                  fontFamily: Fonts.sans,
-                  fontSize: 14,
-                  paddingTop: 15,
-                }}
+                style={[
+                  styles.activitiesMessage,
+                  { color: colors.error, fontFamily: Fonts.sans },
+                ]}
+              >
+                {activitiesError}
+              </Text>
+            ) : displayedActivities.length === 0 ? (
+              <Text
+                style={[
+                  styles.activitiesMessage,
+                  { color: colors.icon, fontFamily: Fonts.sans },
+                ]}
               >
                 {isOwnProfile
-                  ? "You haven't posted an activity yet."
+                  ? activityView === "created"
+                    ? "You haven't created an activity yet."
+                    : "You haven't joined an activity yet."
                   : "No activities yet."}
               </Text>
             ) : (
-              activities.map((activity) => (
+              displayedActivities.map((activity) => (
                 <MyActivities
                   key={activity.id}
                   title={activity.title}
@@ -291,6 +381,16 @@ const styles = StyleSheet.create({
   },
   activitiesList: {
     gap: 12,
+    paddingTop: 15,
+  },
+  activityFilter: {
+    paddingTop: 15,
+  },
+  activitiesLoader: {
+    paddingVertical: 24,
+  },
+  activitiesMessage: {
+    fontSize: 14,
     paddingTop: 15,
   },
   center: {

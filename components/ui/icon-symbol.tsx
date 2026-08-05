@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'chevron.left': 'chevron-left',
   'chevron.down': 'expand-more',
+  'chevron.up': 'expand-less',
   'arrow.up': 'arrow-upward',
   'safari': 'explore',
   'plus.circle': 'add-circle-outline',

@@ -37,7 +37,8 @@ export function useLiveRideLocation({
     const notifiedArrival = useRef(false);
 
     useEffect(() => {
-        if (!rideId) {
+        const currentRideId = rideId;
+        if (!currentRideId) {
             setLoading(false);
             return;
         }
@@ -47,10 +48,13 @@ export function useLiveRideLocation({
             null;
 
         async function start() {
+            if (!currentRideId) {
+                return;
+            }
             try {
                 const [latestLocation, currentPassengerLocation] =
                     await Promise.all([
-                        fetchLatestDriverLocation(rideId),
+                        fetchLatestDriverLocation(currentRideId),
                         useDeviceLocation
                             ? getCurrentCoordinates().catch(() => null)
                             : Promise.resolve(null),

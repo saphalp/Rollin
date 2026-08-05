@@ -31,10 +31,14 @@ export default function LoginScreen() {
               onLoginClick={() => setStep(0)}
             />
           )}
-          {step == 2 && (
-            <PasswordCard email={email} onLoginClick={() => setStep(0)} />
+          {step === 2 && (
+            <PasswordCard
+              email={email}
+              onLoginClick={() => setStep(0)}
+              onSignUpSuccess={() => setStep(0)}
+            />
           )}
-          {step == 0 && <Login onSignUpClick={() => setStep(1)} />}
+          {step === 0 && <Login onSignUpClick={() => setStep(1)} />}
           <TermsFooter />
         </ScrollView>
       </KeyboardAvoidingView>

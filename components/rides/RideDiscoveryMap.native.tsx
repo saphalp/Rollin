@@ -133,7 +133,7 @@ export function RideDiscoveryMap({
                             ]}
                         >
                             <MaterialCommunityIcons
-                                name="calendar-marker"
+                                name="calendar-clock"
                                 size={20}
                                 color={
                                     selected

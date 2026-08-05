@@ -298,7 +298,7 @@ export default function FullRideMapScreen() {
                     ]}
                 >
                     <MaterialCommunityIcons
-                        name="car-plus"
+                        name="car-multiple"
                         size={21}
                         color={colors.onPrimary}
                     />

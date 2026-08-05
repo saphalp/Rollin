@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { ActivityJoinRequestRow } from '@/components/activity-join-request-row';
 import { FollowRequestActor, FollowRequestRow } from '@/components/follow-request-row';
 import { NotificationRow } from '@/components/notification-row';
 import { AppText } from '@/components/text';
@@ -18,7 +19,8 @@ type Notification = {
   timestamp: string;
   isRead: boolean;
   actor: FollowRequestActor | null;
-  isAccepted: boolean;
+  activityId: string | null;
+  resolution?: 'accepted' | 'rejected';
 };
 
 function formatTimestamp(dateStr: string): string {
@@ -57,7 +59,7 @@ export default function NotificationsScreen() {
     const { data } = await supabase
       .from('notifications')
       .select(
-        'id, type, message, is_read, created_at, actor_id, actor:profiles!actor_id(id, full_name, profile_picture)'
+        'id, type, message, is_read, created_at, actor_id, activity_id, actor:profiles!actor_id(id, full_name, profile_picture)'
       )
       .eq('id', incoming.id)
       .maybeSingle();
@@ -74,7 +76,7 @@ export default function NotificationsScreen() {
           timestamp: formatTimestamp(data.created_at),
           isRead: data.is_read,
           actor: data.actor as any,
-          isAccepted: false,
+          activityId: data.activity_id,
         },
         ...prev,
       ];
@@ -85,7 +87,7 @@ export default function NotificationsScreen() {
     const { data, error } = await supabase
       .from('notifications')
       .select(
-        'id, type, message, is_read, created_at, actor_id, actor:profiles!actor_id(id, full_name, profile_picture)'
+        'id, type, message, is_read, created_at, actor_id, activity_id, actor:profiles!actor_id(id, full_name, profile_picture)'
       )
       .order('created_at', { ascending: false });
 
@@ -98,7 +100,7 @@ export default function NotificationsScreen() {
           timestamp: formatTimestamp(n.created_at),
           isRead: n.is_read,
           actor: n.actor,
-          isAccepted: false,
+          activityId: n.activity_id,
         }))
       );
     }
@@ -117,7 +119,7 @@ export default function NotificationsScreen() {
 
     setNotifications((prev) =>
       prev.map((x) =>
-        x.id === n.id ? { ...x, isAccepted: true, isRead: true } : x
+        x.id === n.id ? { ...x, resolution: 'accepted', isRead: true } : x
       )
     );
 
@@ -130,13 +132,13 @@ export default function NotificationsScreen() {
     if (followErr) {
       setNotifications((prev) =>
         prev.map((x) =>
-          x.id === n.id ? { ...x, isAccepted: false } : x
+          x.id === n.id ? { ...x, resolution: undefined } : x
         )
       );
       return;
     }
 
-    await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    await supabase.from('notifications').delete().eq('id', n.id);
   }
 
   async function handleReject(n: Notification) {
@@ -153,6 +155,52 @@ export default function NotificationsScreen() {
 
     if (followErr) {
       setNotifications(previous);
+      return;
+    }
+
+    await supabase.from('notifications').delete().eq('id', n.id);
+  }
+
+  async function handleAcceptJoinRequest(n: Notification) {
+    if (!n.actor || !n.activityId) return;
+
+    setNotifications((prev) =>
+      prev.map((x) => (x.id === n.id ? { ...x, resolution: 'accepted', isRead: true } : x))
+    );
+
+    const { error } = await supabase
+      .from('activity_join_requests')
+      .update({ status: 'accepted' })
+      .eq('activity_id', n.activityId)
+      .eq('requester_id', n.actor.id);
+
+    if (error) {
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, resolution: undefined } : x))
+      );
+      return;
+    }
+
+    await supabase.from('notifications').delete().eq('id', n.id);
+  }
+
+  async function handleRejectJoinRequest(n: Notification) {
+    if (!n.actor || !n.activityId) return;
+
+    setNotifications((prev) =>
+      prev.map((x) => (x.id === n.id ? { ...x, resolution: 'rejected', isRead: true } : x))
+    );
+
+    const { error } = await supabase
+      .from('activity_join_requests')
+      .update({ status: 'rejected' })
+      .eq('activity_id', n.activityId)
+      .eq('requester_id', n.actor.id);
+
+    if (error) {
+      setNotifications((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, resolution: undefined } : x))
+      );
       return;
     }
 
@@ -180,9 +228,22 @@ export default function NotificationsScreen() {
                   actor={item.actor}
                   timestamp={item.timestamp}
                   isRead={item.isRead}
-                  isAccepted={item.isAccepted}
+                  isAccepted={item.resolution === 'accepted'}
                   onAccept={() => handleAccept(item)}
                   onReject={() => handleReject(item)}
+                />
+              );
+            }
+            if (item.type === 'activity_join_request' && item.actor) {
+              return (
+                <ActivityJoinRequestRow
+                  actor={item.actor}
+                  message={item.message}
+                  timestamp={item.timestamp}
+                  isRead={item.isRead}
+                  resolution={item.resolution}
+                  onAccept={() => handleAcceptJoinRequest(item)}
+                  onReject={() => handleRejectJoinRequest(item)}
                 />
               );
             }

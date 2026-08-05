@@ -36,9 +36,12 @@ export default function ExploreScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function fetchPosts() {
+    // Intentionally unfiltered by event_type/follows: Explore is the
+    // discovery surface for private activities too — browsing is open,
+    // joining a private one still requires the host to accept a request.
     const { data: activities, error } = await supabase
       .from('activities')
-      .select('id, title, category, description, image_url, created_at, host_id')
+      .select('id, title, category, description, image_url, created_at, host_id, event_type')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -80,6 +83,7 @@ export default function ExploreScreen() {
         category: a.category ? a.category.charAt(0).toUpperCase() + a.category.slice(1) : 'Activity',
         description: a.description ?? a.title,
         eventImage: a.image_url ?? CATEGORY_IMAGES[a.category] ?? 'https://picsum.photos/seed/activity/900/500',
+        eventType: a.event_type === 'private' ? 'private' : 'public',
       };
     }));
 

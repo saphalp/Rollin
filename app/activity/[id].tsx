@@ -38,9 +38,12 @@ type ActivityDetail = {
   location: string | null;
   max_attendees: number;
   ride_sharing: boolean;
+  event_type: 'public' | 'private';
   host_id: string;
   rsvps: { id: string }[];
 };
+
+type JoinRequestStatus = 'none' | 'pending' | 'accepted' | 'rejected';
 
 type Profile = {
   full_name: string | null;
@@ -67,6 +70,7 @@ export default function ActivityDetailScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [hasRsvp, setHasRsvp] = useState(false);
   const [rsvpCount, setRsvpCount] = useState(0);
+  const [myRequestStatus, setMyRequestStatus] = useState<JoinRequestStatus>('none');
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState(false);
 
@@ -79,7 +83,7 @@ export default function ActivityDetailScreen() {
       supabase.auth.getUser(),
       supabase
         .from('activities')
-        .select('id, title, category, description, image_url, date_time, location, max_attendees, ride_sharing, host_id, rsvps(id, user_id)')
+        .select('id, title, category, description, image_url, date_time, location, max_attendees, ride_sharing, event_type, host_id, rsvps(id, user_id)')
         .eq('id', id)
         .single(),
     ]);
@@ -90,6 +94,17 @@ export default function ActivityDetailScreen() {
     setCurrentUserId(user?.id ?? null);
     setRsvpCount((act as any).rsvps?.length ?? 0);
     setHasRsvp(user ? (act as any).rsvps?.some((r: any) => r.user_id === user.id) : false);
+
+    if (user && act.event_type === 'private' && user.id !== act.host_id) {
+      const { data: joinRequest } = await supabase
+        .from('activity_join_requests')
+        .select('status')
+        .eq('activity_id', act.id)
+        .eq('requester_id', user.id)
+        .maybeSingle();
+
+      setMyRequestStatus((joinRequest?.status as JoinRequestStatus) ?? 'none');
+    }
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -151,6 +166,15 @@ export default function ActivityDetailScreen() {
       } else {
         setHasRsvp(false);
         setRsvpCount(c => c - 1);
+
+        if (activity.event_type === 'private') {
+          await supabase
+            .from('activity_join_requests')
+            .delete()
+            .eq('activity_id', activity.id)
+            .eq('requester_id', currentUserId);
+          setMyRequestStatus('none');
+        }
       }
     } else {
       const { error } = await supabase
@@ -163,6 +187,27 @@ export default function ActivityDetailScreen() {
         setHasRsvp(true);
         setRsvpCount(c => c + 1);
       }
+    }
+
+    setRsvpLoading(false);
+  }
+
+  async function handleRequestToJoin() {
+    if (!activity || !currentUserId) return;
+    setRsvpLoading(true);
+
+    const { error } = await supabase
+      .from('activity_join_requests')
+      .upsert(
+        { activity_id: activity.id, requester_id: currentUserId, status: 'pending' },
+        { onConflict: 'activity_id,requester_id' },
+      );
+
+    if (error) {
+      console.error('[join-request] upsert failed:', error);
+      Alert.alert('Could not send request', error.message);
+    } else {
+      setMyRequestStatus('pending');
     }
 
     setRsvpLoading(false);
@@ -324,19 +369,41 @@ export default function ActivityDetailScreen() {
           </>
         ) : (
           <>
-            <TouchableOpacity
-              onPress={toggleRsvp}
-              disabled={rsvpLoading}
-              style={[
-                styles.rsvpButton,
-                { backgroundColor: hasRsvp ? colors.surfaceContainerHigh : colors.tint, borderColor: hasRsvp ? colors.outline : colors.tint },
-              ]}
-            >
-              {hasRsvp && <IconSymbol name="checkmark" size={18} color={colors.text} />}
-              <AppText style={[styles.rsvpText, { color: hasRsvp ? colors.text : colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-                {rsvpLoading ? '...' : hasRsvp ? 'Going' : 'Join Activity'}
-              </AppText>
-            </TouchableOpacity>
+            {!hasRsvp && activity.event_type === 'private' ? (
+              <TouchableOpacity
+                onPress={handleRequestToJoin}
+                disabled={rsvpLoading || myRequestStatus === 'pending'}
+                style={[
+                  styles.rsvpButton,
+                  myRequestStatus === 'pending'
+                    ? { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outline }
+                    : { backgroundColor: colors.tint, borderColor: colors.tint },
+                ]}
+              >
+                <AppText
+                  style={[
+                    styles.rsvpText,
+                    { color: myRequestStatus === 'pending' ? colors.text : colors.onImageOverlay, fontFamily: Fonts?.sans },
+                  ]}
+                >
+                  {rsvpLoading ? '...' : myRequestStatus === 'pending' ? 'Request Pending' : 'Request to Join'}
+                </AppText>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={toggleRsvp}
+                disabled={rsvpLoading}
+                style={[
+                  styles.rsvpButton,
+                  { backgroundColor: hasRsvp ? colors.surfaceContainerHigh : colors.tint, borderColor: hasRsvp ? colors.outline : colors.tint },
+                ]}
+              >
+                {hasRsvp && <IconSymbol name="checkmark" size={18} color={colors.text} />}
+                <AppText style={[styles.rsvpText, { color: hasRsvp ? colors.text : colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                  {rsvpLoading ? '...' : hasRsvp ? 'Going' : 'Join Activity'}
+                </AppText>
+              </TouchableOpacity>
+            )}
 
             {activity.ride_sharing && !hasRsvp && (
               <TouchableOpacity style={[styles.rideButton, { borderColor: colors.outline }]}>

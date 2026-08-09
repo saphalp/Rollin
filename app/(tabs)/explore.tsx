@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
+import { AppText } from '@/components/text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors, Fonts } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import {
   ExplorePostCard,
@@ -31,6 +35,8 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function ExploreScreen() {
+  const theme = useColorScheme() ?? 'light';
+  const colors = Colors[theme];
   const [posts, setPosts] = useState<ExplorePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,26 +104,32 @@ export default function ExploreScreen() {
     fetchPosts();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={posts}
-        renderItem={({ item }) => (
-          <ExplorePostCard post={item} onPress={() => router.push(`/activity/${item.id}`)} />
-        )}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.postList}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.outlineVariant }]}>
+        <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Explore</AppText>
+        <TouchableOpacity onPress={() => router.push('/calendar')} style={styles.calendarBtn}>
+          <IconSymbol name="calendar" size={24} color={colors.tint} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.tint} />
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => (
+            <ExplorePostCard post={item} onPress={() => router.push(`/activity/${item.id}`)} />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.postList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        />
+      )}
     </View>
   );
 }
@@ -125,9 +137,20 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F3F3',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTitle: { fontSize: 20, fontWeight: '700' },
+  calendarBtn: { padding: 4 },
   postList: {
     paddingBottom: 24,
   },
+  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

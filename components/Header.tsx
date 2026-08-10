@@ -51,9 +51,14 @@ export default function Header() {
       >
         Rollin'
       </AppText>
-      <TouchableOpacity hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
-        <IconSymbol name="bell.fill" size={24} color={colors.text} />
-      </TouchableOpacity>
+      <View style={styles.rightIcons}>
+        <TouchableOpacity hitSlop={8} onPress={() => router.push('/calendar')}>
+          <IconSymbol name="calendar" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
+          <IconSymbol name="bell.fill" size={24} color={colors.text} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -71,6 +76,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  rightIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
   avatar: {
     width: 36,

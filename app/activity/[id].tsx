@@ -153,7 +153,6 @@ export default function ActivityDetailScreen() {
       }
     }
 
-    // Fetch profiles of everyone who RSVPed
     const rsvpUserIds =
       (act as any).rsvps?.map((r: any) => r.user_id).filter(Boolean) ?? [];
     if (rsvpUserIds.length > 0) {
@@ -312,7 +311,6 @@ export default function ActivityDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero image with back button */}
         <View style={styles.heroContainer}>
           <Image
             source={{ uri: heroImage }}
@@ -407,7 +405,6 @@ export default function ActivityDetailScreen() {
             <IconSymbol name="chevron.right" size={18} color={colors.outline} />
           </TouchableOpacity>
 
-          {/* Meta info */}
           <View
             style={[
               styles.metaCard,

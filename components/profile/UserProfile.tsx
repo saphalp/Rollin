@@ -206,12 +206,23 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const displayedActivities =
     activityView === "created" ? createdActivities : joinedActivities;
 
-  function handleMessagePress() {
+  async function handleMessagePress() {
     if (!profile) return;
+
+    const { data: conversationId, error } = await supabase.rpc(
+      "get_or_create_direct_conversation",
+      { other_user_id: profile.id },
+    );
+
+    if (error || !conversationId) {
+      console.error("[profile] get_or_create_direct_conversation failed:", error);
+      return;
+    }
+
     router.push({
       pathname: "/chat/[id]",
       params: {
-        id: profile.id,
+        id: conversationId,
         name: profile.full_name ?? "",
         avatar: resolveAvatarUri(profile.profile_picture),
       },

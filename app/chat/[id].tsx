@@ -3,9 +3,12 @@ import MessageBubble from "@/components/chats/MessageBubble";
 import MessageInput from "@/components/chats/MessageInput";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
+import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
+import { supabase } from "@/lib/supabase";
 import { useLocalSearchParams } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,38 +21,18 @@ type Message = {
   text: string;
   fromMe: boolean;
   time: string;
+  senderName?: string;
 };
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "m1",
-    text: "Hey! Are we still on for tonight?",
-    fromMe: false,
-    time: "9:32 AM",
-  },
-  {
-    id: "m2",
-    text: "Yes, 7pm works for me",
-    fromMe: true,
-    time: "9:35 AM",
-  },
-  {
-    id: "m3",
-    text: "Sounds good, see you Saturday at 7!",
-    fromMe: false,
-    time: "9:42 AM",
-  },
-];
-
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-US", {
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
 }
 
 export default function ChatConversationScreen() {
-  const { name, avatar } = useLocalSearchParams<{
+  const { id, name, avatar } = useLocalSearchParams<{
     id: string;
     name?: string;
     avatar?: string;
@@ -58,56 +41,138 @@ export default function ChatConversationScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [conversationType, setConversationType] = useState<"direct" | "group" | null>(null);
+  const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const scrollRef = useRef<ScrollView>(null);
 
-  function send() {
+  useEffect(() => {
+    if (id) load();
+  }, [id]);
+
+  async function load() {
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const uid = user?.id ?? null;
+    setCurrentUserId(uid);
+
+    const { data: conversation, error: conversationError } = await supabase
+      .from("conversations")
+      .select("id, type, activity_id")
+      .eq("id", id)
+      .single();
+
+    if (conversationError || !conversation) {
+      setLoading(false);
+      return;
+    }
+
+    setConversationType(conversation.type);
+
+    let names: Record<string, string> = {};
+    if (conversation.type === "group") {
+      const { data: participants } = await supabase
+        .from("conversation_participants")
+        .select("user_id, profiles(full_name)")
+        .eq("conversation_id", id);
+
+      (participants ?? []).forEach((p: any) => {
+        names[p.user_id] = p.profiles?.full_name ?? "Rollin' User";
+      });
+      setParticipantNames(names);
+    }
+
+    const { data: messageRows } = await supabase
+      .from("messages")
+      .select("id, sender_id, content, created_at")
+      .eq("conversation_id", id)
+      .order("created_at", { ascending: true });
+
+    setMessages(
+      (messageRows ?? []).map((m: any) => ({
+        id: m.id,
+        text: m.content,
+        fromMe: m.sender_id === uid,
+        time: formatTime(m.created_at),
+        senderName: m.sender_id !== uid ? names[m.sender_id] : undefined,
+      })),
+    );
+
+    setLoading(false);
+  }
+
+  useMessagesRealtime(id, (incoming) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === incoming.id)) return prev;
+      return [
+        ...prev,
+        {
+          id: incoming.id,
+          text: incoming.content,
+          fromMe: incoming.sender_id === currentUserId,
+          time: formatTime(incoming.created_at),
+          senderName:
+            incoming.sender_id !== currentUserId
+              ? participantNames[incoming.sender_id]
+              : undefined,
+        },
+      ];
+    });
+  });
+
+  async function send() {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || !currentUserId || !id) return;
 
-    const newMessage: Message = {
-      id: `m${Date.now()}`,
-      text: trimmed,
-      fromMe: true,
-      time: formatTime(new Date()),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
     setInput("");
+
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: id,
+      sender_id: currentUserId,
+      content: trimmed,
+    });
+
+    if (error) {
+      console.error("[chat] send failed:", error);
+    }
   }
 
   return (
     <AppView style={styles.container}>
-      <ConversationHeader
-        name={name ?? "Chat"}
-        avatar={{ uri: avatar ?? "" }}
-        subtitle="Active now"
-      />
+      <ConversationHeader name={name ?? "Chat"} avatar={{ uri: avatar ?? "" }} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
         keyboardVerticalOffset={0}
       >
-        <ScrollView
-          ref={scrollRef}
-          style={{ backgroundColor: colors.background }}
-          contentContainerStyle={styles.messages}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            scrollRef.current?.scrollToEnd({ animated: true })
-          }
-        >
-          {messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              text={m.text}
-              fromMe={m.fromMe}
-              time={m.time}
-            />
-          ))}
-        </ScrollView>
+        {loading ? (
+          <ActivityIndicator color={colors.tint} style={styles.loader} />
+        ) : (
+          <ScrollView
+            ref={scrollRef}
+            style={{ backgroundColor: colors.background }}
+            contentContainerStyle={styles.messages}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          >
+            {messages.map((m) => (
+              <MessageBubble
+                key={m.id}
+                text={m.text}
+                fromMe={m.fromMe}
+                time={m.time}
+                senderName={conversationType === "group" ? m.senderName : undefined}
+              />
+            ))}
+          </ScrollView>
+        )}
 
         <MessageInput value={input} onChangeText={setInput} onSend={send} />
       </KeyboardAvoidingView>
@@ -120,6 +185,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flex: {
+    flex: 1,
+  },
+  loader: {
     flex: 1,
   },
   messages: {

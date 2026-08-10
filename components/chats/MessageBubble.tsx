@@ -6,12 +6,14 @@ interface MessageBubbleProps {
   text: string;
   fromMe: boolean;
   time: string;
+  senderName?: string;
 }
 
 export default function MessageBubble({
   text,
   fromMe,
   time,
+  senderName,
 }: MessageBubbleProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -32,6 +34,13 @@ export default function MessageBubble({
           },
         ]}
       >
+        {senderName && (
+          <Text
+            style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+          >
+            {senderName}
+          </Text>
+        )}
         <Text
           style={[styles.text, { color: textColor, fontFamily: Fonts.sans }]}
         >
@@ -73,6 +82,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     gap: 2,
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 2,
   },
   text: {
     fontSize: 15,

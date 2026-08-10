@@ -4,6 +4,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TextInput, T
 import { router } from 'expo-router';
 
 import { ActivityCard } from '@/components/activity-card';
+import { StandaloneRidesSection } from '@/components/rides/standalone-rides-section';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
@@ -270,6 +271,8 @@ export default function HomeScreen() {
             )}
           </>
         )}
+
+        <StandaloneRidesSection />
       </ScrollView>
     </AppView>
   );

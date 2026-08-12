@@ -18,6 +18,7 @@ import AvatarCard from "@/components/profile/AvatarCard";
 import ActivitySegmentedControl, {
   type ActivityView,
 } from "@/components/profile/ActivitySegmentedControl";
+import LogoutButton from "@/components/auth/LogoutButton";
 import InterestChips from "@/components/profile/InterestChips";
 import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
@@ -360,6 +361,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
             )}
           </View>
         </View>
+
+        {isOwnProfile && <LogoutButton />}
       </ScrollView>
 
       {isOwnProfile && (

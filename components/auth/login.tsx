@@ -2,7 +2,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, View, useColorScheme } from "react-native";
+import { Alert, StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import GoogleSignInButton from "./SignInWithGoogle";
 
@@ -16,6 +16,41 @@ export default function Login({ onSignUpClick }: LoginProps) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
+  async function handleForgotPassword() {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      Alert.alert(
+        "Enter your email",
+        "Enter the email address associated with your account first.",
+      );
+      return;
+    }
+
+    setIsSendingReset(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+    );
+
+    setIsSendingReset(false);
+
+    if (error) {
+      console.error("Password reset request failed:", error);
+      Alert.alert(
+        "Unable to send reset email",
+        "Please check your connection and try again.",
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Check your inbox",
+      "If an account exists for that email, you will receive a password reset link shortly.",
+    );
+  }
 
   return (
     <View
@@ -63,12 +98,18 @@ export default function Login({ onSignUpClick }: LoginProps) {
         theme={{ roundness: 15 }}
       />
 
-      <Text
-        style={{ color: colors.tint, fontWeight: "600", alignSelf: "flex-end" }}
-        onPress={() => {}}
+      <Button
+        mode="text"
+        compact
+        onPress={handleForgotPassword}
+        loading={isSendingReset}
+        disabled={isSendingReset}
+        textColor={colors.tint}
+        style={styles.forgotButton}
+        labelStyle={styles.forgotButtonLabel}
       >
         Forgot password?
-      </Text>
+      </Button>
 
       <Button
         mode="contained"
@@ -121,7 +162,7 @@ export default function Login({ onSignUpClick }: LoginProps) {
           { color: colors.text, fontFamily: Fonts.sans },
         ]}
       >
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <Text
           style={{ color: colors.tint, fontWeight: "600" }}
           onPress={() => onSignUpClick()}
@@ -147,6 +188,13 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: 14,
+  },
+  forgotButton: {
+    alignSelf: "flex-end",
+  },
+  forgotButtonLabel: {
+    fontWeight: "600",
+    marginHorizontal: 0,
   },
   nextButton: {
     borderRadius: 12,

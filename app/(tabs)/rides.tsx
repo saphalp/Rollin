@@ -1,30 +1,55 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AttendingActivityPickerSheet } from '@/components/rides/attending-activity-picker-sheet';
 import { RideActionCards } from '@/components/rides/ride-action-cards';
+import {
+  MyRideRequestDashboardCard,
+  OfferedRideDashboardCard,
+  RideHistoryDashboardCard,
+} from '@/components/rides/ride-dashboard-cards';
 import { RideEmptyState } from '@/components/rides/ride-empty-state';
 import { RideHeader } from '@/components/rides/ride-header';
 import { RideMapCard } from '@/components/rides/ride-map-card';
 import { RideTab, RideTabBar } from '@/components/rides/ride-tab-bar';
+import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRideDashboardData } from '@/hooks/use-ride-dashboard-data';
 
 type RideIntent = 'find' | 'offer';
 
-const PICKER_COPY: Record<RideIntent, { title: string; subtitle: string }> = {
+type HistoryFilter = 'all' | 'offered' | 'requested';
+
+const PICKER_COPY: Record<
+  RideIntent,
+  {
+    title: string;
+    subtitle: string;
+  }
+> = {
   offer: {
     title: 'Offer a ride for...',
-    subtitle: 'Pick an activity you\'re attending to connect this ride to, or continue without one.',
+    subtitle:
+      'Pick an activity you\'re attending to connect this ride to, or continue without one.',
   },
   find: {
     title: 'Find a ride for...',
-    subtitle: 'Pick an activity you\'re attending to search rides for, or continue without one.',
+    subtitle:
+      'Pick an activity you\'re attending to search rides for, or continue without one.',
   },
 };
 
@@ -33,14 +58,38 @@ export default function RidesScreen() {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<RideTab>('discover');
-  const [region, setRegion] = useState<Region | null>(null);
-  const [loadingLocation, setLoadingLocation] = useState(true);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [rideIntent, setRideIntent] = useState<RideIntent | null>(null);
+  const [activeTab, setActiveTab] =
+    useState<RideTab>('discover');
+
+  const [region, setRegion] =
+    useState<Region | null>(null);
+
+  const [loadingLocation, setLoadingLocation] =
+    useState(true);
+
+  const [locationError, setLocationError] =
+    useState<string | null>(null);
+
+  const [rideIntent, setRideIntent] =
+    useState<RideIntent | null>(null);
+
+  const [historyFilter, setHistoryFilter] =
+    useState<HistoryFilter>('all');
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const {
+    offeredRides,
+    myRequests,
+    history,
+    dataLoading,
+    dataError,
+    loadRideData,
+  } = useRideDashboardData(historyFilter);
 
   useEffect(() => {
-    loadCurrentLocation();
+    void loadCurrentLocation();
   }, []);
 
   async function loadCurrentLocation() {
@@ -48,29 +97,50 @@ export default function RidesScreen() {
     setLocationError(null);
 
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const permission =
+        await Location.requestForegroundPermissionsAsync();
 
       if (permission.status !== 'granted') {
-        setLocationError('Location permission is required to show the map.');
+        setLocationError(
+          'Location permission is required to show the map.',
+        );
         return;
       }
 
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const currentLocation =
+        await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
 
       setRegion({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
+        latitude:
+          currentLocation.coords.latitude,
+        longitude:
+          currentLocation.coords.longitude,
         latitudeDelta: 0.04,
         longitudeDelta: 0.04,
       });
     } catch (error) {
       setLocationError(
-        error instanceof Error ? error.message : 'Unable to load your current location.',
+        error instanceof Error
+          ? error.message
+          : 'Unable to load your current location.',
       );
     } finally {
       setLoadingLocation(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+
+    try {
+      await Promise.all([
+        loadCurrentLocation(),
+        loadRideData(),
+      ]);
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -86,96 +156,435 @@ export default function RidesScreen() {
     setRideIntent(null);
   }
 
-  function goToRideScreen(intent: RideIntent, activityId?: string) {
-    const pathname = intent === 'offer' ? '/ride/offer' : '/ride/find';
+  function goToRideScreen(
+    intent: RideIntent,
+    activityId?: string,
+  ) {
     setRideIntent(null);
-    router.push(activityId ? { pathname, params: { activityId } } : pathname);
+
+    if (intent === 'offer') {
+      router.push(
+        activityId
+          ? {
+            pathname: '/ride/offer',
+            params: {
+              activityId,
+            },
+          }
+          : '/ride/offer',
+      );
+
+      return;
+    }
+
+    /*
+     * Find Ride flow:
+     *
+     * If an activity is selected, go directly
+     * to available rides for that activity.
+     *
+     * If no activity is selected, show regular rides.
+     */
+    router.push(
+      activityId
+        ? {
+          pathname: '/ride/available',
+          params: {
+            activityId,
+            rideType: 'activity',
+          },
+        }
+        : {
+          pathname: '/ride/available',
+          params: {
+            rideType: 'regular',
+          },
+        },
+    );
   }
 
   function handleOpenFullMap() {
     router.push('/ride/map');
   }
 
+  function openRideDetails(rideId: string) {
+    router.push({
+      pathname: '/ride/[id]',
+      params: {
+        id: rideId,
+      },
+    });
+  }
+
   function showHowItWorks() {
     Alert.alert(
       'How ride sharing works',
       [
-        'Offer a ride for any trip or connect it to a public activity.',
-        'Find a ride by pickup, destination, date, time, or activity.',
+        'Offer a ride when you are already traveling somewhere and have extra seats.',
+        'Find rides posted by other Rollin users.',
         'Passengers request a seat.',
-        'Drivers accept or decline requests.',
+        'The person offering the ride accepts or declines requests.',
+        'Accepted passengers can use live location when the trip begins.',
       ].join('\n\n'),
     );
   }
 
+  function renderLoading(
+    message: string,
+  ) {
+    return (
+      <View style={styles.loadingState}>
+        <ActivityIndicator
+          size="large"
+          color={colors.tint}
+        />
+
+        <AppText
+          style={[
+            styles.loadingText,
+            {
+              color: colors.icon,
+              fontFamily: Fonts?.sans,
+            },
+          ]}
+        >
+          {message}
+        </AppText>
+      </View>
+    );
+  }
+
+  function renderOfferingTab() {
+    if (dataLoading) {
+      return renderLoading(
+        'Loading your ride offers',
+      );
+    }
+
+    if (dataError) {
+      return (
+        <RideEmptyState
+          icon="alert-circle-outline"
+          title="Unable to load ride offers"
+          message={dataError}
+        />
+      );
+    }
+
+    if (offeredRides.length === 0) {
+      return (
+        <RideEmptyState
+          icon="car-outline"
+          title="No active ride offers"
+          message="Rides you offer will appear here."
+        />
+      );
+    }
+
+    return (
+      <View style={styles.list}>
+        {offeredRides.map((ride) => (
+          <OfferedRideDashboardCard
+            key={ride.id}
+            ride={ride}
+            onPress={() =>
+              openRideDetails(ride.id)
+            }
+          />
+        ))}
+      </View>
+    );
+  }
+
+  function renderRequestsTab() {
+    if (dataLoading) {
+      return renderLoading(
+        'Loading your ride requests',
+      );
+    }
+
+    if (dataError) {
+      return (
+        <RideEmptyState
+          icon="alert-circle-outline"
+          title="Unable to load requests"
+          message={dataError}
+        />
+      );
+    }
+
+    if (myRequests.length === 0) {
+      return (
+        <RideEmptyState
+          icon="account-arrow-right-outline"
+          title="No ride requests"
+          message="Your pending and accepted ride requests will appear here."
+        />
+      );
+    }
+
+    return (
+      <View style={styles.list}>
+        {myRequests.map((request) => (
+          <MyRideRequestDashboardCard
+            key={request.id}
+            request={request}
+            onPress={() =>
+              openRideDetails(
+                request.rideId,
+              )
+            }
+          />
+        ))}
+      </View>
+    );
+  }
+
+  function renderHistoryTab() {
+    if (dataLoading) {
+      return renderLoading(
+        'Loading ride history',
+      );
+    }
+
+    if (dataError) {
+      return (
+        <RideEmptyState
+          icon="alert-circle-outline"
+          title="Unable to load history"
+          message={dataError}
+        />
+      );
+    }
+
+    return (
+      <>
+        <View
+          style={[
+            styles.historyFilterBar,
+            {
+              backgroundColor:
+                colors.surfaceContainer,
+              borderColor:
+                colors.outlineVariant,
+            },
+          ]}
+        >
+          {(
+            [
+              ['all', 'All'],
+              ['offered', 'Offered'],
+              ['requested', 'Requested'],
+            ] as const
+          ).map(([key, label]) => {
+            const selected =
+              historyFilter === key;
+
+            return (
+              <TouchableOpacity
+                key={key}
+                accessibilityRole="button"
+                onPress={() =>
+                  setHistoryFilter(key)
+                }
+                style={[
+                  styles.historyFilterButton,
+                  selected && {
+                    backgroundColor:
+                      colors.cardBackground,
+                  },
+                ]}
+              >
+                <AppText
+                  style={[
+                    styles.historyFilterText,
+                    {
+                      color: selected
+                        ? colors.tint
+                        : colors.icon,
+                      fontFamily: Fonts?.sans,
+                    },
+                  ]}
+                >
+                  {label}
+                </AppText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {history.length === 0 ? (
+          <RideEmptyState
+            icon="history"
+            title="No ride history"
+            message="Completed, cancelled, and rejected rides will appear here."
+          />
+        ) : (
+          <View style={styles.list}>
+            {history.map((item) => (
+              <RideHistoryDashboardCard
+                key={item.id}
+                item={item}
+              />
+            ))}
+          </View>
+        )}
+      </>
+    );
+  }
+
   return (
-    <AppView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AppView
+      style={[
+        styles.container,
+        {
+          backgroundColor:
+            colors.background,
+        },
+      ]}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.tint}
+          />
+        }
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom:
+              insets.bottom + 110,
+          },
+        ]}
       >
-        <RideHeader onHelpPress={showHowItWorks} />
+        <RideHeader
+          onHelpPress={showHowItWorks}
+        />
 
-        <RideTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <RideTabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
         {activeTab === 'discover' && (
           <>
             <RideMapCard
               region={region}
-              loadingLocation={loadingLocation}
-              locationError={locationError}
-              onRetry={loadCurrentLocation}
-              onExpand={handleOpenFullMap}
+              loadingLocation={
+                loadingLocation
+              }
+              locationError={
+                locationError
+              }
+              onRetry={
+                loadCurrentLocation
+              }
+              onExpand={
+                handleOpenFullMap
+              }
             />
 
-            <RideActionCards onFindRide={handleFindRide} onOfferRide={handleOfferRide} />
+            <RideActionCards
+              onFindRide={
+                handleFindRide
+              }
+              onOfferRide={
+                handleOfferRide
+              }
+            />
           </>
         )}
 
-        {activeTab === 'offering' && (
-          <RideEmptyState
-            icon="car-outline"
-            title="No active ride offers"
-            message="Rides you are offering will appear here."
-          />
-        )}
+        {activeTab === 'offering' &&
+          renderOfferingTab()}
 
-        {activeTab === 'requests' && (
-          <RideEmptyState
-            icon="account-arrow-right-outline"
-            title="No ride requests"
-            message="Your pending and accepted requests will appear here."
-          />
-        )}
+        {activeTab === 'requests' &&
+          renderRequestsTab()}
 
-        {activeTab === 'history' && (
-          <RideEmptyState
-            icon="history"
-            title="No ride history"
-            message="Completed and cancelled rides will appear here."
-          />
-        )}
+        {activeTab === 'history' &&
+          renderHistoryTab()}
       </ScrollView>
 
       {rideIntent && (
         <AttendingActivityPickerSheet
           visible
-          title={PICKER_COPY[rideIntent].title}
-          subtitle={PICKER_COPY[rideIntent].subtitle}
-          onClose={closeRidePicker}
-          onSelectActivity={(activityId) => goToRideScreen(rideIntent, activityId)}
-          onSkip={() => goToRideScreen(rideIntent)}
+          title={
+            PICKER_COPY[rideIntent]
+              .title
+          }
+          subtitle={
+            PICKER_COPY[rideIntent]
+              .subtitle
+          }
+          onClose={
+            closeRidePicker
+          }
+          onSelectActivity={(
+            activityId,
+          ) =>
+            goToRideScreen(
+              rideIntent,
+              activityId,
+            )
+          }
+          onSkip={() =>
+            goToRideScreen(
+              rideIntent,
+            )
+          }
         />
       )}
     </AppView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    gap: 16,
-  },
-});
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+
+    content: {
+      gap: 16,
+    },
+
+    list: {
+      paddingHorizontal: 16,
+      gap: 12,
+    },
+
+    loadingState: {
+      minHeight: 280,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    loadingText: {
+      marginTop: 10,
+      fontSize: 13,
+    },
+
+    historyFilterBar: {
+      flexDirection: 'row',
+      borderWidth: 1,
+      borderRadius: 16,
+      marginHorizontal: 16,
+      padding: 4,
+    },
+
+    historyFilterButton: {
+      flex: 1,
+      minHeight: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+    },
+
+    historyFilterText: {
+      fontSize: 13,
+      fontWeight: '800',
+    },
+  });

@@ -1,6 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
@@ -10,6 +16,7 @@ import { AppView } from '@/components/view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { geocodeAddress } from '@/services/geocoding-service';
 
 type LinkedActivity = {
   id: string;
@@ -26,10 +33,13 @@ export default function OfferRideScreen() {
     activityId?: string;
   }>();
 
-  const [linkedActivity, setLinkedActivity] = useState<LinkedActivity | null>(null);
+  const [linkedActivity, setLinkedActivity] =
+    useState<LinkedActivity | null>(null);
+
   const [pickupLocation, setPickupLocation] = useState('');
   const [destination, setDestination] = useState('');
-  const [rideDateTime, setRideDateTime] = useState<Date | null>(null);
+  const [rideDateTime, setRideDateTime] =
+    useState<Date | null>(null);
   const [availableSeats, setAvailableSeats] = useState('1');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -42,18 +52,25 @@ export default function OfferRideScreen() {
 
     let cancelled = false;
 
-    (async () => {
+    async function loadActivity() {
       const { data, error } = await supabase
         .from('activities')
         .select('id, title, location')
         .eq('id', activityId)
         .single();
 
-      if (cancelled || error || !data) return;
+      if (cancelled || error || !data) {
+        return;
+      }
 
       setLinkedActivity(data);
-      if (data.location) setDestination(data.location);
-    })();
+
+      if (data.location) {
+        setDestination(data.location);
+      }
+    }
+
+    void loadActivity();
 
     return () => {
       cancelled = true;
@@ -70,68 +87,168 @@ export default function OfferRideScreen() {
   }
 
   async function handleSubmit() {
-    if (!pickupLocation.trim()) {
-      Alert.alert('Missing pickup location', 'Please enter where riders should meet you.');
+    const cleanedPickup = pickupLocation.trim();
+    const cleanedDestination = destination.trim();
+
+    if (!cleanedPickup) {
+      Alert.alert(
+        'Missing pickup location',
+        'Please enter where riders should meet you.',
+      );
       return;
     }
-    if (!destination.trim()) {
-      Alert.alert('Missing destination', 'Please enter where this ride is headed.');
+
+    if (!cleanedDestination) {
+      Alert.alert(
+        'Missing destination',
+        'Please enter where this ride is headed.',
+      );
       return;
     }
-    const seats = parseInt(availableSeats, 10);
-    if (!availableSeats.trim() || isNaN(seats) || seats < 1) {
-      Alert.alert('Invalid seats', 'Enter how many seats you have available (1 or more).');
+
+    if (
+      cleanedPickup.toLowerCase() ===
+      cleanedDestination.toLowerCase()
+    ) {
+      Alert.alert(
+        'Invalid route',
+        'Pickup and destination must be different.',
+      );
+      return;
+    }
+
+    const seats = Number.parseInt(availableSeats, 10);
+
+    if (
+      !availableSeats.trim() ||
+      Number.isNaN(seats) ||
+      seats < 1
+    ) {
+      Alert.alert(
+        'Invalid seats',
+        'Enter how many seats you have available.',
+      );
+      return;
+    }
+
+    if (!rideDateTime) {
+      Alert.alert(
+        'Missing departure time',
+        'Please select a departure date and time.',
+      );
+      return;
+    }
+
+    if (rideDateTime.getTime() <= Date.now()) {
+      Alert.alert(
+        'Invalid departure time',
+        'Departure time must be in the future.',
+      );
       return;
     }
 
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      Alert.alert('Not logged in', 'Please log in to offer a ride.');
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (!user) {
+        throw new Error('Please log in to offer a ride.');
+      }
+
+      const [pickupCoordinates, destinationCoordinates] =
+        await Promise.all([
+          geocodeAddress(cleanedPickup),
+          geocodeAddress(cleanedDestination),
+        ]);
+
+      const { error } = await supabase
+        .from('rides_offered')
+        .insert({
+          driver_id: user.id,
+          activity_id: linkedActivity?.id ?? null,
+
+          pickup_location: cleanedPickup,
+          pickup_latitude: pickupCoordinates.latitude,
+          pickup_longitude: pickupCoordinates.longitude,
+
+          destination: cleanedDestination,
+          destination_latitude:
+            destinationCoordinates.latitude,
+          destination_longitude:
+            destinationCoordinates.longitude,
+
+          date_time: rideDateTime.toISOString(),
+          available_seats: seats,
+          notes: notes.trim() || null,
+          status: 'open',
+        });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      Alert.alert(
+        'Ride offer posted',
+        'Your ride and map locations were saved successfully.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)/rides'),
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(
+        'Could not post ride',
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong.',
+      );
+    } finally {
       setSaving(false);
-      return;
     }
-
-    const { error } = await supabase.from('rides_offered').insert({
-      driver_id: user.id,
-      activity_id: linkedActivity?.id ?? null,
-      pickup_location: pickupLocation.trim(),
-      destination: destination.trim(),
-      date_time: rideDateTime ? rideDateTime.toISOString() : null,
-      available_seats: seats,
-      notes: notes.trim() || null,
-    });
-
-    setSaving(false);
-
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
-    }
-
-    Alert.alert('Ride offer posted', 'Your ride is now visible to riders.', [
-      { text: 'OK', onPress: () => router.replace('/(tabs)/rides') },
-    ]);
   }
 
   return (
-    <AppView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AppView
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+    >
       <OfferRideHeader onBack={goBack} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+        keyboardVerticalOffset={
+          Platform.OS === 'ios' ? 80 : 0
+        }
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingBottom: insets.bottom + 32,
+            },
+          ]}
         >
-          <OfferRideIntroCard linkedActivityTitle={linkedActivity?.title} />
+          <OfferRideIntroCard
+            linkedActivityTitle={linkedActivity?.title}
+          />
 
           <OfferRideForm
             pickupLocation={pickupLocation}

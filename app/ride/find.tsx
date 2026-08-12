@@ -50,19 +50,7 @@ export default function FindRideScreen() {
         const { data, error } = await supabase
             .from('activities')
             .select(
-                [
-                    'id',
-                    'title',
-                    'category',
-                    'description',
-                    'image_url',
-                    'location',
-                    'date_time',
-                    'rides_available',
-                    'latitude',
-                    'longitude',
-                    'host_id',
-                ].join(', '),
+                'id, title, category, description, image_url, location, date_time, rides_available, latitude, longitude, host_id',
             )
             .gt('rides_available', 0)
             .gte('date_time', new Date().toISOString())
@@ -173,7 +161,7 @@ export default function FindRideScreen() {
                         ]}
                     >
                         <MaterialCommunityIcons
-                            name="calendar-marker-outline"
+                            name="calendar-clock-outline"
                             size={24}
                             color={colors.onSecondaryContainer}
                         />

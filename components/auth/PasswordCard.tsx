@@ -8,7 +8,7 @@ import { Button, Text, TextInput } from "react-native-paper";
 interface PasswordCardProps {
   email: string;
   onLoginClick: () => void;
-  onSignUpSuccess: () => void;
+  onSignUpSuccess?: () => void;
 }
 
 export default function PasswordCard({
@@ -25,7 +25,7 @@ export default function PasswordCard({
   const hasMinimumLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!hasMinimumLength) {
       Alert.alert("Invalid Password", "Password must be at least 8 characters.");
       return;
@@ -46,7 +46,24 @@ export default function PasswordCard({
       password,
     });
 
-    onSignUpSuccess();
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) {
+        console.log(error.message);
+        Alert.alert("Sign Up Error", error.message);
+        return;
+      }
+      if (data.user) {
+        onSignUpSuccess?.();
+        router.replace("/EmailConfirmation");
+      }
+    } catch (e: any) {
+      console.log(e.message);
+      Alert.alert("Sign Up Error", e.message || "An unexpected error occurred.");
+    }
   };
   return (
     <View
@@ -101,16 +118,7 @@ export default function PasswordCard({
       </Text>
       <Button
         mode="contained"
-        onPress={async () => {
-          if (email && passwordsMatch) {
-            const { data, error } = await supabase.auth.signUp({
-              email,
-              password,
-            });
-            if (error) console.log(error.message); // REMINDER to add error logic here
-            data.user && router.replace("/EmailConfirmation");
-          }
-        }}
+        onPress={handleSignUp}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}

@@ -25,7 +25,7 @@ type CalActivity = {
   rsvpCount: number;
 };
 
-const OWN_COLOR = '#EF4444';
+const OWN_COLOR = '#fea619';
 const OTHER_COLOR = '#3B82F6';
 
 function formatTime(iso: string) {

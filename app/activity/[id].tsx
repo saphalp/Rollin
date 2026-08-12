@@ -166,10 +166,7 @@ export default function ActivityDetailScreen() {
           attendeeProfiles.map((p: any) => ({
             id: p.id,
             full_name: p.full_name ?? p.email?.split("@")[0] ?? "Rollin' User",
-            avatarUrl: resolveAvatarUri(p.profile_picture)
-              ? supabase.storage.from("avatars").getPublicUrl(p.profile_picture)
-                  .data.publicUrl
-              : null,
+            avatarUrl: resolveAvatarUri(p.profile_picture),
           })),
         );
       }

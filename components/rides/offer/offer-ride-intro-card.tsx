@@ -7,26 +7,34 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type OfferRideIntroCardProps = {
   linkedActivityTitle?: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  defaultTitle?: string;
+  defaultSubtitle?: string;
+  linkedSubtitle?: string;
 };
 
-export function OfferRideIntroCard({ linkedActivityTitle }: OfferRideIntroCardProps) {
+export function OfferRideIntroCard({
+  linkedActivityTitle,
+  icon = 'car-multiple',
+  defaultTitle = 'Create a ride offer',
+  defaultSubtitle = 'Create a general trip or connect the ride to a public activity.',
+  linkedSubtitle = 'This ride will be connected to the selected activity.',
+}: OfferRideIntroCardProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
 
   return (
     <View style={[styles.introCard, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
       <View style={[styles.iconContainer, { backgroundColor: colors.primaryContainer }]}>
-        <MaterialCommunityIcons name="car-multiple" size={30} color={colors.onPrimary} />
+        <MaterialCommunityIcons name={icon} size={30} color={colors.onPrimary} />
       </View>
 
       <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]}>
-        {linkedActivityTitle ?? 'Create a ride offer'}
+        {linkedActivityTitle ?? defaultTitle}
       </AppText>
 
       <AppText style={[styles.subtitle, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-        {linkedActivityTitle
-          ? 'This ride will be connected to the selected activity.'
-          : 'Create a general trip or connect the ride to a public activity.'}
+        {linkedActivityTitle ? linkedSubtitle : defaultSubtitle}
       </AppText>
     </View>
   );

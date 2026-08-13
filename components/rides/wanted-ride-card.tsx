@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -7,50 +6,59 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-export type StandaloneRideCardProps = {
-  driverName: string;
-  driverAvatarUri: string;
+export type WantedRideCardProps = {
+  requesterName: string;
+  requesterAvatarUri: string;
   pickupLocation: string;
   destination: string;
   dateLabel?: string;
-  availableSeats: number;
+  isOwn: boolean;
   onPress?: () => void;
+  onCancel?: () => void;
+  cancelling?: boolean;
 };
 
-export function StandaloneRideCard({
-  driverName,
-  driverAvatarUri,
+export function WantedRideCard({
+  requesterName,
+  requesterAvatarUri,
   pickupLocation,
   destination,
   dateLabel,
-  availableSeats,
+  isOwn,
   onPress,
-}: StandaloneRideCardProps) {
+  onCancel,
+  cancelling,
+}: WantedRideCardProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
+      activeOpacity={isOwn ? 1 : 0.85}
+      onPress={isOwn ? undefined : onPress}
       style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
     >
       <View style={styles.header}>
-        <Image source={{ uri: driverAvatarUri }} style={styles.avatar} contentFit="cover" />
+        <Image source={{ uri: requesterAvatarUri }} style={styles.avatar} contentFit="cover" />
 
         <View style={styles.headerText}>
           <AppText
             numberOfLines={1}
-            style={[styles.driverName, { color: colors.text, fontFamily: Fonts?.sans }]}
+            style={[styles.requesterName, { color: colors.text, fontFamily: Fonts?.sans }]}
           >
-            {driverName}
+            {isOwn ? "You" : requesterName}
           </AppText>
-          <AppText style={[styles.driverLabel, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-            Offering a ride
+          <AppText style={[styles.requesterLabel, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+            {isOwn ? "Your ride request" : "Wants a ride"}
           </AppText>
         </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.tint} />
+        <View style={[styles.openBadge, { backgroundColor: colors.secondaryContainer }]}>
+          <IconSymbol name="person.2.fill" size={11} color={colors.onSecondaryContainer} />
+          <AppText style={[styles.openBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
+            Open request
+          </AppText>
+        </View>
       </View>
 
       <View style={styles.routeBlock}>
@@ -88,12 +96,23 @@ export function StandaloneRideCard({
           </AppText>
         </View>
 
-        <View style={[styles.seatsBadge, { backgroundColor: colors.secondaryContainer }]}>
-          <IconSymbol name="person.2.fill" size={12} color={colors.onSecondaryContainer} />
-          <AppText style={[styles.seatsText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-            {availableSeats} seat{availableSeats === 1 ? "" : "s"}
-          </AppText>
-        </View>
+        {isOwn ? (
+          <TouchableOpacity
+            onPress={onCancel}
+            disabled={cancelling}
+            style={[styles.cancelButton, { borderColor: colors.error }]}
+          >
+            <AppText style={[styles.cancelText, { color: colors.error, fontFamily: Fonts?.sans }]}>
+              {cancelling ? "Cancelling..." : "Cancel request"}
+            </AppText>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.offerHint}>
+            <AppText style={[styles.offerHintText, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+              Offer this ride
+            </AppText>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -119,13 +138,25 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
-  driverName: {
+  requesterName: {
     fontSize: 15,
     fontWeight: "700",
   },
-  driverLabel: {
+  requesterLabel: {
     marginTop: 1,
     fontSize: 12,
+  },
+  openBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  openBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   routeBlock: {
     gap: 2,
@@ -166,15 +197,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flexShrink: 1,
   },
-  seatsBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  cancelButton: {
+    borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  seatsText: {
+  cancelText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  offerHint: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  offerHintText: {
     fontSize: 12,
     fontWeight: "700",
   },

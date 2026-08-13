@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     route: {
-        fontSize: 14,
-        fontWeight: '800',
+        fontSize: 15,
+        fontWeight: '700',
     },
     meta: {
         marginTop: 3,
@@ -250,12 +250,12 @@ const styles = StyleSheet.create({
         padding: 10,
     },
     statValue: {
-        fontSize: 17,
-        fontWeight: '900',
+        fontSize: 16,
+        fontWeight: '700',
     },
     statLabel: {
         marginTop: 1,
-        fontSize: 10,
+        fontSize: 11,
     },
     statusBadge: {
         alignSelf: 'center',
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: 11,
-        fontWeight: '800',
+        fontWeight: '600',
         textTransform: 'capitalize',
     },
 });

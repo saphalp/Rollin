@@ -386,7 +386,7 @@ export default function RideDetailsScreen() {
                                 { borderColor: colors.error },
                             ]}
                         >
-                            <AppText style={{ color: colors.error, fontWeight: '800' }}>
+                            <AppText style={{ color: colors.error, fontWeight: '700' }}>
                                 Decline
                             </AppText>
                         </TouchableOpacity>
@@ -409,7 +409,7 @@ export default function RideDetailsScreen() {
                                 <AppText
                                     style={{
                                         color: colors.onPrimary,
-                                        fontWeight: '800',
+                                        fontWeight: '700',
                                     }}
                                 >
                                     Accept
@@ -615,7 +615,7 @@ export default function RideDetailsScreen() {
                                 ]}
                             >
                                 <AppText
-                                    style={{ color: colors.error, fontWeight: '800' }}
+                                    style={{ color: colors.error, fontWeight: '700' }}
                                 >
                                     Cancel Ride
                                 </AppText>
@@ -641,7 +641,7 @@ export default function RideDetailsScreen() {
                                     color={colors.tint}
                                 />
 
-                                <AppText style={{ color: colors.text, fontWeight: '800' }}>
+                                <AppText style={{ color: colors.text, fontWeight: '700' }}>
                                     Request: {request.status.toUpperCase()}
                                 </AppText>
                             </View>
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
         flex: 1,
         textAlign: 'center',
         fontSize: 17,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     content: {
         padding: 16,
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         marginTop: 4,
         fontSize: 17,
-        fontWeight: '900',
+        fontWeight: '700',
     },
     emptyText: {
         paddingVertical: 14,
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     },
     name: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     smallText: {
         marginTop: 3,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
     },
     mainButtonText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     cancelButton: {
         minHeight: 48,

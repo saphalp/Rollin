@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 17,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     headerSubtitle: {
         marginTop: 1,
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     },
     activityTitle: {
         fontSize: 16,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     categoryText: {
         marginTop: 2,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     },
     seatBadgeText: {
         fontSize: 13,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     metadataRow: {
         flexDirection: 'row',
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     stateTitle: {
         marginTop: 16,
         fontSize: 18,
-        fontWeight: '800',
+        fontWeight: '700',
         textAlign: 'center',
     },
     stateMessage: {
@@ -735,6 +735,6 @@ const styles = StyleSheet.create({
     },
     retryButtonText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
 });

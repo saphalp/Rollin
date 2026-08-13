@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 17,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     headerSubtitle: {
         marginTop: 1,
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     },
     driverTitle: {
         fontSize: 16,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     driverDescription: {
         marginTop: 4,
@@ -462,6 +462,6 @@ const styles = StyleSheet.create({
     },
     shareText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
 });

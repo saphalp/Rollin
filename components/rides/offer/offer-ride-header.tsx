@@ -8,9 +8,15 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type OfferRideHeaderProps = {
   onBack: () => void;
+  title?: string;
+  subtitle?: string;
 };
 
-export function OfferRideHeader({ onBack }: OfferRideHeaderProps) {
+export function OfferRideHeader({
+  onBack,
+  title = 'Offer a Ride',
+  subtitle = 'Share your available seats',
+}: OfferRideHeaderProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
@@ -37,11 +43,11 @@ export function OfferRideHeader({ onBack }: OfferRideHeaderProps) {
 
       <View style={styles.headerTitleContainer}>
         <AppText numberOfLines={1} style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-          Offer a Ride
+          {title}
         </AppText>
 
         <AppText numberOfLines={1} style={[styles.headerSubtitle, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-          Share your available seats
+          {subtitle}
         </AppText>
       </View>
 

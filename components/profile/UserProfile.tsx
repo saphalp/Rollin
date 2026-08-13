@@ -1,6 +1,7 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
+import { useProfileInterests } from "@/hooks/use-profile-interests";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
@@ -29,8 +30,6 @@ import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 
 const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
-
-const PLACEHOLDER_INTERESTS: string[] = [];
 
 type ActivityRow = {
   id: string;
@@ -102,29 +101,6 @@ function sortActivitiesByDate(activities: ActivityRow[]): ActivityRow[] {
   });
 }
 
-const INTEREST_OPTIONS = [
-  "Board Games",
-  "Soccer",
-  "Study Nights",
-  "Basketball",
-  "Hiking",
-  "Music",
-  "Movies",
-  "Coding",
-  "Cooking",
-  "Photography",
-  "Gaming",
-  "Yoga",
-  "Running",
-  "Cycling",
-  "Concerts",
-  "Coffee",
-  "Reading",
-  "Volunteering",
-  "Art",
-  "Dance",
-];
-
 interface UserProfileProps {
   userId: string;
 }
@@ -136,8 +112,9 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const { profile, isLoading: profileLoading, isOwnProfile } =
     useProfile(userId);
   const { followState, toggle: toggleFollow } = useFollow(userId);
+  const { allInterestNames, selectedNames, save: saveInterests } =
+    useProfileInterests(userId);
 
-  const [interests, setInterests] = useState<string[]>(PLACEHOLDER_INTERESTS);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activityView, setActivityView] =
     useState<ActivityView>("created");
@@ -286,8 +263,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
         <View>
           <SectionHeader header="Interests" />
           <View style={styles.chipsRow}>
-            {interests.map((interest, key) => (
-              <InterestChips label={interest} key={key} />
+            {selectedNames.map((interest) => (
+              <InterestChips label={interest} key={interest} />
             ))}
             {isOwnProfile && (
               <Chip
@@ -369,10 +346,10 @@ export default function UserProfile({ userId }: UserProfileProps) {
         <InterestPickerSheet
           visible={pickerVisible}
           onClose={() => setPickerVisible(false)}
-          currentInterests={interests}
-          options={INTEREST_OPTIONS}
+          currentInterests={selectedNames}
+          options={allInterestNames}
           onSave={(next) => {
-            setInterests(next);
+            saveInterests(next);
             setPickerVisible(false);
           }}
         />

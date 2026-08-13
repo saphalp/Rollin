@@ -14,6 +14,8 @@ export type RideRequestStatus =
 
 export type RideFilter = 'all' | 'activity' | 'regular';
 
+export type WantedRideStatus = 'open' | 'fulfilled' | 'cancelled';
+
 export type Coordinates = {
     latitude: number;
     longitude: number;
@@ -53,6 +55,22 @@ export type RideOffer = {
     createdAt: string | null;
 
     driver: DriverSummary;
+    activity: ActivitySummary | null;
+};
+
+export type WantedRide = {
+    id: string;
+    requesterId: string;
+    activityId: string | null;
+
+    pickupLocation: string;
+    destination: string;
+    dateTime: string | null;
+    notes: string | null;
+    status: WantedRideStatus;
+    createdAt: string | null;
+
+    requester: DriverSummary;
     activity: ActivitySummary | null;
 };
 

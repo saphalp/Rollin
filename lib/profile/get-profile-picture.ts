@@ -32,5 +32,5 @@ export async function getProfilePictureUrl(): Promise<string | null> {
     .from("avatars")
     .getPublicUrl(profile.profile_picture);
 
-  return `${data.publicUrl}?updated=${Date.now()}`;
+  return data.publicUrl;
 }

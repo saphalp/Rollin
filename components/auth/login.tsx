@@ -2,7 +2,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, View, useColorScheme } from "react-native";
+import { StyleSheet, View, useColorScheme } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import GoogleSignInButton from "./SignInWithGoogle";
 
@@ -16,40 +16,42 @@ export default function Login({ onSignUpClick }: LoginProps) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  async function handleForgotPassword() {
+  async function handleLogin() {
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      Alert.alert(
-        "Enter your email",
-        "Enter the email address associated with your account first.",
-      );
+    if (!normalizedEmail || !password) {
+      setLoginError("Enter both your email and password.");
       return;
     }
 
-    setIsSendingReset(true);
+    setLoginError("");
+    setIsLoggingIn(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      normalizedEmail,
-    );
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
 
-    setIsSendingReset(false);
+    setIsLoggingIn(false);
 
     if (error) {
-      console.error("Password reset request failed:", error);
-      Alert.alert(
-        "Unable to send reset email",
-        "Please check your connection and try again.",
+      setLoginError(
+        error.code === "invalid_credentials"
+          ? "Incorrect email or password."
+          : "Unable to log in right now. Please try again.",
       );
       return;
     }
 
-    Alert.alert(
-      "Check your inbox",
-      "If an account exists for that email, you will receive a password reset link shortly.",
-    );
+    if (data.user?.confirmed_at) {
+      router.replace("/(tabs)");
+    } else if (data.user) {
+      router.replace("/(auth)/EmailConfirmation");
+    }
   }
 
   return (
@@ -72,7 +74,10 @@ export default function Login({ onSignUpClick }: LoginProps) {
         mode="outlined"
         placeholder="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(value) => {
+          setEmail(value);
+          if (loginError) setLoginError("");
+        }}
         autoCapitalize="none"
         keyboardType="email-address"
         style={[styles.input, { backgroundColor: colors.surface }]}
@@ -87,9 +92,19 @@ export default function Login({ onSignUpClick }: LoginProps) {
         mode="outlined"
         placeholder="Password"
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(value) => {
+          setPassword(value);
+          if (loginError) setLoginError("");
+        }}
         autoCapitalize="none"
-        secureTextEntry
+        secureTextEntry={!isPasswordVisible}
+        right={
+          <TextInput.Icon
+            icon={isPasswordVisible ? "eye" : "eye-off"}
+            onPress={() => setIsPasswordVisible((visible) => !visible)}
+            forceTextInputFocus={false}
+          />
+        }
         style={[styles.input, { backgroundColor: colors.surface }]}
         outlineColor={colors.outlineVariant}
         activeOutlineColor={colors.tint}
@@ -98,12 +113,14 @@ export default function Login({ onSignUpClick }: LoginProps) {
         theme={{ roundness: 15 }}
       />
 
+      {loginError ? (
+        <Text style={[styles.error, { color: colors.error }]}>{loginError}</Text>
+      ) : null}
+
       <Button
         mode="text"
         compact
-        onPress={handleForgotPassword}
-        loading={isSendingReset}
-        disabled={isSendingReset}
+        onPress={() => router.push("/(auth)/forgot-password" as never)}
         textColor={colors.tint}
         style={styles.forgotButton}
         labelStyle={styles.forgotButtonLabel}
@@ -113,22 +130,9 @@ export default function Login({ onSignUpClick }: LoginProps) {
 
       <Button
         mode="contained"
-        onPress={async () => {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) {
-            console.log(error);
-          }
-          if (data.user) {
-            if (data.user.confirmed_at) {
-              router.replace("/(tabs)");
-            } else {
-              router.replace("/(auth)/EmailConfirmation");
-            }
-          }
-        }}
+        onPress={handleLogin}
+        loading={isLoggingIn}
+        disabled={isLoggingIn}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}
@@ -188,6 +192,10 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: 14,
+  },
+  error: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   forgotButton: {
     alignSelf: "flex-end",

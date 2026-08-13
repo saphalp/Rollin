@@ -21,7 +21,9 @@ export default function PasswordCard({
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-    const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
   const hasMinimumLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
 
@@ -40,11 +42,6 @@ export default function PasswordCard({
       Alert.alert("Passwords Do Not Match", "Please make sure both passwords match.");
       return;
     }
-
-    console.log("Signed up with:", {
-      email,
-      password,
-    });
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -87,7 +84,14 @@ export default function PasswordCard({
         value={password}
         onChangeText={setPassword}
         autoCapitalize="none"
-        secureTextEntry
+        secureTextEntry={!isPasswordVisible}
+        right={
+          <TextInput.Icon
+            icon={isPasswordVisible ? "eye" : "eye-off"}
+            onPress={() => setIsPasswordVisible((visible) => !visible)}
+            forceTextInputFocus={false}
+          />
+        }
         style={[styles.input, { backgroundColor: colors.surface }]}
         outlineColor={colors.outlineVariant}
         activeOutlineColor={colors.tint}
@@ -102,7 +106,16 @@ export default function PasswordCard({
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         autoCapitalize="none"
-        secureTextEntry
+        secureTextEntry={!isConfirmPasswordVisible}
+        right={
+          <TextInput.Icon
+            icon={isConfirmPasswordVisible ? "eye" : "eye-off"}
+            onPress={() =>
+              setIsConfirmPasswordVisible((visible) => !visible)
+            }
+            forceTextInputFocus={false}
+          />
+        }
         style={[styles.input, { backgroundColor: colors.surface }]}
         outlineColor={colors.outlineVariant}
         activeOutlineColor={colors.tint}

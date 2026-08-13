@@ -97,8 +97,6 @@ export default function AuthProvider({
     }
 
     const loadProfile = async () => {
-      setIsLoading(true);
-
       try {
         await refreshProfile();
       } finally {

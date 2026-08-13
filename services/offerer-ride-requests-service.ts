@@ -92,9 +92,7 @@ export async function fetchRidePassengerRequests(
     const { data: profiles, error: profilesError } =
         await supabase
             .from('profiles')
-            .select(
-                'id, full_name, username',
-            )
+            .select('id, full_name')
             .in('id', requesterIds);
 
     if (profilesError) {
@@ -106,9 +104,7 @@ export async function fetchRidePassengerRequests(
     const profileMap = new Map(
         (profiles ?? []).map((profile) => [
             profile.id,
-            profile.full_name ||
-            profile.username ||
-            'Rollin user',
+            profile.full_name?.trim() || 'Rollin user',
         ]),
     );
 

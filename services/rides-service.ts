@@ -53,8 +53,8 @@ function mapDriver(profile: Record<string, unknown> | undefined, id: string): Dr
 
     return {
         id,
-        name: fullName || username || 'Rollin driver',
-        username,
+        name: fullName || 'Rollin user',
+        username: null,
         avatarUrl,
     };
 }

@@ -13,12 +13,17 @@ type OfferRideFormProps = {
   onDestinationChange: (value: string) => void;
   rideDateTime: Date | null;
   onRideDateTimeChange: (date: Date) => void;
-  availableSeats: string;
-  onAvailableSeatsChange: (value: string) => void;
+  availableSeats?: string;
+  onAvailableSeatsChange?: (value: string) => void;
   notes: string;
   onNotesChange: (value: string) => void;
   saving: boolean;
   onSubmit: () => void;
+  submitLabel?: string;
+  savingLabel?: string;
+  pickupPlaceholder?: string;
+  destinationPlaceholder?: string;
+  notesPlaceholder?: string;
 };
 
 export function OfferRideForm({
@@ -34,6 +39,11 @@ export function OfferRideForm({
   onNotesChange,
   saving,
   onSubmit,
+  submitLabel = 'Post Ride Offer',
+  savingLabel = 'Posting...',
+  pickupPlaceholder = 'Where should riders meet you?',
+  destinationPlaceholder = 'Where are you headed?',
+  notesPlaceholder = 'Car details, meeting spot, anything riders should know...',
 }: OfferRideFormProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
@@ -61,14 +71,14 @@ export function OfferRideForm({
           label="Pickup Location"
           value={pickupLocation}
           onChangeText={onPickupLocationChange}
-          placeholder="Where should riders meet you?"
+          placeholder={pickupPlaceholder}
         />
 
         <PostField
           label="Destination"
           value={destination}
           onChangeText={onDestinationChange}
-          placeholder="Where are you headed?"
+          placeholder={destinationPlaceholder}
         />
 
         <View style={styles.row}>
@@ -94,19 +104,21 @@ export function OfferRideForm({
           </View>
         </View>
 
-        <PostField
-          label="Available Seats"
-          value={availableSeats}
-          onChangeText={onAvailableSeatsChange}
-          placeholder="1"
-          keyboardType="numeric"
-        />
+        {onAvailableSeatsChange && (
+          <PostField
+            label="Available Seats"
+            value={availableSeats ?? ''}
+            onChangeText={onAvailableSeatsChange}
+            placeholder="1"
+            keyboardType="numeric"
+          />
+        )}
 
         <PostField
           label="Notes (optional)"
           value={notes}
           onChangeText={onNotesChange}
-          placeholder="Car details, meeting spot, anything riders should know..."
+          placeholder={notesPlaceholder}
           multiline
         />
       </View>
@@ -117,7 +129,7 @@ export function OfferRideForm({
         style={[styles.submitButton, { backgroundColor: saving ? colors.outline : colors.tint }]}
       >
         <AppText style={[styles.submitText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-          {saving ? 'Posting...' : 'Post Ride Offer'}
+          {saving ? savingLabel : submitLabel}
         </AppText>
       </TouchableOpacity>
     </>

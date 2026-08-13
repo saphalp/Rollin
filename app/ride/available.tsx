@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -14,12 +15,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AvailableRideCard } from '@/components/rides/available-ride-card';
 import { RideFilterBar } from '@/components/rides/ride-filter-bar';
+import { WantedRideCard } from '@/components/rides/wanted-ride-card';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
+import { useAuthContext } from '@/hooks/use-auth-context';
 import { useAvailableRides } from '@/hooks/use-available-rides';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRideWantedRequests } from '@/hooks/use-ride-wanted-requests';
 import { openRideDetails } from '@/navigation/ride-navigation';
+import { cancelWantedRequest } from '@/services/ride-wanted-requests-service';
 import { RideFilter } from '@/types/rides';
 
 export default function AvailableRidesScreen() {
@@ -31,6 +36,8 @@ export default function AvailableRidesScreen() {
     const theme = useColorScheme() ?? 'light';
     const colors = Colors[theme];
     const insets = useSafeAreaInsets();
+    const { claims } = useAuthContext();
+    const currentUserId = claims?.sub as string | undefined;
 
     const activityId =
         typeof params.activityId === 'string' && params.activityId
@@ -53,6 +60,14 @@ export default function AvailableRidesScreen() {
             filter,
             search,
         });
+
+    const {
+        requests: wantedRequests,
+        loading: wantedLoading,
+        refresh: refreshWantedRequests,
+    } = useRideWantedRequests({ activityId, filter });
+
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
 
     const title = activityId
         ? 'Activity Rides'
@@ -83,6 +98,44 @@ export default function AvailableRidesScreen() {
             router.back();
         } else {
             router.replace('/(tabs)/rides');
+        }
+    }
+
+    async function onRefresh() {
+        await Promise.all([refresh(), refreshWantedRequests()]);
+    }
+
+    function handleRequestRide() {
+        router.push({
+            pathname: '/ride/request',
+            params: activityId ? { activityId } : {},
+        });
+    }
+
+    function handleOfferForRequest(requestId: string, pickup: string) {
+        router.push({
+            pathname: '/ride/offer',
+            params: {
+                ...(activityId ? { activityId } : {}),
+                pickupLocation: pickup,
+                sourceRequestId: requestId,
+            },
+        });
+    }
+
+    async function handleCancelRequest(requestId: string) {
+        setCancellingId(requestId);
+
+        try {
+            await cancelWantedRequest(requestId);
+            await refreshWantedRequests();
+        } catch (error) {
+            Alert.alert(
+                'Could not cancel request',
+                error instanceof Error ? error.message : 'Something went wrong.',
+            );
+        } finally {
+            setCancellingId(null);
         }
     }
 
@@ -154,7 +207,7 @@ export default function AvailableRidesScreen() {
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
-                        onRefresh={refresh}
+                        onRefresh={onRefresh}
                         tintColor={colors.tint}
                     />
                 }
@@ -206,6 +259,52 @@ export default function AvailableRidesScreen() {
                     onChange={setFilter}
                     activityLocked={Boolean(activityId)}
                 />
+
+                {!wantedLoading && wantedRequests.length > 0 && (
+                    <View style={styles.wantedSection}>
+                        <AppText
+                            style={[
+                                styles.wantedHeading,
+                                { color: colors.text, fontFamily: Fonts?.sans },
+                            ]}
+                        >
+                            People looking for a ride
+                        </AppText>
+
+                        <View style={styles.list}>
+                            {wantedRequests.map((request) => {
+                                const isOwn = request.requesterId === currentUserId;
+
+                                return (
+                                    <WantedRideCard
+                                        key={request.id}
+                                        requesterName={request.requester.name}
+                                        requesterAvatarUri={request.requester.avatarUrl ?? ''}
+                                        pickupLocation={request.pickupLocation}
+                                        destination={request.destination}
+                                        dateLabel={
+                                            request.dateTime
+                                                ? new Date(request.dateTime).toLocaleString(undefined, {
+                                                    weekday: 'short',
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                })
+                                                : undefined
+                                        }
+                                        isOwn={isOwn}
+                                        cancelling={cancellingId === request.id}
+                                        onPress={() =>
+                                            handleOfferForRequest(request.id, request.pickupLocation)
+                                        }
+                                        onCancel={() => handleCancelRequest(request.id)}
+                                    />
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
 
                 {loading ? (
                     <View style={styles.centerState}>
@@ -319,6 +418,31 @@ export default function AvailableRidesScreen() {
                         >
                             {emptyMessage}
                         </AppText>
+
+                        <TouchableOpacity
+                            onPress={handleRequestRide}
+                            style={[
+                                styles.requestButton,
+                                { backgroundColor: colors.tint },
+                            ]}
+                        >
+                            <MaterialCommunityIcons
+                                name="car-search-outline"
+                                size={19}
+                                color={colors.onPrimary}
+                            />
+                            <AppText
+                                style={[
+                                    styles.requestButtonText,
+                                    {
+                                        color: colors.onPrimary,
+                                        fontFamily: Fonts?.sans,
+                                    },
+                                ]}
+                            >
+                                Request a Ride
+                            </AppText>
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.list}>
@@ -394,6 +518,13 @@ const styles = StyleSheet.create({
     list: {
         gap: 12,
     },
+    wantedSection: {
+        gap: 12,
+    },
+    wantedHeading: {
+        fontSize: 16,
+        fontWeight: '700',
+    },
     centerState: {
         minHeight: 320,
         alignItems: 'center',
@@ -428,6 +559,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     retryText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    requestButton: {
+        marginTop: 18,
+        minHeight: 46,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 14,
+        paddingHorizontal: 20,
+        gap: 8,
+    },
+    requestButtonText: {
         fontSize: 14,
         fontWeight: '700',
     },

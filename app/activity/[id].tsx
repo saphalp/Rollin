@@ -163,14 +163,36 @@ export default function ActivityDetailScreen() {
 
       if (attendeeProfiles) {
         setAttendees(
-          attendeeProfiles.map((p: any) => ({
-            id: p.id,
-            full_name: p.full_name ?? p.email?.split("@")[0] ?? "Rollin' User",
-            avatarUrl: resolveAvatarUri(p.profile_picture)
-              ? supabase.storage.from("avatars").getPublicUrl(p.profile_picture)
-                  .data.publicUrl
-              : null,
-          })),
+          attendeeProfiles.map((p: any) => {
+            const picture = p.profile_picture?.trim();
+
+            let avatarUrl: string | null = null;
+
+            if (picture) {
+              if (
+                picture.startsWith("http://") ||
+                picture.startsWith("https://")
+              ) {
+                avatarUrl = picture;
+              } else {
+                avatarUrl = supabase.storage
+                  .from("avatars")
+                  .getPublicUrl(picture)
+                  .data.publicUrl;
+              }
+            }
+
+            return {
+              id: p.id,
+
+              full_name:
+                p.full_name ??
+                p.email?.split("@")[0] ??
+                "Rollin' User",
+
+              avatarUrl,
+            };
+          }),
         );
       }
     }
@@ -680,13 +702,13 @@ export default function ActivityDetailScreen() {
                   styles.rsvpButton,
                   myRequestStatus === "pending"
                     ? {
-                        backgroundColor: colors.surfaceContainerHigh,
-                        borderColor: colors.outline,
-                      }
+                      backgroundColor: colors.surfaceContainerHigh,
+                      borderColor: colors.outline,
+                    }
                     : {
-                        backgroundColor: colors.tint,
-                        borderColor: colors.tint,
-                      },
+                      backgroundColor: colors.tint,
+                      borderColor: colors.tint,
+                    },
                 ]}
               >
                 <AppText

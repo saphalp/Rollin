@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     label: {
-        fontSize: 15,
-        fontWeight: '800',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

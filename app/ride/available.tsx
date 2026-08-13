@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 17,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     headerSubtitle: {
         marginTop: 1,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     stateTitle: {
         marginTop: 14,
         fontSize: 18,
-        fontWeight: '800',
+        fontWeight: '700',
         textAlign: 'center',
     },
     stateMessage: {
@@ -429,6 +429,6 @@ const styles = StyleSheet.create({
     },
     retryText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
 });

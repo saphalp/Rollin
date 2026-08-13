@@ -6,7 +6,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type RideEmptyStateProps = {
-  icon: 'car-outline' | 'account-arrow-right-outline' | 'history';
+  icon: 'car-outline' | 'account-arrow-right-outline' | 'history' | 'alert-circle-outline';
   title: string;
   message: string;
 };

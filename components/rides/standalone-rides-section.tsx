@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { StandaloneRideCard } from "@/components/rides/standalone-ride-card";
 import { AppText } from "@/components/text";
@@ -33,11 +33,7 @@ export function StandaloneRidesSection() {
       {loading ? (
         <ActivityIndicator color={colors.tint} style={styles.loader} />
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-        >
+        <View style={styles.list}>
           {rides.map((ride) => (
             <StandaloneRideCard
               key={ride.id}
@@ -47,10 +43,15 @@ export function StandaloneRidesSection() {
               destination={ride.destination}
               dateLabel={ride.dateLabel}
               availableSeats={ride.availableSeats}
-              onPress={() => router.push(`/profile/${ride.driverId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/ride/[id]",
+                  params: { id: ride.id },
+                })
+              }
             />
           ))}
-        </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -75,7 +76,6 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 12,
-    paddingRight: 4,
   },
   loader: {
     marginVertical: 12,

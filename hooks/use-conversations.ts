@@ -78,11 +78,11 @@ export function useConversations() {
     const groupConversations = (conversationRows ?? []).filter((c: any) => c.type === "group");
     const activityIds = groupConversations.map((c: any) => c.activity_id).filter(Boolean);
 
-    const [otherParticipantsResult, activitiesResult, messagesResult] = await Promise.all([
+    const [otherParticipantRowsResult, activitiesResult, messagesResult] = await Promise.all([
       directIds.length > 0
         ? supabase
             .from("conversation_participants")
-            .select("conversation_id, user_id, profiles(id, full_name, profile_picture)")
+            .select("conversation_id, user_id")
             .in("conversation_id", directIds)
             .neq("user_id", currentUserId)
         : Promise.resolve({ data: [] as any[] }),
@@ -99,9 +99,20 @@ export function useConversations() {
         .order("created_at", { ascending: false }),
     ]);
 
+    const otherParticipantRows = otherParticipantRowsResult.data ?? [];
+    const otherUserIds = [...new Set(otherParticipantRows.map((r: any) => r.user_id))];
+
+    const { data: otherProfiles } = otherUserIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name, profile_picture").in("id", otherUserIds)
+      : { data: [] as any[] };
+
+    const profileById: Record<string, any> = Object.fromEntries(
+      (otherProfiles ?? []).map((p: any) => [p.id, p]),
+    );
+
     const otherParticipantByConversation: Record<string, any> = {};
-    for (const row of otherParticipantsResult.data ?? []) {
-      otherParticipantByConversation[row.conversation_id] = row.profiles;
+    for (const row of otherParticipantRows) {
+      otherParticipantByConversation[row.conversation_id] = profileById[row.user_id];
     }
 
     const activityById: Record<string, any> = {};

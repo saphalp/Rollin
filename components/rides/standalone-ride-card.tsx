@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -34,14 +35,22 @@ export function StandaloneRideCard({
       onPress={onPress}
       style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
     >
-      <View style={styles.driverRow}>
+      <View style={styles.header}>
         <Image source={{ uri: driverAvatarUri }} style={styles.avatar} contentFit="cover" />
-        <AppText
-          numberOfLines={1}
-          style={[styles.driverName, { color: colors.text, fontFamily: Fonts?.sans }]}
-        >
-          {driverName}
-        </AppText>
+
+        <View style={styles.headerText}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.driverName, { color: colors.text, fontFamily: Fonts?.sans }]}
+          >
+            {driverName}
+          </AppText>
+          <AppText style={[styles.driverLabel, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+            Offering a ride
+          </AppText>
+        </View>
+
+        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.tint} />
       </View>
 
       <View style={styles.routeBlock}>
@@ -58,7 +67,7 @@ export function StandaloneRideCard({
         <View style={[styles.routeLine, { backgroundColor: colors.outlineVariant }]} />
 
         <View style={styles.routeRow}>
-          <IconSymbol name="mappin" size={12} color={colors.tint} />
+          <IconSymbol name="mappin" size={13} color={colors.tint} />
           <AppText
             numberOfLines={1}
             style={[styles.routeText, { color: colors.text, fontFamily: Fonts?.sans }]}
@@ -70,7 +79,7 @@ export function StandaloneRideCard({
 
       <View style={styles.footerRow}>
         <View style={styles.metaItem}>
-          <IconSymbol name="calendar" size={12} color={colors.icon} />
+          <IconSymbol name="calendar" size={13} color={colors.icon} />
           <AppText
             numberOfLines={1}
             style={[styles.metaText, { color: colors.icon, fontFamily: Fonts?.sans }]}
@@ -80,9 +89,9 @@ export function StandaloneRideCard({
         </View>
 
         <View style={[styles.seatsBadge, { backgroundColor: colors.secondaryContainer }]}>
-          <IconSymbol name="person.2.fill" size={11} color={colors.onSecondaryContainer} />
+          <IconSymbol name="person.2.fill" size={12} color={colors.onSecondaryContainer} />
           <AppText style={[styles.seatsText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-            {availableSeats}
+            {availableSeats} seat{availableSeats === 1 ? "" : "s"}
           </AppText>
         </View>
       </View>
@@ -90,30 +99,33 @@ export function StandaloneRideCard({
   );
 }
 
-const CARD_WIDTH = 200;
-
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
-    gap: 10,
+    gap: 12,
   },
-  driverRow: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   avatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  headerText: {
+    flex: 1,
   },
   driverName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  driverLabel: {
+    marginTop: 1,
+    fontSize: 12,
   },
   routeBlock: {
     gap: 2,
@@ -131,19 +143,18 @@ const styles = StyleSheet.create({
   },
   routeLine: {
     width: 1,
-    height: 10,
+    height: 12,
     marginLeft: 6,
   },
   routeText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
   },
   footerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 2,
   },
   metaItem: {
     flexDirection: "row",
@@ -152,19 +163,19 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   metaText: {
-    fontSize: 11,
+    fontSize: 12,
     flexShrink: 1,
   },
   seatsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   seatsText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
 });

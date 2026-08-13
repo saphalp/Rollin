@@ -32,9 +32,21 @@ export async function uploadProfilePicture(
     );
   }
 
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("profile_picture")
+    .eq("id", user.id)
+    .single();
+
+  const previousPath = existingProfile?.profile_picture ?? null;
+
   const contentType = asset.mimeType ?? "image/jpeg";
   const extension = getFileExtension(contentType);
-  const filePath = `${user.id}/avatar.${extension}`;
+  // A unique path per upload (rather than a fixed "avatar.ext" path) means
+  // profile_picture actually changes value each time, so every screen's
+  // cached avatar image (keyed by URL) is naturally invalidated instead of
+  // silently showing a stale photo forever.
+  const filePath = `${user.id}/${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")
@@ -68,13 +80,23 @@ export async function uploadProfilePicture(
     );
   }
 
+  if (previousPath && previousPath !== filePath) {
+    const { error: removeError } = await supabase.storage
+      .from("avatars")
+      .remove([previousPath]);
+
+    if (removeError) {
+      console.error("[uploadProfilePicture] failed to remove old avatar:", removeError);
+    }
+  }
+
   const { data: publicUrlData } = supabase.storage
     .from("avatars")
     .getPublicUrl(filePath);
 
   return {
     path: filePath,
-    publicUrl: `${publicUrlData.publicUrl}?updated=${Date.now()}`,
+    publicUrl: publicUrlData.publicUrl,
   };
 }
 

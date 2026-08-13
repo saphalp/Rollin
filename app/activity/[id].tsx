@@ -1,3 +1,10 @@
+import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { AppText } from "@/components/text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { AppView } from "@/components/view";
+import { Colors, Fonts } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -10,13 +17,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { AppText } from "@/components/text";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { AppView } from "@/components/view";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { supabase } from "@/lib/supabase";
 
 const CATEGORY_IMAGES: Record<string, string> = {
   social: "https://picsum.photos/seed/social/900/500",
@@ -143,6 +143,9 @@ export default function ActivityDetailScreen() {
     useState(true);
 
   const [rsvpLoading, setRsvpLoading] =
+    useState(false);
+
+  const [rideOptionsVisible, setRideOptionsVisible] =
     useState(false);
 
   useEffect(() => {
@@ -505,31 +508,6 @@ export default function ActivityDetailScreen() {
    *
    * User must already be attending.
    */
-  function findRide() {
-    if (!activity) return;
-
-    router.push({
-      pathname: "/ride/available",
-      params: {
-        activityId:
-          activity.id,
-        rideType:
-          "activity",
-      },
-    });
-  }
-
-  function offerRide() {
-    if (!activity) return;
-
-    router.push({
-      pathname: "/ride/offer",
-      params: {
-        activityId:
-          activity.id,
-      },
-    });
-  }
 
   if (loading) {
     return (
@@ -1237,12 +1215,15 @@ export default function ActivityDetailScreen() {
           <>
             <TouchableOpacity
               onPress={() =>
-                router.push(`/activity/edit/${activity.id}`)
+                router.push(
+                  `/activity/edit/${activity.id}`,
+                )
               }
               style={[
                 styles.rideButton,
                 {
-                  borderColor: colors.outline,
+                  borderColor:
+                    colors.outline,
                 },
               ]}
             >
@@ -1256,8 +1237,10 @@ export default function ActivityDetailScreen() {
                 style={[
                   styles.rideText,
                   {
-                    color: colors.text,
-                    fontFamily: Fonts?.sans,
+                    color:
+                      colors.text,
+                    fontFamily:
+                      Fonts?.sans,
                   },
                 ]}
               >
@@ -1266,96 +1249,60 @@ export default function ActivityDetailScreen() {
             </TouchableOpacity>
 
             {activity.ride_sharing && (
-              <>
-                <TouchableOpacity
-                  onPress={findRide}
+              <TouchableOpacity
+                onPress={() =>
+                  setRideOptionsVisible(true)
+                }
+                style={[
+                  styles.rideOptionsButton,
+                  {
+                    borderColor:
+                      colors.outline,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="car.fill"
+                  size={18}
+                  color={colors.text}
+                />
+
+                <AppText
                   style={[
-                    styles.rideButton,
+                    styles.rideOptionsText,
                     {
-                      backgroundColor: colors.tint,
-                      borderColor: colors.tint,
+                      color:
+                        colors.text,
+                      fontFamily:
+                        Fonts?.sans,
                     },
                   ]}
                 >
-                  <IconSymbol
-                    name="car.fill"
-                    size={16}
-                    color={colors.onPrimary}
-                  />
-
-                  <AppText
-                    style={[
-                      styles.rideText,
-                      {
-                        color: colors.onPrimary,
-                        fontFamily: Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    Find Ride
-                  </AppText>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={offerRide}
-                  style={[
-                    styles.rideButton,
-                    {
-                      borderColor: colors.outline,
-                    },
-                  ]}
-                >
-                  <IconSymbol
-                    name="car.fill"
-                    size={16}
-                    color={colors.text}
-                  />
-
-                  <AppText
-                    style={[
-                      styles.rideText,
-                      {
-                        color: colors.text,
-                        fontFamily: Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    Offer Ride
-                  </AppText>
-                </TouchableOpacity>
-              </>
+                  Ride Options
+                </AppText>
+              </TouchableOpacity>
             )}
           </>
         ) : (
           <>
-            {/*
-             * PRIVATE ACTIVITY:
-             * User must request access first.
-             */}
             {!hasRsvp &&
-              activity.event_type ===
-              "private" ? (
+              activity.event_type === "private" ? (
               <TouchableOpacity
-                onPress={
-                  handleRequestToJoin
-                }
+                onPress={handleRequestToJoin}
                 disabled={
                   rsvpLoading ||
-                  myRequestStatus ===
-                  "pending"
+                  myRequestStatus === "pending"
                 }
                 style={[
                   styles.rsvpButton,
                   {
                     backgroundColor:
-                      myRequestStatus ===
-                        "pending"
+                      myRequestStatus === "pending"
                         ? colors.surfaceContainerHigh
                         : colors.tint,
 
                     borderColor:
-                      myRequestStatus ===
-                        "pending"
+                      myRequestStatus === "pending"
                         ? colors.outline
                         : colors.tint,
                   },
@@ -1366,31 +1313,24 @@ export default function ActivityDetailScreen() {
                     styles.rsvpText,
                     {
                       color:
-                        myRequestStatus ===
-                          "pending"
+                        myRequestStatus === "pending"
                           ? colors.text
                           : colors.onPrimary,
-                      fontFamily:
-                        Fonts?.sans,
+                      fontFamily: Fonts?.sans,
                     },
                   ]}
                 >
                   {rsvpLoading
                     ? "..."
-                    : myRequestStatus ===
-                      "pending"
+                    : myRequestStatus === "pending"
                       ? "Request Pending"
                       : "Request to Join"}
                 </AppText>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={
-                  toggleRsvp
-                }
-                disabled={
-                  rsvpLoading
-                }
+                onPress={toggleRsvp}
+                disabled={rsvpLoading}
                 style={[
                   styles.rsvpButton,
                   {
@@ -1410,9 +1350,7 @@ export default function ActivityDetailScreen() {
                   <IconSymbol
                     name="checkmark"
                     size={18}
-                    color={
-                      colors.text
-                    }
+                    color={colors.text}
                   />
                 )}
 
@@ -1424,8 +1362,7 @@ export default function ActivityDetailScreen() {
                         hasRsvp
                           ? colors.text
                           : colors.onPrimary,
-                      fontFamily:
-                        Fonts?.sans,
+                      fontFamily: Fonts?.sans,
                     },
                   ]}
                 >
@@ -1438,95 +1375,48 @@ export default function ActivityDetailScreen() {
               </TouchableOpacity>
             )}
 
-            {/*
-             * IMPORTANT:
-             *
-             * Ride actions ONLY appear
-             * after the user has joined.
-             */}
-            {activity.ride_sharing &&
-              hasRsvp && (
-                <View
-                  style={
-                    styles.rideActions
-                  }
+            {activity.ride_sharing && hasRsvp && (
+              <TouchableOpacity
+                onPress={() =>
+                  setRideOptionsVisible(true)
+                }
+                style={[
+                  styles.rideOptionsButton,
+                  {
+                    borderColor: colors.outline,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="car.fill"
+                  size={18}
+                  color={colors.text}
+                />
+
+                <AppText
+                  style={[
+                    styles.rideOptionsText,
+                    {
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    },
+                  ]}
                 >
-                  <TouchableOpacity
-                    onPress={
-                      findRide
-                    }
-                    style={[
-                      styles.rideButton,
-                      {
-                        backgroundColor:
-                          colors.tint,
-                        borderColor:
-                          colors.tint,
-                      },
-                    ]}
-                  >
-                    <IconSymbol
-                      name="car.fill"
-                      size={16}
-                      color={
-                        colors.onPrimary
-                      }
-                    />
-
-                    <AppText
-                      style={[
-                        styles.rideText,
-                        {
-                          color:
-                            colors.onPrimary,
-                          fontFamily:
-                            Fonts?.sans,
-                        },
-                      ]}
-                    >
-                      Find Ride
-                    </AppText>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={
-                      offerRide
-                    }
-                    style={[
-                      styles.rideButton,
-                      {
-                        borderColor:
-                          colors.outline,
-                      },
-                    ]}
-                  >
-                    <IconSymbol
-                      name="car.fill"
-                      size={16}
-                      color={
-                        colors.text
-                      }
-                    />
-
-                    <AppText
-                      style={[
-                        styles.rideText,
-                        {
-                          color:
-                            colors.text,
-                          fontFamily:
-                            Fonts?.sans,
-                        },
-                      ]}
-                    >
-                      Offer Ride
-                    </AppText>
-                  </TouchableOpacity>
-                </View>
-              )}
+                  Ride Options
+                </AppText>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>
+
+      <RideOptionsSheet
+        visible={rideOptionsVisible}
+        activityId={activity.id}
+        onClose={() =>
+          setRideOptionsVisible(false)
+        }
+      />
     </AppView>
   );
 }
@@ -1750,9 +1640,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  rideActions: {
+  rideOptionsButton: {
+    flex: 1,
+    minHeight: 52,
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+
+  rideOptionsText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   rideButton: {

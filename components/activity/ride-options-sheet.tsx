@@ -233,77 +233,73 @@ const styles = StyleSheet.create({
     },
 
     sheet: {
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: 42,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 18,
+        paddingTop: 10,
+        paddingBottom: 24,
     },
 
     handle: {
-        width: 48,
-        height: 5,
+        width: 42,
+        height: 4,
         borderRadius: 3,
         alignSelf: 'center',
-        marginBottom: 22,
+        marginBottom: 16,
     },
 
     title: {
-        fontSize: 26,
+        fontSize: 22,
         fontWeight: '800',
     },
 
     subtitle: {
-        fontSize: 15,
-        lineHeight: 21,
-        marginTop: 6,
-        marginBottom: 22,
+        fontSize: 14,
+        lineHeight: 19,
+        marginTop: 4,
+        marginBottom: 16,
     },
 
     options: {
         flexDirection: 'row',
-        gap: 14,
+        gap: 12,
     },
 
     optionCard: {
         flex: 1,
-        minHeight: 220,
-        borderRadius: 22,
+        minHeight: 150,
+        borderRadius: 18,
         borderWidth: 1,
-        padding: 18,
-    },
-
-    findCard: {
-        borderWidth: 0,
+        padding: 14,
     },
 
     findIcon: {
-        width: 58,
-        height: 58,
-        borderRadius: 16,
+        width: 46,
+        height: 46,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#fff',
-        marginBottom: 22,
+        marginBottom: 14,
     },
 
     offerIcon: {
-        width: 58,
-        height: 58,
-        borderRadius: 16,
+        width: 46,
+        height: 46,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 22,
+        marginBottom: 14,
     },
 
     optionTitle: {
-        fontSize: 21,
+        fontSize: 18,
         fontWeight: '800',
-        marginBottom: 10,
+        marginBottom: 6,
     },
 
     optionDescription: {
-        fontSize: 15,
-        lineHeight: 21,
+        fontSize: 13,
+        lineHeight: 18,
     },
 });

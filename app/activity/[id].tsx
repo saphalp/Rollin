@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActivityRideOptionsSheet } from "@/components/activity/activity-ride-options-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -90,6 +91,7 @@ export default function ActivityDetailScreen() {
   const [attendeesOpen, setAttendeesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [rideOptionsVisible, setRideOptionsVisible] = useState(false);
 
   useEffect(() => {
     if (id) load();
@@ -270,6 +272,24 @@ export default function ActivityDetailScreen() {
     }
 
     setRsvpLoading(false);
+  }
+
+  function handleFindRide() {
+    if (!activity) return;
+    setRideOptionsVisible(false);
+    router.push({
+      pathname: "/ride/available",
+      params: { activityId: activity.id, rideType: "activity" },
+    });
+  }
+
+  function handleOfferRide() {
+    if (!activity) return;
+    setRideOptionsVisible(false);
+    router.push({
+      pathname: "/ride/offer",
+      params: { activityId: activity.id },
+    });
   }
 
   if (loading) {
@@ -736,8 +756,9 @@ export default function ActivityDetailScreen() {
               </TouchableOpacity>
             )}
 
-            {activity.ride_sharing && !hasRsvp && (
+            {activity.ride_sharing && hasRsvp && (
               <TouchableOpacity
+                onPress={() => setRideOptionsVisible(true)}
                 style={[styles.rideButton, { borderColor: colors.outline }]}
               >
                 <IconSymbol name="car.fill" size={16} color={colors.text} />
@@ -747,13 +768,20 @@ export default function ActivityDetailScreen() {
                     { color: colors.text, fontFamily: Fonts?.sans },
                   ]}
                 >
-                  Request Ride
+                  Ride Options
                 </AppText>
               </TouchableOpacity>
             )}
           </>
         )}
       </View>
+
+      <ActivityRideOptionsSheet
+        visible={rideOptionsVisible}
+        onClose={() => setRideOptionsVisible(false)}
+        onFindRide={handleFindRide}
+        onOfferRide={handleOfferRide}
+      />
     </AppView>
   );
 }

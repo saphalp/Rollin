@@ -231,122 +231,39 @@ The ride offerer can then see the incoming request.
 
 ## Interface Details
 
-### Activity Detail
+## Relevant Files
 
-Joined users see:
-
-
-Going | Ride Options
-
-Hosts see:
-- Edit | Ride Options
-
-Ride Options opens:
-- Find a Ride
-- Offer a Ride
-
-### Offer Ride
-
-The form includes:
-
-- Pickup Location
-- Destination
-- Date
-- Time
-- Available Seats
-- Notes
-
-For activity rides, the destination is automatically set to the activity location and locked.
-
-For regular rides, the destination is editable.
-
-### Available Rides
-
-Shows available activity-linked or regular rides.
-
-Activity rides are filtered using activity_id.
-
-### Ride Detail
-
-Passenger actions:
-
-- Request/cancel seat
-- View request status
-- Open live tracking after acceptance
-
-Ride offerer actions:
-
-- View requests
-- Accept/decline passengers
-View accepted passengers
-Start, complete, or cancel ride
-Open live tracking
-Rides Dashboard
-
-The dashboard includes:
-
-- Discover
-- Offering
-- Requests
-- History
-
-### Relevant Files
-- app/ride/offer.tsx
-
-Creates ride offers and loads linked activity data.
-
-- components/rides/offer/offer-ride-form.tsx
-
-Contains the ride offer form and activity destination locking.
-
-- components/activity/ride-options-sheet.tsx
-
-Provides Find a Ride and Offer a Ride options.
-
-- app/activity/[id].tsx
-
-Handles activity joining and activity ride options.
-
-- app/ride/available.tsx
-
-Displays available rides.
-
-- app/ride/[id].tsx
-
-Handles ride details, requests, lifecycle actions, and live tracking.
-
-- services/rides-service.ts
-
-Fetches and filters ride offers.
-
-- services/ride-requests-service.ts
-
-Creates and cancels passenger ride requests.
-
-- services/offerer-ride-requests-service.ts
-
-Handles incoming requests and accept/decline actions.
-
-- services/ride-dashboard-service.ts
-
-Loads offered rides, requests, and history.
-
-- services/ride-lifecycle-service.ts
-
-Starts, completes, and cancels rides.
-
-- services/ride-tracking-service.ts
-
-Handles live ride location tracking.
-
-- rides_offered
-
-Stores ride offers, locations, seats, and ride status.
-
-- ride_requests
-
-Stores passenger requests and request status.
-
-- accept_ride_request
-
-Supabase RPC used to safely accept passengers and reduce available seats.
+| File | Role |
+|---|---|
+| `app/(tabs)/rides.tsx` | Main ride dashboard for discovery, offers, requests, and history |
+| `app/ride/offer.tsx` | Creates standalone or activity-linked ride offers |
+| `app/ride/request.tsx` | Creates standalone or activity-linked wanted-ride requests |
+| `app/ride/available.tsx` | Lists and filters available offers and wanted-ride requests |
+| `app/ride/[id].tsx` | Displays ride details and manages passenger requests and ride status |
+| `app/ride/find.tsx` | Lists upcoming ride-enabled activities |
+| `app/ride/map.tsx` | Displays the full-screen ride discovery map |
+| `app/activity/[id].tsx` | Provides ride-sharing entry points from an activity |
+| `navigation/ride-navigation.ts` | Centralizes navigation to ride search, details, and tracking routes |
+| `components/rides/ride-action-cards.tsx` | Presents Find a Ride and Offer a Ride actions |
+| `components/rides/ride-dashboard-cards.tsx` | Renders offer, request, and history cards on the ride dashboard |
+| `components/rides/attending-activity-picker-sheet.tsx` | Selects an attended activity before finding or offering a ride |
+| `components/rides/available-ride-card.tsx` | Displays an available ride offer |
+| `components/rides/wanted-ride-card.tsx` | Displays a rider's wanted-ride request |
+| `components/rides/ride-detail-card.tsx` | Displays route, driver, activity, seating, and timing details |
+| `components/rides/ride-request-button.tsx` | Controls passenger request and cancellation actions |
+| `components/rides/ride-filter-bar.tsx` | Filters all, activity-linked, and standalone rides |
+| `components/rides/offer/offer-ride-form.tsx` | Reusable form shared by ride offers and wanted requests |
+| `components/activity/activity-ride-options-sheet.tsx` | Presents ride options associated with a specific activity |
+| `hooks/use-available-rides.ts` | Loads and refreshes filtered ride offers |
+| `hooks/use-ride-dashboard-data.ts` | Loads the signed-in user's offers, requests, and ride history |
+| `hooks/use-ride-request.ts` | Manages a passenger's request for a specific ride |
+| `hooks/use-ride-wanted-requests.ts` | Loads wanted-ride requests and listens for changes |
+| `hooks/use-attending-activities.ts` | Loads activities available for ride linking |
+| `services/rides-service.ts` | Fetches ride offers and subscribes to offer changes |
+| `services/ride-requests-service.ts` | Creates, cancels, and subscribes to passenger ride requests |
+| `services/offerer-ride-requests-service.ts` | Lets drivers load, accept, and decline passenger requests |
+| `services/ride-wanted-requests-service.ts` | Creates, cancels, fulfills, and subscribes to wanted rides |
+| `services/ride-dashboard-service.ts` | Fetches dashboard and ride-history data |
+| `services/ride-lifecycle-service.ts` | Starts, completes, and cancels offered rides |
+| `services/geocoding-service.ts` | Converts pickup and destination text into coordinates |
+| `types/rides.ts` | Defines shared ride, request, location, and status types |

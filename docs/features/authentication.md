@@ -1,83 +1,92 @@
 # Authentication
 
 ## Purpose
-- A user can create an account with their email address.
-- A user can create an account with Google OAuth, so that they don't have to set up a password.
-- Only users with a valid educational (`.edu` or equivalent) email domain should be able to finish signing up.
+
+- A user can create an account with an email address and password.
+- A user can sign in with Google OAuth so that they do not have to set up a separate password.
+- A user can confirm ownership of their email before continuing into the application.
+- The application can display the educational-email verification status stored on the user's profile.
 
 ## Assumptions
-- The user will only use their email to create an account
-- The user signs up with an email tied to a real university to be a verified user.
-- The user's educational domain exists in the Hipolabs dataset used for verification.
+
+- The user has access to the email address used to create the account.
+- Supabase authentication and the configured email provider are available.
+- Google OAuth remains configured in both Google and Supabase.
+- Any educational-email verification performed outside the mobile client remains configured in the Supabase project.
 
 ## Decisions
+
 - **Supabase for auth.** It gives us email/password and Google OAuth out of the box, plus a place to run server-side logic (edge functions).
-- **Hipolabs for domain verification.** It is free and doesn't need API key, and returns university name, country, and domains as JSON.
-- **Verification runs server-side.** The domain check is handled by a Supabase edge function so it can't be skipped or faked.
-- **Check runs after email verification, not at signup.** We only check if educational domain actually exists after the user has proven that they own the email address.
+- **Email confirmation before normal sign-in.** Supabase sends the confirmation email and verifies that the user owns the address used to create the account.
+- **Educational verification should run server-side.** The mobile client reads the resulting `is_educational_email` value from the profile instead of deciding whether a user is verified. The server-side implementation is configured outside this repository and must also be configured when the backend is recreated.
+- **Hipolabs for educational-domain lookup.** The verification design uses the free Hipolabs Universities API to compare an email domain with known university domains without placing that decision in the client application.
 
 ## Technical Hurdles
+
 - **Subdomains in student emails.** Some schools issue addresses like `student@cs.usc.edu`, but Hipolabs only stores the root domain (`usc.edu`). We strip the subdomain down to the root before matching, or the lookup fails for legitimate users.
-- Email verification link requires app to be in build version to test the redirection back to the app
-- Difficulties in setting up redirection from google oauth
+- **Email-confirmation redirection.** Testing a redirect back into the application requires a development or production build with the app's route registered. Expo Go cannot represent the final redirect behavior by itself.
+- **Google OAuth redirection.** The redirect URL must agree across the application, Google OAuth configuration, and Supabase authentication settings before the user can return to Rollin successfully.
 
 ## Feature Workflow
-1. User signs up with email/password or Google OAuth.
-2. Supabase sends a verification email 
-3. Once the email is verified, an edge function is triggered.
-4. The function extracts the domain from the user's email and reduces it to its root domain.
-5. It queries Hipolabs for that domain and checks the response for an exact match.
-6. If matched, the account is marked as verified in the profiles table, else the account is marked not verified using a boolean.
+
+### Email and password
+
+1. The user enters an email address and password.
+2. Supabase creates the account and sends an email-confirmation message.
+3. The user confirms ownership of the email address.
+4. After the user signs in, the authentication provider restores the Supabase session and loads the associated profile.
+5. The application routes the user to profile completion or the main tabs based on the current profile state.
+
+### Google OAuth
+
+1. The user chooses Google sign-in.
+2. Google handles account selection and authentication.
+3. The OAuth redirect returns the user to Rollin and Supabase creates the authenticated session.
+4. The application loads the user's profile and continues to profile completion or the main tabs.
+
+Educational-email verification, when configured in Supabase, runs outside the mobile client and stores its result in the profile's `is_educational_email` field.
 
 ## Interface Details
 
 ### Sign-in
 Rollin wordmark header with tagline, hero banner, email + password fields (password has show/hide eye), forgot-password control, Log In button, OR divider, Google sign-in, Sign Up control.
  
-### Sign-up · email step
+### Sign-up: Email step
 Email field with university-email helper text, Next button, OR divider, Google sign-in, Log In control.
  
-### Sign-up · password step
+### Sign-up: Password step
 Password field; creates the account on submit.
- 
-### Forgot-password email
-Email field (email keyboard), Send Reset Code button with loading state and error message on failure, Back to Login control.
- 
-### Verification
-Shows the recovery email (read-only), numeric code field, Verify Code button with loading state, inline invalid/expired-code message, Back to Login control.
- 
-### New-password
-New-password and confirm-password fields (both with eye toggles). On submit, enforces 8-character minimum and validates against mismatch and reuse. Submit button, success confirmation, return to login.
+
+### Password recovery
+The sign-in screen links to the separate [Password Reset](password-reset.md) workflow.
  
 ### Email confirmation
 Solid blue background (not theme-aware), envelope illustration, "Check your inbox" message, Resend link, Back to Login button.
 
-**Hipolabs Universities API**
+### Hipolabs Universities API
+
 - Base endpoint: `http://universities.hipolabs.com/search`
 - No authentication or API key required.
-- Query params: `name`, `country`, `domain` 
-- We treat a domain as valid when it appears in the `domains` array of any returned record.
+- Query parameters: `name`, `country`, and `domain`
+- The verification design treats a domain as valid when it appears in the `domains` array of a returned record.
+- This lookup is not implemented in the mobile-client repository and depends on the separate Supabase-side configuration.
 
 ## Relevant Files
-  ### Supabase client
-  - `lib/supabase.ts` — Supabase client instance 
 
-  ### Sign in / sign up
-  - `app/(auth)/_layout.tsx` — layout for the unauthenticated route
-  group.
-  - `app/(auth)/index.tsx` — main sign-in/sign-up screen.
-  - `app/(auth)/EmailConfirmation.tsx` — post-signup email
-  confirmation screen.
-  - `app/(auth)/forgot-password.tsx` — forgot-password request
-  screen.
-  - `components/auth/login.tsx` — login form logic/UI.
-  - `components/auth/EmailCard.tsx` — email input step.
-  - `components/auth/PasswordCard.tsx` — password input step.
-  - `components/auth/SignInWithGoogle.tsx` — Google OAuth sign-in.
-  - `components/auth/AuthHeader.tsx` — shared header for auth
-  screens.
-  - `components/auth/ImageContainer.tsx` — shared auth-screen
-  artwork/layout.
-  - `components/auth/TermsFooter.tsx` — terms/privacy footer shown
-  on auth screens.
-  - `components/auth/LogoutButton.tsx` — sign-out action.
+| File | Role |
+|---|---|
+| `lib/supabase.ts` | Creates and configures the Supabase client |
+| `app/(auth)/_layout.tsx` | Defines the unauthenticated route layout |
+| `app/(auth)/index.tsx` | Displays the main sign-in and sign-up screen |
+| `app/(auth)/EmailConfirmation.tsx` | Displays the post-signup email-confirmation screen |
+| `app/(auth)/forgot-password.tsx` | Collects the email used to request password recovery |
+| `components/auth/login.tsx` | Implements the login form logic and interface |
+| `components/auth/EmailCard.tsx` | Implements the email-entry step |
+| `components/auth/PasswordCard.tsx` | Implements the password-entry step |
+| `components/auth/SignInWithGoogle.tsx` | Starts Google OAuth sign-in |
+| `components/auth/AuthHeader.tsx` | Displays the shared authentication header |
+| `components/auth/ImageContainer.tsx` | Provides shared authentication-screen artwork and layout |
+| `components/auth/TermsFooter.tsx` | Displays the terms and privacy footer on authentication screens |
+| `components/auth/LogoutButton.tsx` | Signs the current user out |
+| `providers/auth-provider.tsx` | Restores sessions, loads profiles, and exposes authentication state |
+| `app/_layout.tsx` | Routes users according to authentication and profile state |

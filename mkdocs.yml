@@ -16,6 +16,10 @@ theme:
 
 nav:
   - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture:
+      - Application Architecture: architecture.md
+      - Backend and Data Model: backend.md
   - Features:
       - Authentication: features/authentication.md
       - Password Reset: features/password-reset.md
@@ -24,6 +28,10 @@ nav:
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md
+  - Development:
+      - Development Workflow: development-workflow.md
+  - Project Reference:
+      - Design System: design-system.md
 
 markdown_extensions:
   - toc:

@@ -26,7 +26,7 @@ Originally, the email was grabbed straight from the login email text box. This r
 
 ### Numeric recovery code
 
-Initially the Forgot Password feature was implemented through Supabase's default password recovery method. However, this method sent a link to the user that redirected them to a localhost link. The link was meant to redirect to the Rollin application, but during development the app was not registered and therefore could not be routed to directly. Using a numeric code allows the user to receive the email on any device rather than forcing them to use their phone. Additionally, tt works directly within the application and avoids using a website or app redirect.
+Initially the Forgot Password feature was implemented through Supabase's default password recovery method. However, this method sent a link to the user that redirected them to a localhost link. The link was meant to redirect to the Rollin application, but during development the app was not registered and therefore could not be routed to directly. Using a numeric code allows the user to receive the email on any device rather than forcing them to use their phone. Additionally, it works directly within the application and avoids using a website or app redirect.
 
 ### Sign-out after password reset
 
@@ -100,9 +100,11 @@ The team wanted to send correspondence, including password recovery codes, with 
 
 ## Relevant Files
 
-- `app/(auth)/forgot-password.tsx` - collects the account email and requests the recovery code
-- `app/reset-password.tsx` - verifies the recovery code and updates the password
-- `components/auth/login.tsx` - provides the Forgot Password entry point
-- `components/profile/ResetPasswordButton.tsx` - starts password recovery from the user profile
-- `providers/auth-provider.tsx` - manages authentication state during recovery
-- `app/_layout.tsx` - controls protected navigation while the recovery flow is active
+| File | Role |
+|---|---|
+| `app/(auth)/forgot-password.tsx` | Collects the account email and requests the recovery code |
+| `app/reset-password.tsx` | Verifies the recovery code and updates the password |
+| `components/auth/login.tsx` | Provides the Forgot Password entry point |
+| `components/profile/ResetPasswordButton.tsx` | Starts password recovery from the user profile |
+| `providers/auth-provider.tsx` | Manages authentication state during recovery |
+| `app/_layout.tsx` | Controls protected navigation while the recovery flow is active |

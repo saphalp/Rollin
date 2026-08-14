@@ -45,7 +45,7 @@ Live tracking begins
 
 Accepted passengers subscribe to those changes using supabase realtime
 
-###Latest location storage
+### Latest location storage
 - The system stores the latest location for each ride instead of keeping a complete GPS history
 
 
@@ -118,7 +118,7 @@ Map
 - The map updates when new coordinated arrive through supabase.
 The current implementation focuses on raw functional live tracking.
 
-Future improvvements:
+Future improvements:
 - smooth animations 
 - vehicle, road animations
 - Automatic camera following
@@ -126,9 +126,9 @@ Future improvvements:
 - Traffic-aware routes, ETA, distance
 
 ## Relevant Files
-services/ride-tracking-service.ts
-services/ride-lifecycle-service.ts
-app/ride/[id].tsx
-rides_offered
-ride_requests
-ride_locations
+- services/ride-tracking-service.ts
+- services/ride-lifecycle-service.ts
+- app/ride/[id].tsx
+- rides_offered
+- ride_requests
+- ride_locations

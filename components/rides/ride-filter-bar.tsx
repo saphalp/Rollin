@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         borderWidth: 1,
-        borderRadius: 16,
+        borderRadius: 14,
         padding: 4,
     },
     button: {
@@ -85,10 +85,10 @@ const styles = StyleSheet.create({
         minHeight: 42,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 12,
+        borderRadius: 10,
     },
     label: {
-        fontSize: 13,
-        fontWeight: '800',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });

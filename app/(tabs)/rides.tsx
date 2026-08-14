@@ -552,7 +552,6 @@ const styles =
     },
 
     list: {
-      paddingHorizontal: 16,
       gap: 12,
     },
 
@@ -570,8 +569,7 @@ const styles =
     historyFilterBar: {
       flexDirection: 'row',
       borderWidth: 1,
-      borderRadius: 16,
-      marginHorizontal: 16,
+      borderRadius: 14,
       padding: 4,
     },
 
@@ -580,11 +578,11 @@ const styles =
       minHeight: 42,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 12,
+      borderRadius: 10,
     },
 
     historyFilterText: {
-      fontSize: 13,
-      fontWeight: '800',
+      fontSize: 14,
+      fontWeight: '700',
     },
   });

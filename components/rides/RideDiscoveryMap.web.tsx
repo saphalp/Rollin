@@ -101,8 +101,8 @@ const styles = StyleSheet.create({
     },
     title: {
         marginTop: 14,
-        fontSize: 15,
-        fontWeight: '800',
+        fontSize: 16,
+        fontWeight: '700',
         textAlign: 'center',
     },
     message: {

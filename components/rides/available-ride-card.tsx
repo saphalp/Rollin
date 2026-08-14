@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     },
     offererName: {
         fontSize: 16,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     offererLabel: {
         marginTop: 1,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     },
     seatCount: {
         fontSize: 13,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     routeContainer: {
         flexDirection: 'row',
@@ -419,6 +419,6 @@ const styles = StyleSheet.create({
     },
     detailsText: {
         fontSize: 13,
-        fontWeight: '800',
+        fontWeight: '700',
     },
 });

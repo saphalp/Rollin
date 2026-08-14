@@ -338,8 +338,8 @@ const styles = StyleSheet.create({
     },
     errorTitle: {
         marginTop: 12,
-        fontSize: 19,
-        fontWeight: '800',
+        fontSize: 18,
+        fontWeight: '700',
     },
     retryButton: {
         marginTop: 18,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     },
     retryText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     topControls: {
         position: 'absolute',
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     title: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     bottomControls: {
         position: 'absolute',
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     },
     secondaryActionText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     primaryAction: {
         flex: 1,
@@ -420,6 +420,6 @@ const styles = StyleSheet.create({
     },
     primaryActionText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: '700',
     },
 });

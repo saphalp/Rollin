@@ -50,8 +50,7 @@ export default function EditActivityScreen() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
-  const [ridesAvailable, setRidesAvailable] = useState(false);
-  const [rideSeats, setRideSeats] = useState('');
+  const [rideSharing, setRideSharing] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newAsset, setNewAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
@@ -62,12 +61,20 @@ export default function EditActivityScreen() {
   async function loadActivity() {
     const { data, error } = await supabase
       .from('activities')
-      .select('title, category, description, location, date_time, max_attendees, rides_available, image_url, host_id')
+      .select(
+        'title, category, description, location, date_time, max_attendees, ride_sharing, image_url, host_id'
+      )
       .eq('id', id)
       .single();
 
     if (error || !data) {
-      Alert.alert('Error', 'Could not load activity.');
+      console.error('Edit activity load error:', error);
+
+      Alert.alert(
+        'Could not load activity',
+        error?.message ?? 'Activity could not be loaded.',
+      );
+
       router.back();
       return;
     }
@@ -92,9 +99,7 @@ export default function EditActivityScreen() {
     }
 
     setMaxAttendees(data.max_attendees ? String(data.max_attendees) : '');
-    const rides = data.rides_available ?? 0;
-    setRidesAvailable(rides > 0);
-    setRideSeats(rides > 0 ? String(rides) : '');
+    setRideSharing(Boolean(data.ride_sharing));
 
     setLoading(false);
   }
@@ -165,7 +170,7 @@ export default function EditActivityScreen() {
       location: location.trim() || null,
       date_time: dateTime,
       max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
-      rides_available: ridesAvailable ? (rideSeats ? parseInt(rideSeats) : 1) : 0,
+      ride_sharing: rideSharing,
     }).eq('id', id);
 
     setSaving(false);
@@ -271,40 +276,103 @@ export default function EditActivityScreen() {
             </View>
 
             {/* Ride sharing */}
-            <View style={[styles.rideCard, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+            <View
+              style={[
+                styles.rideCard,
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
               <View style={styles.rideHeader}>
                 <View style={styles.rideTextContainer}>
-                  <AppText style={[styles.rideTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Ride sharing</AppText>
-                  <AppText style={[styles.rideSubtitle, { color: colors.outline, fontFamily: Fonts?.sans }]}>Let others know if rides are available.</AppText>
+                  <AppText
+                    style={[
+                      styles.rideTitle,
+                      {
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    Ride sharing
+                  </AppText>
+
+                  <AppText
+                    style={[
+                      styles.rideSubtitle,
+                      {
+                        color: colors.outline,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    Allow attendees to find or offer rides for this activity.
+                  </AppText>
                 </View>
+
                 <TouchableOpacity
-                  onPress={() => setRidesAvailable((v) => !v)}
-                  style={[styles.toggleButton, ridesAvailable ? { backgroundColor: colors.tint } : { backgroundColor: colors.surfaceContainerHigh }]}
+                  onPress={() =>
+                    setRideSharing((value) => !value)
+                  }
+                  style={[
+                    styles.toggleButton,
+                    rideSharing
+                      ? { backgroundColor: colors.tint }
+                      : {
+                        backgroundColor:
+                          colors.surfaceContainerHigh,
+                      },
+                  ]}
                 >
-                  <AppText style={[styles.toggleText, { color: ridesAvailable ? colors.onImageOverlay : colors.text, fontFamily: Fonts?.sans }]}>
-                    {ridesAvailable ? 'Yes' : 'No'}
+                  <AppText
+                    style={[
+                      styles.toggleText,
+                      {
+                        color: rideSharing
+                          ? colors.onImageOverlay
+                          : colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {rideSharing ? 'Yes' : 'No'}
                   </AppText>
                 </TouchableOpacity>
               </View>
-              {ridesAvailable && (
-                <PostField label="Available Seats" value={rideSeats} onChangeText={setRideSeats} placeholder="3" keyboardType="numeric" />
-              )}
             </View>
 
             {/* Save */}
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[styles.submitButton, { backgroundColor: saving ? colors.outline : colors.tint }]}
+              style={[
+                styles.submitButton,
+                {
+                  backgroundColor:
+                    saving
+                      ? colors.outline
+                      : colors.tint,
+                },
+              ]}
             >
-              <AppText style={[styles.submitText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              <AppText
+                style={[
+                  styles.submitText,
+                  {
+                    color: colors.onImageOverlay,
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
                 {saving ? 'Saving...' : 'Save Changes'}
               </AppText>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </AppView>
+    </AppView >
   );
 }
 

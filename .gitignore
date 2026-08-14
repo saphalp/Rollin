@@ -49,3 +49,7 @@ app-example
 .gitignore
 
 .env
+
+# MkDocs documentation
+.venv-docs/
+site/

@@ -1,12 +1,12 @@
 # **Ride Sharing**
 
-<u>## Purpose</u> 
+## Purpose 
 
 The ride sharing feature allows Rollin users to offer rides or request seats from other users who are already travelling to the same destination. 
 
 Ride sharing supports two types of rides:
--Activity-based rides
--Regular rides
+- **Activity-based rides**
+- **Regular rides**
 
 **For activity-linked rides, the destination is connected to the activity location**
 
@@ -74,9 +74,9 @@ For example:
 
 Pickleball Activity
 
-- Offerer A → 3 seats
-- Offerer B → 2 seats
-- Offerer C → 4 seats
+- Offerer A -> 3 seats
+- Offerer B -> 2 seats
+- Offerer C -> 4 seats
 
 Passengers can choose between the available rides.
 
@@ -85,11 +85,11 @@ A single ride can have multiple passengers.
 
 For example:
 
-Offerer A → 3 seats
+Offerer A -> 3 seats
 
-Passenger 1 → accepted
-Passenger 2 → accepted
-Passenger 3 → accepted
+Passenger 1 -> accepted
+Passenger 2 -> accepted
+Passenger 3 -> accepted
 
 Ride status: full
 
@@ -138,32 +138,32 @@ Ride offers include both a pickup location and coordinates.
 
 ### Activity Ride Flow
 A user first joins an activity. 
-Activity detail
-|
-Join Activity
-|
-Going
-|
-Ride Options
-       |               |
+    Activity detail
+    |
+    Join Activity
+    |
+    Going
+    |
+    Ride Options
+           |           |
     Offer a ride    Request a ride
 
 ### Find a ride
 When the passenger selects Find a Ride:
 
-Activity
-|
-Ride options
-|
-find a ride
-|    
-available rides for activity
-|
-select ride
-|
-ride details
-|
-request a seat
+    Activity
+    |
+    Ride options
+    |
+    find a ride
+    |    
+    available rides for activity
+    |
+    select ride
+    |
+    ride details
+    |
+    request a seat
 
 The user can review:
 
@@ -178,11 +178,11 @@ The user can review:
 
 When the user selects Offer a Ride:
 
-Activity
-   |
-Ride Options
-   |
-Offer a Ride
+    Activity
+    |
+    Ride Options
+    |
+    Offer a Ride
 
 The user enters:
 
@@ -235,7 +235,7 @@ The ride offerer can then see the incoming request.
 
 Joined users see:
 
-```text
+
 Going | Ride Options
 
 Hosts see:
@@ -290,63 +290,63 @@ The dashboard includes:
 - Requests
 - History
 
-Relevant Files
-app/ride/offer.tsx
+### Relevant Files
+- app/ride/offer.tsx
 
 Creates ride offers and loads linked activity data.
 
-components/rides/offer/offer-ride-form.tsx
+- components/rides/offer/offer-ride-form.tsx
 
 Contains the ride offer form and activity destination locking.
 
-components/activity/ride-options-sheet.tsx
+- components/activity/ride-options-sheet.tsx
 
 Provides Find a Ride and Offer a Ride options.
 
-app/activity/[id].tsx
+- app/activity/[id].tsx
 
 Handles activity joining and activity ride options.
 
-app/ride/available.tsx
+- app/ride/available.tsx
 
 Displays available rides.
 
-app/ride/[id].tsx
+- app/ride/[id].tsx
 
 Handles ride details, requests, lifecycle actions, and live tracking.
 
-services/rides-service.ts
+- services/rides-service.ts
 
 Fetches and filters ride offers.
 
-services/ride-requests-service.ts
+- services/ride-requests-service.ts
 
 Creates and cancels passenger ride requests.
 
-services/offerer-ride-requests-service.ts
+- services/offerer-ride-requests-service.ts
 
 Handles incoming requests and accept/decline actions.
 
-services/ride-dashboard-service.ts
+- services/ride-dashboard-service.ts
 
 Loads offered rides, requests, and history.
 
-services/ride-lifecycle-service.ts
+- services/ride-lifecycle-service.ts
 
 Starts, completes, and cancels rides.
 
-services/ride-tracking-service.ts
+- services/ride-tracking-service.ts
 
 Handles live ride location tracking.
 
-rides_offered
+- rides_offered
 
 Stores ride offers, locations, seats, and ride status.
 
-ride_requests
+- ride_requests
 
 Stores passenger requests and request status.
 
-accept_ride_request
+- accept_ride_request
 
 Supabase RPC used to safely accept passengers and reduce available seats.

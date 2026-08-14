@@ -11,16 +11,20 @@ export type OfferedRideDashboardItem = {
   requestCount: number;
 };
 
-export type MyRideRequestDashboardItem = {
+type MyRideRequestDashboardItemBase = {
   id: string;
-  rideId: string;
   status: string;
   createdAt: string | null;
   pickupLocation: string;
   destination: string;
   dateTime: string | null;
-  offererName: string;
 };
+
+export type MyRideRequestDashboardItem = MyRideRequestDashboardItemBase &
+  (
+    | { kind: 'seat'; rideId: string; offererName: string }
+    | { kind: 'wanted'; wantedRequestId: string }
+  );
 
 export type RideHistoryDashboardItem = {
   id: string;
@@ -100,24 +104,37 @@ export async function fetchMyActiveOffers(): Promise<OfferedRideDashboardItem[]>
 export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardItem[]> {
   const userId = await getUserId();
 
-  const { data: requests, error } = await supabase
-    .from('ride_requests')
-    .select('id, ride_id, driver_id, status, created_at')
-    .eq('requester_id', userId)
-    .in('status', ['pending', 'accepted'])
-    .order('created_at', { ascending: false });
+  const [seatRequestsResult, wantedRequestsResult] = await Promise.all([
+    supabase
+      .from('ride_requests')
+      .select('id, ride_id, driver_id, status, created_at')
+      .eq('requester_id', userId)
+      .in('status', ['pending', 'accepted'])
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('ride_wanted_requests')
+      .select('id, pickup_location, destination, date_time, status, created_at')
+      .eq('requester_id', userId)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false }),
+  ]);
 
-  if (error) throw new Error(error.message);
-  if (!requests?.length) return [];
+  if (seatRequestsResult.error) throw new Error(seatRequestsResult.error.message);
+  if (wantedRequestsResult.error) throw new Error(wantedRequestsResult.error.message);
+
+  const requests = seatRequestsResult.data ?? [];
+  const wantedRequests = wantedRequestsResult.data ?? [];
 
   const rideIds = [...new Set(requests.map((r) => r.ride_id).filter(Boolean))] as string[];
   const driverIds = [...new Set(requests.map((r) => r.driver_id).filter(Boolean))] as string[];
 
   const [ridesResult, profilesResult] = await Promise.all([
-    supabase
-      .from('rides_offered')
-      .select('id, pickup_location, destination, date_time')
-      .in('id', rideIds),
+    rideIds.length
+      ? supabase
+        .from('rides_offered')
+        .select('id, pickup_location, destination, date_time')
+        .in('id', rideIds)
+      : Promise.resolve({ data: [], error: null }),
     driverIds.length
       ? supabase.from('profiles').select('id, full_name').in('id', driverIds)
       : Promise.resolve({ data: [], error: null }),
@@ -134,12 +151,13 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
     ]),
   );
 
-  return requests.flatMap((request) => {
+  const seatItems: MyRideRequestDashboardItem[] = requests.flatMap((request) => {
     if (!request.ride_id) return [];
     const ride = rideMap.get(request.ride_id);
     if (!ride) return [];
 
     return [{
+      kind: 'seat' as const,
       id: request.id,
       rideId: request.ride_id,
       status: request.status,
@@ -151,6 +169,23 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
         ? profileMap.get(request.driver_id) ?? 'Rollin user'
         : 'Rollin user',
     }];
+  });
+
+  const wantedItems: MyRideRequestDashboardItem[] = wantedRequests.map((request) => ({
+    kind: 'wanted' as const,
+    id: request.id,
+    wantedRequestId: request.id,
+    status: request.status,
+    createdAt: request.created_at,
+    pickupLocation: request.pickup_location,
+    destination: request.destination,
+    dateTime: request.date_time,
+  }));
+
+  return [...seatItems, ...wantedItems].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
   });
 }
 
@@ -236,6 +271,30 @@ export async function fetchMyRideHistory(
         });
       }
     }
+
+    const { data: wantedRequests, error: wantedError } = await supabase
+      .from('ride_wanted_requests')
+      .select('id, pickup_location, destination, date_time, status, created_at')
+      .eq('requester_id', userId)
+      .in('status', ['fulfilled', 'cancelled'])
+      .order('created_at', { ascending: false });
+
+    if (wantedError) throw new Error(wantedError.message);
+
+    for (const request of wantedRequests ?? []) {
+      result.push({
+        id: `wanted-${request.id}`,
+        type: 'requested',
+        pickupLocation: request.pickup_location,
+        destination: request.destination,
+        dateTime: request.date_time,
+        status: request.status,
+        counterpart:
+          request.status === 'fulfilled'
+            ? 'A driver offered you a ride'
+            : 'You cancelled this request',
+      });
+    }
   }
 
   return result.sort((a, b) => {
@@ -256,8 +315,14 @@ export function subscribeToRideDashboard(onChange: () => void) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests' }, onChange)
     .subscribe();
 
+  const wantedRequestsChannel = supabase
+    .channel(`dashboard-wanted-requests-${Date.now()}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_wanted_requests' }, onChange)
+    .subscribe();
+
   return () => {
     void supabase.removeChannel(ridesChannel);
+    void supabase.removeChannel(wantedRequestsChannel);
     void supabase.removeChannel(requestsChannel);
   };
 }

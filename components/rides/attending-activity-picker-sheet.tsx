@@ -69,7 +69,7 @@ export function AttendingActivityPickerSheet({
             <ActivityIndicator color={colors.tint} style={styles.loader} />
           ) : activities.length === 0 ? (
             <AppText style={[styles.emptyText, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-              You&apos;re not attending any upcoming activities yet.
+              You&apos;re not attending or hosting any upcoming activities yet.
             </AppText>
           ) : (
             <ScrollView

@@ -118,7 +118,7 @@ export function MyRideRequestDashboardCard({
             <View style={styles.header}>
                 <View style={[styles.icon, { backgroundColor: colors.secondaryContainer }]}>
                     <MaterialCommunityIcons
-                        name="account-arrow-right-outline"
+                        name={request.kind === 'wanted' ? 'car-search-outline' : 'account-arrow-right-outline'}
                         size={22}
                         color={colors.onSecondaryContainer}
                     />
@@ -132,7 +132,9 @@ export function MyRideRequestDashboardCard({
                         {request.pickupLocation} → {request.destination}
                     </AppText>
                     <AppText style={[styles.meta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-                        Ride offered by {request.offererName}
+                        {request.kind === 'wanted'
+                            ? 'Waiting for a driver'
+                            : `Ride offered by ${request.offererName}`}
                     </AppText>
                 </View>
 

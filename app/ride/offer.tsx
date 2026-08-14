@@ -36,6 +36,7 @@ export default function OfferRideScreen() {
       pickupLocation?: string;
       sourceRequestId?: string;
     }>();
+  const isActivityRide = Boolean(activityId);
 
   const [linkedActivity, setLinkedActivity] =
     useState<LinkedActivity | null>(null);
@@ -267,6 +268,7 @@ export default function OfferRideScreen() {
             onPickupLocationChange={setPickupLocation}
             destination={destination}
             onDestinationChange={setDestination}
+            destinationLocked={Boolean(activityId)}
             rideDateTime={rideDateTime}
             onRideDateTimeChange={setRideDateTime}
             availableSeats={availableSeats}

@@ -29,6 +29,8 @@ import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRideDashboardData } from '@/hooks/use-ride-dashboard-data';
+import { MyRideRequestDashboardItem } from '@/services/ride-dashboard-service';
+import { cancelWantedRequest } from '@/services/ride-wanted-requests-service';
 
 type RideIntent = 'find' | 'offer';
 
@@ -44,12 +46,12 @@ const PICKER_COPY: Record<
   offer: {
     title: 'Offer a ride for...',
     subtitle:
-      'Pick an activity you\'re attending to connect this ride to, or continue without one.',
+      'Pick an activity you\'re attending or hosting to connect this ride to, or continue without one.',
   },
   find: {
     title: 'Find a ride for...',
     subtitle:
-      'Pick an activity you\'re attending to search rides for, or continue without one.',
+      'Pick an activity you\'re attending or hosting to search rides for, or continue without one.',
   },
 };
 
@@ -207,6 +209,36 @@ export default function RidesScreen() {
     router.push('/ride/map');
   }
 
+  function handleRequestCardPress(request: MyRideRequestDashboardItem) {
+    if (request.kind === 'seat') {
+      openRideDetails(request.rideId);
+      return;
+    }
+
+    Alert.alert(
+      'Cancel this request?',
+      'Drivers will no longer see this ride request.',
+      [
+        { text: 'Keep Request', style: 'cancel' },
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelWantedRequest(request.wantedRequestId);
+              await loadRideData();
+            } catch (error) {
+              Alert.alert(
+                'Could not cancel request',
+                error instanceof Error ? error.message : 'Something went wrong.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function openRideDetails(rideId: string) {
     router.push({
       pathname: '/ride/[id]',
@@ -329,11 +361,7 @@ export default function RidesScreen() {
           <MyRideRequestDashboardCard
             key={request.id}
             request={request}
-            onPress={() =>
-              openRideDetails(
-                request.rideId,
-              )
-            }
+            onPress={() => handleRequestCardPress(request)}
           />
         ))}
       </View>

@@ -42,25 +42,40 @@ export function useAttendingActivities() {
     (async () => {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("rsvps")
-        .select("activities(id, title, category, date_time, location)")
-        .eq("user_id", currentUserId);
+      const [rsvpResult, hostedResult] = await Promise.all([
+        supabase
+          .from("rsvps")
+          .select("activities(id, title, category, date_time, location)")
+          .eq("user_id", currentUserId),
+        supabase
+          .from("activities")
+          .select("id, title, category, date_time, location")
+          .eq("host_id", currentUserId),
+      ]);
 
       if (cancelled) return;
 
-      if (error) {
-        console.error("[useAttendingActivities] fetch failed:", error);
+      if (rsvpResult.error || hostedResult.error) {
+        console.error(
+          "[useAttendingActivities] fetch failed:",
+          rsvpResult.error ?? hostedResult.error,
+        );
         setActivities([]);
         setLoading(false);
         return;
       }
 
+      const rsvpActivities = (rsvpResult.data ?? []).map((row: any) => row.activities);
+      const hostedActivities = hostedResult.data ?? [];
+
+      const byId = new Map<string, any>();
+      for (const activity of [...rsvpActivities, ...hostedActivities]) {
+        if (activity) byId.set(activity.id, activity);
+      }
+
       const now = Date.now();
 
-      const rows = (data ?? [])
-        .map((row: any) => row.activities)
-        .filter((activity: any) => !!activity)
+      const rows = Array.from(byId.values())
         .filter(
           (activity: any) =>
             !activity.date_time || new Date(activity.date_time).getTime() >= now,

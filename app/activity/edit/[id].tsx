@@ -50,8 +50,7 @@ export default function EditActivityScreen() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
-  const [ridesAvailable, setRidesAvailable] = useState(false);
-  const [rideSeats, setRideSeats] = useState('');
+  const [rideSharing, setRideSharing] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newAsset, setNewAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
@@ -62,12 +61,20 @@ export default function EditActivityScreen() {
   async function loadActivity() {
     const { data, error } = await supabase
       .from('activities')
-      .select('title, category, description, location, date_time, max_attendees, rides_available, image_url, host_id')
+      .select(
+        'title, category, description, location, date_time, max_attendees, ride_sharing, image_url, host_id'
+      )
       .eq('id', id)
       .single();
 
     if (error || !data) {
-      Alert.alert('Error', 'Could not load activity.');
+      console.error('Edit activity load error:', error);
+
+      Alert.alert(
+        'Could not load activity',
+        error?.message ?? 'Activity could not be loaded.',
+      );
+
       router.back();
       return;
     }
@@ -92,9 +99,7 @@ export default function EditActivityScreen() {
     }
 
     setMaxAttendees(data.max_attendees ? String(data.max_attendees) : '');
-    const rides = data.rides_available ?? 0;
-    setRidesAvailable(rides > 0);
-    setRideSeats(rides > 0 ? String(rides) : '');
+    setRideSharing(Boolean(data.ride_sharing));
 
     setLoading(false);
   }
@@ -157,25 +162,166 @@ export default function EditActivityScreen() {
       if (!isNaN(parsed.getTime())) dateTime = parsed.toISOString();
     }
 
-    const { error } = await supabase.from('activities').update({
-      title: title.trim(),
-      category: category.toLowerCase(),
-      description: description.trim() || null,
-      image_url: imageUrl,
-      location: location.trim() || null,
-      date_time: dateTime,
-      max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
-      rides_available: ridesAvailable ? (rideSeats ? parseInt(rideSeats) : 1) : 0,
-    }).eq('id', id);
+    const { data: updatedActivity, error } = await supabase
+      .from('activities')
+      .update({
+        title: title.trim(),
+        category: category.toLowerCase(),
+        description: description.trim() || null,
+        image_url: imageUrl,
+        location: location.trim() || null,
+        date_time: dateTime,
+        max_attendees: maxAttendees
+          ? parseInt(maxAttendees)
+          : 10,
+        ride_sharing: rideSharing,
+      })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
 
     setSaving(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      console.error('Activity update error:', error);
+
+      Alert.alert(
+        'Could not save activity',
+        error.message,
+      );
+
       return;
     }
 
-    router.back();
+    if (!updatedActivity) {
+      Alert.alert(
+        'Update blocked',
+        'The activity was not updated. This is most likely a Supabase permission/RLS issue.',
+      );
+
+      return;
+    }
+
+    console.log(
+      'Activity updated successfully:',
+      updatedActivity,
+    );
+
+    Alert.alert(
+      'Saved',
+      'Activity updated successfully.',
+      [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ],
+    );
+  }
+  async function handleDeleteActivity() {
+    Alert.alert(
+      'Delete Activity',
+      'Are you sure you want to delete this activity? This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const {
+                data: { user },
+                error: authError,
+              } = await supabase.auth.getUser();
+
+              if (authError) {
+                throw new Error(authError.message);
+              }
+
+              if (!user) {
+                throw new Error(
+                  'You must be logged in.',
+                );
+              }
+
+              /*
+               * Remove RSVPs first.
+               */
+              const { error: rsvpError } =
+                await supabase
+                  .from('rsvps')
+                  .delete()
+                  .eq('activity_id', id);
+
+              if (rsvpError) {
+                throw new Error(
+                  rsvpError.message,
+                );
+              }
+
+              /*
+               * Remove private activity
+               * join requests.
+               */
+              const { error: requestError } =
+                await supabase
+                  .from(
+                    'activity_join_requests',
+                  )
+                  .delete()
+                  .eq('activity_id', id);
+
+              if (requestError) {
+                throw new Error(
+                  requestError.message,
+                );
+              }
+
+              /*
+               * Finally delete the activity.
+               *
+               * host_id check prevents another
+               * user from deleting the activity.
+               */
+              const { error: deleteError } =
+                await supabase
+                  .from('activities')
+                  .delete()
+                  .eq('id', id)
+                  .eq('host_id', user.id);
+
+              if (deleteError) {
+                throw new Error(
+                  deleteError.message,
+                );
+              }
+
+              Alert.alert(
+                'Activity deleted',
+                'The activity has been deleted.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () =>
+                      router.replace('/(tabs)'),
+                  },
+                ],
+              );
+            } catch (error) {
+              Alert.alert(
+                'Could not delete activity',
+                error instanceof Error
+                  ? error.message
+                  : 'Something went wrong.',
+              );
+            }
+          },
+        },
+      ],
+    );
   }
 
   if (loading) {
@@ -271,34 +417,121 @@ export default function EditActivityScreen() {
             </View>
 
             {/* Ride sharing */}
-            <View style={[styles.rideCard, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+            <View
+              style={[
+                styles.rideCard,
+                {
+                  backgroundColor: colors.cardBackground,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
               <View style={styles.rideHeader}>
                 <View style={styles.rideTextContainer}>
-                  <AppText style={[styles.rideTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Ride sharing</AppText>
-                  <AppText style={[styles.rideSubtitle, { color: colors.outline, fontFamily: Fonts?.sans }]}>Let others know if rides are available.</AppText>
+                  <AppText
+                    style={[
+                      styles.rideTitle,
+                      {
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    Ride sharing
+                  </AppText>
+
+                  <AppText
+                    style={[
+                      styles.rideSubtitle,
+                      {
+                        color: colors.outline,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    Allow attendees to find or offer rides for this activity.
+                  </AppText>
                 </View>
+
                 <TouchableOpacity
-                  onPress={() => setRidesAvailable((v) => !v)}
-                  style={[styles.toggleButton, ridesAvailable ? { backgroundColor: colors.tint } : { backgroundColor: colors.surfaceContainerHigh }]}
+                  onPress={() =>
+                    setRideSharing((value) => !value)
+                  }
+                  style={[
+                    styles.toggleButton,
+                    rideSharing
+                      ? { backgroundColor: colors.tint }
+                      : {
+                        backgroundColor:
+                          colors.surfaceContainerHigh,
+                      },
+                  ]}
                 >
-                  <AppText style={[styles.toggleText, { color: ridesAvailable ? colors.onImageOverlay : colors.text, fontFamily: Fonts?.sans }]}>
-                    {ridesAvailable ? 'Yes' : 'No'}
+                  <AppText
+                    style={[
+                      styles.toggleText,
+                      {
+                        color: rideSharing
+                          ? colors.onImageOverlay
+                          : colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {rideSharing ? 'Yes' : 'No'}
                   </AppText>
                 </TouchableOpacity>
               </View>
-              {ridesAvailable && (
-                <PostField label="Available Seats" value={rideSeats} onChangeText={setRideSeats} placeholder="3" keyboardType="numeric" />
-              )}
             </View>
 
             {/* Save */}
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={[styles.submitButton, { backgroundColor: saving ? colors.outline : colors.tint }]}
+              style={[
+                styles.submitButton,
+                {
+                  backgroundColor:
+                    saving
+                      ? colors.outline
+                      : colors.tint,
+                },
+              ]}
             >
-              <AppText style={[styles.submitText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              <AppText
+                style={[
+                  styles.submitText,
+                  {
+                    color: colors.onImageOverlay,
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
                 {saving ? 'Saving...' : 'Save Changes'}
+              </AppText>
+            </TouchableOpacity>
+
+            {/* Delete Activity */}
+            <TouchableOpacity
+              onPress={handleDeleteActivity}
+              disabled={saving}
+              style={styles.deleteButton}
+            >
+              <IconSymbol
+                name="trash"
+                size={18}
+                color="#D32F2F"
+              />
+
+              <AppText
+                style={[
+                  styles.deleteText,
+                  {
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
+                Delete Activity
               </AppText>
             </TouchableOpacity>
           </View>
@@ -307,7 +540,6 @@ export default function EditActivityScreen() {
     </AppView>
   );
 }
-
 const HERO_HEIGHT = 260;
 
 const styles = StyleSheet.create({
@@ -361,6 +593,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     gap: 20,
+  },
+  deleteButton: {
+    minHeight: 50,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D32F2F',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  deleteText: {
+    color: '#D32F2F',
+    fontSize: 15,
+    fontWeight: '700',
   },
   section: { gap: 14 },
   sectionHeading: { fontSize: 18, fontWeight: '700' },

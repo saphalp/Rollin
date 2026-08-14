@@ -17,9 +17,9 @@
 - **Check runs after email verification, not at signup.** We only check if educational domain actually exists after the user has proven that they own the email address.
 
 ## Technical Hurdles
-- **The domain filter isn't reliable.** Hipolabs' filter has historically returned the full list instead of a match, so we don't trust it blindly — the function does its own exact match on the returned data instead of assuming the API filtered correctly.
 - **Subdomains in student emails.** Some schools issue addresses like `student@cs.usc.edu`, but Hipolabs only stores the root domain (`usc.edu`). We strip the subdomain down to the root before matching, or the lookup fails for legitimate users.
-- **Hipolabs is HTTP, not HTTPS.** The public endpoint isn't served over TLS. 
+- Email verification link requires app to be in build version to test the redirection back to the app
+- Difficulties in setting up redirection from google oauth
 
 ## Feature Workflow
 1. User signs up with email/password or Google OAuth.

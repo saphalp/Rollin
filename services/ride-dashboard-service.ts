@@ -119,7 +119,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
       .select('id, pickup_location, destination, date_time')
       .in('id', rideIds),
     driverIds.length
-      ? supabase.from('profiles').select('id, full_name, username').in('id', driverIds)
+      ? supabase.from('profiles').select('id, full_name').in('id', driverIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -130,7 +130,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
   const profileMap = new Map(
     (profilesResult.data ?? []).map((profile) => [
       profile.id,
-      profile.full_name || profile.username || 'Rollin user',
+      profile.full_name?.trim() || 'Rollin user'
     ]),
   );
 
@@ -203,7 +203,7 @@ export async function fetchMyRideHistory(
           .select('id, pickup_location, destination, date_time')
           .in('id', rideIds),
         driverIds.length
-          ? supabase.from('profiles').select('id, full_name, username').in('id', driverIds)
+          ? supabase.from('profiles').select('id, full_name').in('id', driverIds)
           : Promise.resolve({ data: [], error: null }),
       ]);
 
@@ -214,7 +214,7 @@ export async function fetchMyRideHistory(
       const profileMap = new Map(
         (profilesResult.data ?? []).map((profile) => [
           profile.id,
-          profile.full_name || profile.username || 'Rollin user',
+          profile.full_name?.trim() || 'Rollin user',
         ]),
       );
 

@@ -79,11 +79,21 @@ export default function ChatConversationScreen() {
     if (conversation.type === "group") {
       const { data: participants } = await supabase
         .from("conversation_participants")
-        .select("user_id, profiles(full_name)")
+        .select("user_id")
         .eq("conversation_id", id);
 
-      (participants ?? []).forEach((p: any) => {
-        names[p.user_id] = p.profiles?.full_name ?? "Rollin' User";
+      const participantUserIds = (participants ?? []).map((p: any) => p.user_id);
+
+      const { data: participantProfiles } = participantUserIds.length > 0
+        ? await supabase.from("profiles").select("id, full_name").in("id", participantUserIds)
+        : { data: [] as any[] };
+
+      const nameById: Record<string, string> = Object.fromEntries(
+        (participantProfiles ?? []).map((p: any) => [p.id, p.full_name ?? "Rollin' User"]),
+      );
+
+      participantUserIds.forEach((userId: string) => {
+        names[userId] = nameById[userId] ?? "Rollin' User";
       });
       setParticipantNames(names);
     }

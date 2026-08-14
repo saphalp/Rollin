@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   mapErrorTitle: {
     marginTop: 10,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
   mapStatusText: {

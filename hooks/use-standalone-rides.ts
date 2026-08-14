@@ -40,6 +40,7 @@ export function useStandaloneRides() {
       .select("id, driver_id, pickup_location, destination, date_time, available_seats, notes")
       .is("activity_id", null)
       .eq("status", "open")
+      .gte("date_time", new Date().toISOString())
       .order("date_time", { ascending: true });
 
     if (error) {

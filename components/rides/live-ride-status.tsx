@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 16,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     subtitle: {
         marginTop: 3,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     },
     metricValue: {
         fontSize: 18,
-        fontWeight: '900',
+        fontWeight: '700',
     },
     metricLabel: {
         marginTop: 3,

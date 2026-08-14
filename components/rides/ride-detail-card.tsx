@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     },
     driverName: {
         fontSize: 18,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     driverLabel: {
         marginTop: 2,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     },
     notesTitle: {
         fontSize: 13,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     notesText: {
         marginTop: 5,

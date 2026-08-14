@@ -15,9 +15,8 @@ import { OfferRideIntroCard } from '@/components/rides/offer/offer-ride-intro-ca
 import { AppView } from '@/components/view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { createWantedRequest } from '@/services/ride-wanted-requests-service';
 import { supabase } from '@/lib/supabase';
-import { geocodeAddress } from '@/services/geocoding-service';
-import { fulfillWantedRequest } from '@/services/ride-wanted-requests-service';
 
 type LinkedActivity = {
   id: string;
@@ -25,26 +24,22 @@ type LinkedActivity = {
   location: string | null;
 };
 
-export default function OfferRideScreen() {
+export default function RequestRideScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const { activityId, pickupLocation: prefilledPickup, sourceRequestId } =
-    useLocalSearchParams<{
-      activityId?: string;
-      pickupLocation?: string;
-      sourceRequestId?: string;
-    }>();
+  const { activityId } = useLocalSearchParams<{
+    activityId?: string;
+  }>();
 
   const [linkedActivity, setLinkedActivity] =
     useState<LinkedActivity | null>(null);
 
-  const [pickupLocation, setPickupLocation] = useState(prefilledPickup ?? '');
+  const [pickupLocation, setPickupLocation] = useState('');
   const [destination, setDestination] = useState('');
   const [rideDateTime, setRideDateTime] =
     useState<Date | null>(null);
-  const [availableSeats, setAvailableSeats] = useState('1');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -97,7 +92,7 @@ export default function OfferRideScreen() {
     if (!cleanedPickup) {
       Alert.alert(
         'Missing pickup location',
-        'Please enter where riders should meet you.',
+        'Please enter where you’d like to be picked up.',
       );
       return;
     }
@@ -105,7 +100,7 @@ export default function OfferRideScreen() {
     if (!cleanedDestination) {
       Alert.alert(
         'Missing destination',
-        'Please enter where this ride is headed.',
+        'Please enter where you need to go.',
       );
       return;
     }
@@ -121,24 +116,10 @@ export default function OfferRideScreen() {
       return;
     }
 
-    const seats = Number.parseInt(availableSeats, 10);
-
-    if (
-      !availableSeats.trim() ||
-      Number.isNaN(seats) ||
-      seats < 1
-    ) {
-      Alert.alert(
-        'Invalid seats',
-        'Enter how many seats you have available.',
-      );
-      return;
-    }
-
     if (!rideDateTime) {
       Alert.alert(
         'Missing departure time',
-        'Please select a departure date and time.',
+        'Please select a date and time you need the ride.',
       );
       return;
     }
@@ -154,62 +135,17 @@ export default function OfferRideScreen() {
     setSaving(true);
 
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw new Error(authError.message);
-      }
-
-      if (!user) {
-        throw new Error('Please log in to offer a ride.');
-      }
-
-      const [pickupCoordinates, destinationCoordinates] =
-        await Promise.all([
-          geocodeAddress(cleanedPickup),
-          geocodeAddress(cleanedDestination),
-        ]);
-
-      const { error } = await supabase
-        .from('rides_offered')
-        .insert({
-          driver_id: user.id,
-          activity_id: linkedActivity?.id ?? null,
-
-          pickup_location: cleanedPickup,
-          pickup_latitude: pickupCoordinates.latitude,
-          pickup_longitude: pickupCoordinates.longitude,
-
-          destination: cleanedDestination,
-          destination_latitude:
-            destinationCoordinates.latitude,
-          destination_longitude:
-            destinationCoordinates.longitude,
-
-          date_time: rideDateTime.toISOString(),
-          available_seats: seats,
-          notes: notes.trim() || null,
-          status: 'open',
-        });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (sourceRequestId) {
-        try {
-          await fulfillWantedRequest(sourceRequestId);
-        } catch (fulfillError) {
-          console.error('[offer] failed to mark request fulfilled:', fulfillError);
-        }
-      }
+      await createWantedRequest({
+        activityId: linkedActivity?.id ?? null,
+        pickupLocation: cleanedPickup,
+        destination: cleanedDestination,
+        dateTime: rideDateTime.toISOString(),
+        notes: notes.trim() || null,
+      });
 
       Alert.alert(
-        'Ride offer posted',
-        'Your ride and map locations were saved successfully.',
+        'Ride request posted',
+        'Drivers will be able to see your request and offer you a ride.',
         [
           {
             text: 'OK',
@@ -219,7 +155,7 @@ export default function OfferRideScreen() {
       );
     } catch (error) {
       Alert.alert(
-        'Could not post ride',
+        'Could not post request',
         error instanceof Error
           ? error.message
           : 'Something went wrong.',
@@ -238,7 +174,11 @@ export default function OfferRideScreen() {
         },
       ]}
     >
-      <OfferRideHeader onBack={goBack} />
+      <OfferRideHeader
+        onBack={goBack}
+        title="Request a Ride"
+        subtitle="Let drivers know you need a lift"
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -260,6 +200,10 @@ export default function OfferRideScreen() {
         >
           <OfferRideIntroCard
             linkedActivityTitle={linkedActivity?.title}
+            icon="car-search-outline"
+            defaultTitle="Request a ride"
+            defaultSubtitle="Post a general trip request or connect it to a public activity."
+            linkedSubtitle="This request will be connected to the selected activity."
           />
 
           <OfferRideForm
@@ -269,12 +213,15 @@ export default function OfferRideScreen() {
             onDestinationChange={setDestination}
             rideDateTime={rideDateTime}
             onRideDateTimeChange={setRideDateTime}
-            availableSeats={availableSeats}
-            onAvailableSeatsChange={setAvailableSeats}
             notes={notes}
             onNotesChange={setNotes}
             saving={saving}
             onSubmit={handleSubmit}
+            submitLabel="Post Ride Request"
+            savingLabel="Posting..."
+            pickupPlaceholder="Where would you like to be picked up?"
+            destinationPlaceholder="Where are you headed?"
+            notesPlaceholder="Anything a driver should know..."
           />
         </ScrollView>
       </KeyboardAvoidingView>

@@ -5,6 +5,7 @@ import { Button } from "react-native-paper";
 
 import AvatarCard from "@/components/profile/AvatarCard";
 import { getProfilePictureUrl } from "@/lib/profile/get-profile-picture";
+import { FALLBACK_AVATAR } from "@/lib/profile/resolve-avatar-uri";
 import { selectProfileImage } from "@/lib/profile/select-profile-image";
 import { uploadProfilePicture } from "@/lib/profile/upload-profile-picture";
 
@@ -102,9 +103,7 @@ export default function ProfileAvatar({
   }
 
   const displayedImage =
-    selectedImage?.uri ??
-    profilePictureUrl ??
-    "https://picsum.photos/seed/default-profile/400/400";
+    selectedImage?.uri ?? profilePictureUrl ?? FALLBACK_AVATAR;
 
   return (
     <View>

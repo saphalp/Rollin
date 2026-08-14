@@ -15,11 +15,11 @@ import {
 } from "react-native";
 import { Chip, Text } from "react-native-paper";
 
-import AvatarCard from "@/components/profile/AvatarCard";
+import LogoutButton from "@/components/auth/LogoutButton";
 import ActivitySegmentedControl, {
   type ActivityView,
 } from "@/components/profile/ActivitySegmentedControl";
-import LogoutButton from "@/components/auth/LogoutButton";
+import AvatarCard from "@/components/profile/AvatarCard";
 import InterestChips from "@/components/profile/InterestChips";
 import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
@@ -121,6 +121,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
@@ -140,11 +141,11 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
       const joinedRequest = isOwnProfile
         ? supabase
-            .from("rsvps")
-            .select(
-              "activity:activities(id, title, date_time, image_url, category)",
-            )
-            .eq("user_id", userId)
+          .from("rsvps")
+          .select(
+            "activity:activities(id, title, date_time, image_url, category)",
+          )
+          .eq("user_id", userId)
         : Promise.resolve({ data: [], error: null });
 
       const [createdResult, joinedResult] = await Promise.all([
@@ -181,6 +182,68 @@ export default function UserProfile({ userId }: UserProfileProps) {
       cancelled = true;
     };
   }, [isOwnProfile, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+
+    async function loadRideCount() {
+      const [offeredResult, takenResult] = await Promise.all([
+        /*
+         * Rides this user offered and completed.
+         */
+        supabase
+          .from("rides_offered")
+          .select("id", {
+            count: "exact",
+            head: true,
+          })
+          .eq("driver_id", userId)
+          .eq("status", "completed"),
+
+        /*
+         * Rides this user took as a passenger
+         * and completed.
+         */
+        supabase
+          .from("ride_requests")
+          .select("id", {
+            count: "exact",
+            head: true,
+          })
+          .eq("requester_id", userId)
+          .eq("status", "completed"),
+      ]);
+
+      if (cancelled) return;
+
+      if (offeredResult.error) {
+        console.error(
+          "[profile] offered ride count failed:",
+          offeredResult.error,
+        );
+      }
+
+      if (takenResult.error) {
+        console.error(
+          "[profile] taken ride count failed:",
+          takenResult.error,
+        );
+      }
+
+      const offered = offeredResult.count ?? 0;
+      const taken = takenResult.count ?? 0;
+
+      setRideCount(offered + taken);
+    }
+
+    void loadRideCount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const displayedActivities =
     activityView === "created" ? createdActivities : joinedActivities;
@@ -259,7 +322,12 @@ export default function UserProfile({ userId }: UserProfileProps) {
           onMessagePress={handleMessagePress}
         />
 
-        <ProfileStats statsData={EMPTY_STATS} />
+        <ProfileStats
+          statsData={{
+            ...EMPTY_STATS,
+            rides: rideCount,
+          }}
+        />
 
         <View>
           <SectionHeader header="Interests" />

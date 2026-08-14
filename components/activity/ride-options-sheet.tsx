@@ -112,17 +112,16 @@ export function RideOptionsSheet({
                             onPress={handleFindRide}
                             style={[
                                 styles.optionCard,
-                                styles.findCard,
                                 {
-                                    backgroundColor:
-                                        colors.tint,
+                                    backgroundColor: colors.tint,
+                                    borderWidth: 0,
                                 },
                             ]}
                         >
                             <View style={styles.findIcon}>
                                 <IconSymbol
                                     name="car.fill"
-                                    size={28}
+                                    size={22}
                                     color={colors.tint}
                                 />
                             </View>
@@ -181,7 +180,7 @@ export function RideOptionsSheet({
                             >
                                 <IconSymbol
                                     name="car.fill"
-                                    size={28}
+                                    size={22}
                                     color="#fff"
                                 />
                             </View>

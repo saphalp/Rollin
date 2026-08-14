@@ -162,25 +162,61 @@ export default function EditActivityScreen() {
       if (!isNaN(parsed.getTime())) dateTime = parsed.toISOString();
     }
 
-    const { error } = await supabase.from('activities').update({
-      title: title.trim(),
-      category: category.toLowerCase(),
-      description: description.trim() || null,
-      image_url: imageUrl,
-      location: location.trim() || null,
-      date_time: dateTime,
-      max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
-      ride_sharing: rideSharing,
-    }).eq('id', id);
+    const { data: updatedActivity, error } = await supabase
+      .from('activities')
+      .update({
+        title: title.trim(),
+        category: category.toLowerCase(),
+        description: description.trim() || null,
+        image_url: imageUrl,
+        location: location.trim() || null,
+        date_time: dateTime,
+        max_attendees: maxAttendees
+          ? parseInt(maxAttendees)
+          : 10,
+        ride_sharing: rideSharing,
+      })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
 
     setSaving(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      console.error('Activity update error:', error);
+
+      Alert.alert(
+        'Could not save activity',
+        error.message,
+      );
+
       return;
     }
 
-    router.back();
+    if (!updatedActivity) {
+      Alert.alert(
+        'Update blocked',
+        'The activity was not updated. This is most likely a Supabase permission/RLS issue.',
+      );
+
+      return;
+    }
+
+    console.log(
+      'Activity updated successfully:',
+      updatedActivity,
+    );
+
+    Alert.alert(
+      'Saved',
+      'Activity updated successfully.',
+      [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ],
+    );
   }
   async function handleDeleteActivity() {
     Alert.alert(

@@ -182,6 +182,111 @@ export default function EditActivityScreen() {
 
     router.back();
   }
+  async function handleDeleteActivity() {
+    Alert.alert(
+      'Delete Activity',
+      'Are you sure you want to delete this activity? This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const {
+                data: { user },
+                error: authError,
+              } = await supabase.auth.getUser();
+
+              if (authError) {
+                throw new Error(authError.message);
+              }
+
+              if (!user) {
+                throw new Error(
+                  'You must be logged in.',
+                );
+              }
+
+              /*
+               * Remove RSVPs first.
+               */
+              const { error: rsvpError } =
+                await supabase
+                  .from('rsvps')
+                  .delete()
+                  .eq('activity_id', id);
+
+              if (rsvpError) {
+                throw new Error(
+                  rsvpError.message,
+                );
+              }
+
+              /*
+               * Remove private activity
+               * join requests.
+               */
+              const { error: requestError } =
+                await supabase
+                  .from(
+                    'activity_join_requests',
+                  )
+                  .delete()
+                  .eq('activity_id', id);
+
+              if (requestError) {
+                throw new Error(
+                  requestError.message,
+                );
+              }
+
+              /*
+               * Finally delete the activity.
+               *
+               * host_id check prevents another
+               * user from deleting the activity.
+               */
+              const { error: deleteError } =
+                await supabase
+                  .from('activities')
+                  .delete()
+                  .eq('id', id)
+                  .eq('host_id', user.id);
+
+              if (deleteError) {
+                throw new Error(
+                  deleteError.message,
+                );
+              }
+
+              Alert.alert(
+                'Activity deleted',
+                'The activity has been deleted.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () =>
+                      router.replace('/(tabs)'),
+                  },
+                ],
+              );
+            } catch (error) {
+              Alert.alert(
+                'Could not delete activity',
+                error instanceof Error
+                  ? error.message
+                  : 'Something went wrong.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  }
 
   if (loading) {
     return (
@@ -369,13 +474,36 @@ export default function EditActivityScreen() {
                 {saving ? 'Saving...' : 'Save Changes'}
               </AppText>
             </TouchableOpacity>
+
+            {/* Delete Activity */}
+            <TouchableOpacity
+              onPress={handleDeleteActivity}
+              disabled={saving}
+              style={styles.deleteButton}
+            >
+              <IconSymbol
+                name="trash"
+                size={18}
+                color="#D32F2F"
+              />
+
+              <AppText
+                style={[
+                  styles.deleteText,
+                  {
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
+                Delete Activity
+              </AppText>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </AppView >
+    </AppView>
   );
 }
-
 const HERO_HEIGHT = 260;
 
 const styles = StyleSheet.create({
@@ -429,6 +557,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     gap: 20,
+  },
+  deleteButton: {
+    minHeight: 50,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D32F2F',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  deleteText: {
+    color: '#D32F2F',
+    fontSize: 15,
+    fontWeight: '700',
   },
   section: { gap: 14 },
   sectionHeading: { fontSize: 18, fontWeight: '700' },

@@ -61,6 +61,8 @@ export function RootNavigator() {
       <Stack.Protected guard={!isLoggedIn}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }

@@ -1,8 +1,29 @@
 import { Colors } from "@/constants/theme";
+import { supabase } from "@/lib/supabase";
+import { router } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Button } from "react-native-paper";
 import Svg2, { Path, Rect } from "react-native-svg";
 
 export default function EmailVerificationScreen() {
+  const [isReturning, setIsReturning] = useState(false);
+
+  async function returnToLogin() {
+    setIsReturning(true);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      await supabase.auth.signOut();
+    }
+
+    setIsReturning(false);
+    router.replace("/(auth)");
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -20,14 +41,25 @@ export default function EmailVerificationScreen() {
 
         <Text style={styles.title}>Check your inbox</Text>
         <Text style={styles.body}>
-          We've sent a verification link to your email address. Click the link
+          We&apos;ve sent a verification link to your email address. Click the link
           to activate your account and start rolling.
         </Text>
       </View>
 
       <Text style={styles.resendText}>
-        Didn't get the email? <Text style={styles.resendLink}>Resend link</Text>
+        Didn&apos;t get the email? <Text style={styles.resendLink}>Resend link</Text>
       </Text>
+
+      <Button
+        mode="outlined"
+        onPress={returnToLogin}
+        loading={isReturning}
+        disabled={isReturning}
+        textColor={Colors.light.onPrimary}
+        style={styles.loginButton}
+      >
+        Back to login
+      </Button>
     </View>
   );
 }
@@ -76,6 +108,11 @@ const styles = StyleSheet.create({
   resendLink: {
     fontWeight: "500",
     color: "#ffffff",
+  },
+  loginButton: {
+    borderColor: Colors.light.onPrimary,
+    width: "100%",
+    maxWidth: 320,
   },
   wave: {
     position: "absolute",

@@ -7,8 +7,9 @@ import TermsFooter from "@/components/auth/TermsFooter";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,9 +17,17 @@ export default function LoginScreen() {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   return (
-    <SafeAreaView>
-      <KeyboardAvoidingView>
-        <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <AuthHeader />
           <ImageContainer />
           {step === 1 && (
@@ -47,7 +56,17 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
   container: {
     paddingHorizontal: 20,
+  },
+  content: {
+    flexGrow: 1,
+    paddingBottom: 48,
   },
 });

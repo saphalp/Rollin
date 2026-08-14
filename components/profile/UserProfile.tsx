@@ -27,6 +27,7 @@ import ProfileActionBar from "@/components/profile/ProfileActionBar";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
+import ResetPasswordButton from "@/components/profile/ResetPasswordButton";
 import SectionHeader from "@/components/profile/SectionHeader";
 
 const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
@@ -339,7 +340,12 @@ export default function UserProfile({ userId }: UserProfileProps) {
           </View>
         </View>
 
-        {isOwnProfile && <LogoutButton />}
+        {isOwnProfile && (
+          <View style={styles.accountActions}>
+            <ResetPasswordButton email={profile.email} />
+            <LogoutButton />
+          </View>
+        )}
       </ScrollView>
 
       {isOwnProfile && (
@@ -383,6 +389,9 @@ const styles = StyleSheet.create({
   activitiesMessage: {
     fontSize: 14,
     paddingTop: 15,
+  },
+  accountActions: {
+    gap: 12,
   },
   center: {
     flex: 1,

@@ -18,14 +18,14 @@ The features provides:
 - The rider offerer controls when location sharing starts and stops
 - The device must grant location permissions for location tracking
 - Supabase realtime is used for location updates
-- Tracking stops when the ride is comlpleted or cancelled
+- Tracking stops when the ride is completed or cancelled
 - GPS accuracy depends on the user's device and location
 - The current feature does not include smooth animated movement of the tracker, markers, or road snapping (like uber), but these features could be added in the future.
 
 ## Decisions
 ### Tracking only starts after Acceptance
 
-Passenfer requests a ride
+Passenger requests a ride
 |
 Ride offerer accepts
 |
@@ -83,7 +83,7 @@ Because of this, the ride marker may move from one coordinate to another instead
     The accepted passenger is eligible to view the live tracking. 
 4. Ridee offerer starts trip
     The ride offerer starts a trip and ride status chages to in progress
-5. Location is Publised
+5. Location is Published
     The device provides location informations such as
     - latitude
     - longitude

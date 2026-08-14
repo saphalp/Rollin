@@ -46,12 +46,12 @@ const PICKER_COPY: Record<
   offer: {
     title: 'Offer a ride for...',
     subtitle:
-      'Pick an activity you\'re attending to connect this ride to, or continue without one.',
+      'Pick an activity you\'re attending or hosting to connect this ride to, or continue without one.',
   },
   find: {
     title: 'Find a ride for...',
     subtitle:
-      'Pick an activity you\'re attending to search rides for, or continue without one.',
+      'Pick an activity you\'re attending or hosting to search rides for, or continue without one.',
   },
 };
 

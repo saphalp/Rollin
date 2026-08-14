@@ -11,6 +11,7 @@ type OfferRideFormProps = {
   onPickupLocationChange: (value: string) => void;
   destination: string;
   onDestinationChange: (value: string) => void;
+  destinationLocked?: boolean;
   rideDateTime: Date | null;
   onRideDateTimeChange: (date: Date) => void;
   availableSeats?: string;
@@ -31,6 +32,7 @@ export function OfferRideForm({
   onPickupLocationChange,
   destination,
   onDestinationChange,
+  destinationLocked = false,
   rideDateTime,
   onRideDateTimeChange,
   availableSeats,
@@ -74,12 +76,29 @@ export function OfferRideForm({
           placeholder={pickupPlaceholder}
         />
 
-        <PostField
-          label="Destination"
-          value={destination}
-          onChangeText={onDestinationChange}
-          placeholder={destinationPlaceholder}
-        />
+        <View style={styles.destinationSection}>
+          <PostField
+            label="Destination"
+            value={destination}
+            onChangeText={onDestinationChange}
+            placeholder={destinationPlaceholder}
+            editable={!destinationLocked}
+          />
+
+          {destinationLocked && (
+            <AppText
+              style={[
+                styles.lockedDestinationText,
+                {
+                  color: colors.outline,
+                  fontFamily: Fonts?.sans,
+                },
+              ]}
+            >
+              Destination is fixed for this activity.
+            </AppText>
+          )}
+        </View>
 
         <View style={styles.row}>
           <View style={styles.rowItem}>
@@ -140,22 +159,36 @@ const styles = StyleSheet.create({
   section: {
     gap: 14,
   },
+
   sectionHeading: {
     fontSize: 18,
     fontWeight: '700',
   },
+
+  destinationSection: {
+    gap: 6,
+  },
+
+  lockedDestinationText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
   row: {
     flexDirection: 'row',
     gap: 12,
   },
+
   rowItem: {
     flex: 1,
   },
+
   submitButton: {
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
   },
+
   submitText: {
     fontSize: 16,
     fontWeight: '700',

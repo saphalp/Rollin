@@ -62,6 +62,7 @@ export function ExplorePostCard({ post, onPress }: ExplorePostCardProps) {
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{post.category}</Text>
         </View>
+        <MaterialCommunityIcons name="bookmark-outline" size={22} color="#8A8A8A" style={styles.bookmarkIcon} />
       </View>
 
       <Text style={styles.description}>{post.description}</Text>
@@ -146,6 +147,9 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 11,
     fontWeight: '600',
+  },
+  bookmarkIcon: {
+    marginLeft: 8,
   },
   description: {
     color: '#222222',

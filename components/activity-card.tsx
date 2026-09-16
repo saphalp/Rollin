@@ -49,21 +49,24 @@ export function ActivityCard({
       {/* dark overlay so text is always readable */}
       <View style={styles.dim} />
 
-      {/* top row: category badge + ride badge */}
+      {/* top row: category badge + ride badge + bookmark */}
       <View style={styles.topRow}>
         <View style={[styles.categoryBadge, { backgroundColor: colors.tint }]}>
           <AppText style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </AppText>
         </View>
-        {rideSharing && (
-          <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
-            <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
-            <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-              Ride sharing
-            </AppText>
-          </View>
-        )}
+        <View style={styles.topRight}>
+          {rideSharing && (
+            <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
+              <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
+              <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
+                Ride sharing
+              </AppText>
+            </View>
+          )}
+          <IconSymbol name="bookmark" size={20} color={colors.onImageOverlay} />
+        </View>
       </View>
 
       {/* bottom: title + meta */}
@@ -108,6 +111,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  topRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   categoryBadge: {
     borderRadius: 20,

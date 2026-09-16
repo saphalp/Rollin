@@ -1,4 +1,5 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { UploadPhotoSheet } from "@/components/activity/upload-photo-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -146,6 +147,9 @@ export default function ActivityDetailScreen() {
     useState(false);
 
   const [rideOptionsVisible, setRideOptionsVisible] =
+    useState(false);
+
+  const [uploadPhotoVisible, setUploadPhotoVisible] =
     useState(false);
 
   useEffect(() => {
@@ -572,6 +576,11 @@ export default function ActivityDetailScreen() {
   const isHost =
     currentUserId ===
     activity.host_id;
+
+  const isPast =
+    activity.date_time
+      ? new Date(activity.date_time) < new Date()
+      : false;
 
   return (
     <AppView style={styles.container}>
@@ -1282,6 +1291,41 @@ export default function ActivityDetailScreen() {
                 </AppText>
               </TouchableOpacity>
             )}
+
+            {isPast && (
+              <TouchableOpacity
+                onPress={() =>
+                  setUploadPhotoVisible(true)
+                }
+                style={[
+                  styles.rideOptionsButton,
+                  {
+                    borderColor:
+                      colors.outline,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="camera.fill"
+                  size={18}
+                  color={colors.text}
+                />
+
+                <AppText
+                  style={[
+                    styles.rideOptionsText,
+                    {
+                      color:
+                        colors.text,
+                      fontFamily:
+                        Fonts?.sans,
+                    },
+                  ]}
+                >
+                  Upload Photo
+                </AppText>
+              </TouchableOpacity>
+            )}
           </>
         ) : (
           <>
@@ -1406,6 +1450,41 @@ export default function ActivityDetailScreen() {
                 </AppText>
               </TouchableOpacity>
             )}
+
+            {hasRsvp && isPast && (
+              <TouchableOpacity
+                onPress={() =>
+                  setUploadPhotoVisible(true)
+                }
+                style={[
+                  styles.rideOptionsButton,
+                  {
+                    borderColor:
+                      colors.outline,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="camera.fill"
+                  size={18}
+                  color={colors.text}
+                />
+
+                <AppText
+                  style={[
+                    styles.rideOptionsText,
+                    {
+                      color:
+                        colors.text,
+                      fontFamily:
+                        Fonts?.sans,
+                    },
+                  ]}
+                >
+                  Upload Photo
+                </AppText>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>
@@ -1415,6 +1494,14 @@ export default function ActivityDetailScreen() {
         activityId={activity.id}
         onClose={() =>
           setRideOptionsVisible(false)
+        }
+      />
+
+      <UploadPhotoSheet
+        visible={uploadPhotoVisible}
+        activityId={activity.id}
+        onClose={() =>
+          setUploadPhotoVisible(false)
         }
       />
     </AppView>

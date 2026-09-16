@@ -43,6 +43,10 @@ const MAPPING = {
   'checkmark': 'check',
   'calendar': 'calendar-today',
   'clock': 'access-time',
+  'camera.fill': 'camera-alt',
+  'heart': 'favorite-border',
+  'heart.fill': 'favorite',
+  'ellipsis': 'more-horiz',
 } as IconMapping;
 
 /**

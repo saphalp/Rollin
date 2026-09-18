@@ -50,15 +50,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [selectedCategory]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchActivities().finally(() => setRefreshing(false));
-  }, [selectedCategory]);
-
   async function fetchActivities() {
     setLoading(true);
 
@@ -119,6 +110,15 @@ export default function HomeScreen() {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    fetchActivities();
+  }, [selectedCategory]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchActivities().finally(() => setRefreshing(false));
+  }, [selectedCategory]);
 
   const filtered = searchQuery.trim()
     ? activities.filter((a) => a.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -209,7 +209,7 @@ export default function HomeScreen() {
                   {featured.imageUrl ? (
                     <Image
                       source={{ uri: featured.imageUrl }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                       contentFit="cover"
                       cachePolicy="memory-disk"
                     />
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   featuredDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   rideBadge: {

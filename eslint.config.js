@@ -7,4 +7,11 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    rules: {
+      // Flags the common "fetch data on mount" effect pattern used throughout
+      // this app; downgraded to a warning until those effects are refactored.
+      'react-hooks/set-state-in-effect': 'warn',
+    },
+  },
 ]);

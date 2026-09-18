@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     statusContainer: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         paddingHorizontal: 28,
         alignItems: 'center',
         justifyContent: 'center',

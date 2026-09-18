@@ -54,10 +54,6 @@ export default function EditActivityScreen() {
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newAsset, setNewAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
-  useEffect(() => {
-    if (id) loadActivity();
-  }, [id]);
-
   async function loadActivity() {
     const { data, error } = await supabase
       .from('activities')
@@ -103,6 +99,10 @@ export default function EditActivityScreen() {
 
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (id) loadActivity();
+  }, [id]);
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -350,7 +350,7 @@ export default function EditActivityScreen() {
         >
           {/* Hero image — tappable to change */}
           <TouchableOpacity activeOpacity={0.85} onPress={pickImage} style={styles.hero}>
-            <Image source={{ uri: heroUri }} style={StyleSheet.absoluteFillObject} contentFit="cover" cachePolicy="none" />
+            <Image source={{ uri: heroUri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="none" />
             {/* dim overlay */}
             <View style={styles.heroDim} />
             {/* top bar: back + title */}
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.40)',
   },
   heroTop: {

@@ -49,7 +49,7 @@ export default function Header() {
           { color: colors.tint, fontFamily: Fonts?.rounded },
         ]}
       >
-        Rollin'
+        Rollin&apos;
       </AppText>
       <View style={styles.rightIcons}>
         <TouchableOpacity hitSlop={8} onPress={() => router.push('/calendar')}>

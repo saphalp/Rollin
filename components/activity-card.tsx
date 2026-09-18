@@ -40,7 +40,7 @@ export function ActivityCard({
       {imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   dim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.38)',
   },
   topRow: {

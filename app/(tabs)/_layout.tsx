@@ -48,7 +48,7 @@ export default function TabLayout() {
         tabBarBackground: () => (
           <View
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               { backgroundColor: Colors[colorScheme].background },
             ]}
           />

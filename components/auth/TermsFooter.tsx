@@ -24,7 +24,7 @@ export default function TermsFooter() {
       >
         Privacy Policy
       </Text>
-      . We'll send a verification link to your inbox.
+      . We&apos;ll send a verification link to your inbox.
     </Text>
   );
 }

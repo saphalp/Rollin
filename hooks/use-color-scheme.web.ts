@@ -12,9 +12,10 @@ export function useColorScheme() {
   }, []);
 
   const colorScheme = useRNColorScheme();
+  const normalized = colorScheme === 'dark' ? 'dark' : colorScheme === 'light' ? 'light' : null;
 
   if (hasHydrated) {
-    return colorScheme;
+    return normalized;
   }
 
   return 'light';

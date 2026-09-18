@@ -45,15 +45,6 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchNotifications().finally(() => setRefreshing(false));
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
   useNotificationRealtime(async (incoming) => {
     if (notifications.some((n) => n.id === incoming.id)) return;
     const { data } = await supabase
@@ -106,6 +97,15 @@ export default function NotificationsScreen() {
     }
     setLoading(false);
   }
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchNotifications().finally(() => setRefreshing(false));
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   async function markAsRead(id: string) {
     setNotifications((prev) =>

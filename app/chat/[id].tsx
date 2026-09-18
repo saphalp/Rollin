@@ -49,10 +49,6 @@ export default function ChatConversationScreen() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    if (id) load();
-  }, [id]);
-
   async function load() {
     setLoading(true);
 
@@ -116,6 +112,10 @@ export default function ChatConversationScreen() {
 
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (id) load();
+  }, [id]);
 
   useMessagesRealtime(id, (incoming) => {
     setMessages((prev) => {

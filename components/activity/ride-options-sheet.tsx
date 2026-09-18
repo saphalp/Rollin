@@ -112,7 +112,6 @@ export function RideOptionsSheet({
                             onPress={handleFindRide}
                             style={[
                                 styles.optionCard,
-                                styles.findCard,
                                 {
                                     backgroundColor:
                                         colors.tint,
@@ -227,7 +226,7 @@ const styles = StyleSheet.create({
     },
 
     backdrop: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor:
             'rgba(0,0,0,0.25)',
     },

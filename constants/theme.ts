@@ -3,8 +3,7 @@ import { Platform } from "react-native";
 const tintColorLight = "#0058be"; // primary (Electric Blue)
 const tintColorDark = "#adc6ff"; // inverse-primary
 
-export const Colors = {
-  light: {
+const light = {
     text: "#191b23", // on-surface
     background: "#f0f3fa", // surface / background
     tint: tintColorLight,
@@ -28,8 +27,9 @@ export const Colors = {
     verified: "#10B981", // Emerald verified badge
     cardBackground: "#ffffff", // card surface on top of background
     onImageOverlay: "#ffffff", // text/icons on dark photo overlays
-  },
-  dark: {
+};
+
+const dark = {
     text: "#191b23", // on-surface
     background: "#f9f9ff", // surface / background
     tint: tintColorLight,
@@ -53,7 +53,13 @@ export const Colors = {
     verified: "#10B981", // Emerald verified badge
     cardBackground: "#ffffff", // card surface on top of background
     onImageOverlay: "#ffffff", // always white on dark photo overlays
-  },
+};
+
+export const Colors = {
+  light,
+  dark,
+  // Android can report 'unspecified' when it can't determine a color scheme; fall back to light.
+  unspecified: light,
 };
 
 export const LandingGradient = [

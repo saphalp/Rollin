@@ -149,8 +149,12 @@ export default function ActivityDetailScreen() {
   const [rideOptionsVisible, setRideOptionsVisible] =
     useState(false);
 
+<<<<<<< Updated upstream
   const [menuVisible, setMenuVisible] =
     useState(false);
+=======
+  const [boosted, setBoosted] = useState(false);
+>>>>>>> Stashed changes
 
   useEffect(() => {
     if (id) {
@@ -512,6 +516,16 @@ export default function ActivityDetailScreen() {
    *
    * User must already be attending.
    */
+  function handleBoost() {
+    if (boosted) return;
+
+    setBoosted(true);
+
+    Alert.alert(
+      "Activity Boosted",
+      "Your activity has been boosted successfully."
+    );
+  }
 
   if (loading) {
     return (
@@ -1284,7 +1298,80 @@ export default function ActivityDetailScreen() {
       >
         {isHost ? (
           <>
+<<<<<<< Updated upstream
             {activity.ride_sharing && !isPast && (
+=======
+            {/* EDIT */}
+            <TouchableOpacity
+              onPress={() =>
+                router.push(
+                  `/activity/edit/${activity.id}`,
+                )
+              }
+              style={[
+                styles.rideButton,
+                {
+                  borderColor: colors.outline,
+                },
+              ]}
+            >
+              <IconSymbol
+                name="pencil"
+                size={16}
+                color={colors.text}
+              />
+
+              <AppText
+                style={[
+                  styles.rideText,
+                  {
+                    color: colors.text,
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
+                Edit
+              </AppText>
+            </TouchableOpacity>
+
+
+            {/* BOOST */}
+            <TouchableOpacity
+              onPress={handleBoost}
+              disabled={boosted}
+              style={[
+                styles.boostButton,
+                {
+                  backgroundColor: boosted
+                    ? colors.surfaceContainerHigh
+                    : colors.tint,
+
+                  borderColor: boosted
+                    ? colors.outline
+                    : colors.tint,
+                },
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.boostText,
+                  {
+                    color: boosted
+                      ? colors.text
+                      : colors.onPrimary,
+
+                    fontFamily: Fonts?.sans,
+                  },
+                ]}
+              >
+                {boosted ? "✓ Boosted" : "🚀 Boost"}
+              </AppText>
+            </TouchableOpacity>
+
+
+            {/* RIDE OPTIONS */}
+            {activity.ride_sharing && (
+>>>>>>> Stashed changes
               <TouchableOpacity
                 onPress={() =>
                   setRideOptionsVisible(true)
@@ -1292,8 +1379,7 @@ export default function ActivityDetailScreen() {
                 style={[
                   styles.rideOptionsButton,
                   {
-                    borderColor:
-                      colors.outline,
+                    borderColor: colors.outline,
                   },
                 ]}
               >
@@ -1307,10 +1393,8 @@ export default function ActivityDetailScreen() {
                   style={[
                     styles.rideOptionsText,
                     {
-                      color:
-                        colors.text,
-                      fontFamily:
-                        Fonts?.sans,
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
                     },
                   ]}
                 >
@@ -1775,4 +1859,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+<<<<<<< Updated upstream
+=======
+  rideButton: {
+    flex: 1,
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+
+  rideText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  boostButton: {
+    flex: 1,
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+  },
+
+  boostText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+>>>>>>> Stashed changes
 });

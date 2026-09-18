@@ -91,6 +91,12 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         )}
       </View>
 
+      {post.caption ? (
+        <AppText style={[styles.caption, { color: colors.text, fontFamily: Fonts?.sans }]}>
+          {post.caption}
+        </AppText>
+      ) : null}
+
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => router.push(`/activity/${post.activityId}`)}
@@ -132,15 +138,6 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           </AppText>
         </TouchableOpacity>
       </View>
-
-      {post.caption ? (
-        <AppText style={[styles.caption, { color: colors.text, fontFamily: Fonts?.sans }]}>
-          <AppText style={[styles.captionName, { fontFamily: Fonts?.sans }]}>
-            {post.userName}{" "}
-          </AppText>
-          {post.caption}
-        </AppText>
-      ) : null}
     </View>
   );
 }
@@ -213,8 +210,5 @@ const styles = StyleSheet.create({
   caption: {
     fontSize: 13,
     lineHeight: 18,
-  },
-  captionName: {
-    fontWeight: "700",
   },
 });

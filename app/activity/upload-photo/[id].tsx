@@ -1,44 +1,45 @@
 import * as ImagePicker from "expo-image-picker";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
   Image,
-  Modal,
-  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, IconButton, Text } from "react-native-paper";
+import { Button } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PostField } from "@/components/post/post-field";
+import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useUploadActivityPhoto } from "@/hooks/use-upload-activity-photo";
 
-type Props = {
-  visible: boolean;
-  activityId: string;
-  onClose: () => void;
-  onUploaded?: () => void;
-};
-
-export function UploadPhotoSheet({
-  visible,
-  activityId,
-  onClose,
-  onUploaded,
-}: Props) {
+export default function UploadActivityPhotoScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
-  const { saving, upload } = useUploadActivityPhoto(activityId);
+  const { saving, upload } = useUploadActivityPhoto(id);
 
   const [imageAsset, setImageAsset] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [caption, setCaption] = useState("");
+
+  function goBack() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(`/activity/${id}`);
+  }
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -58,79 +59,71 @@ export function UploadPhotoSheet({
     if (!result.canceled && result.assets[0]) setImageAsset(result.assets[0]);
   }
 
-  function reset() {
-    setImageAsset(null);
-    setCaption("");
-  }
-
-  function handleClose() {
-    reset();
-    onClose();
-  }
-
   async function handleSubmit() {
     if (!imageAsset) {
       Alert.alert("Add a photo", "Pick a photo to share first.");
       return;
     }
     const ok = await upload(imageAsset, caption.trim());
-    if (ok) {
-      reset();
-      onUploaded?.();
-      onClose();
-    }
+    if (ok) goBack();
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-      statusBarTranslucent
-    >
-      <View style={styles.container}>
-        <Pressable style={styles.backdrop} onPress={handleClose} />
-        <View
+    <AppView style={styles.container}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + 8,
+            borderBottomColor: colors.outlineVariant,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={goBack}
           style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.surface,
-              paddingBottom: insets.bottom + 16,
-            },
+            styles.backButton,
+            { backgroundColor: colors.surfaceContainerHigh },
           ]}
         >
-          <View
-            style={[styles.handle, { backgroundColor: colors.outlineVariant }]}
-          />
+          <IconSymbol name="chevron.left" size={20} color={colors.text} />
+        </TouchableOpacity>
 
-          <View style={styles.header}>
-            <View style={styles.headerText}>
-              <Text
-                style={[
-                  styles.title,
-                  { color: colors.text, fontFamily: Fonts?.sans },
-                ]}
-              >
-                Share a photo
-              </Text>
-              <Text
-                style={[
-                  styles.subtitle,
-                  { color: colors.icon, fontFamily: Fonts?.sans },
-                ]}
-              >
-                Post a memory from this activity to Explore.
-              </Text>
-            </View>
-            <IconButton
-              icon="close"
-              size={20}
-              onPress={handleClose}
-              iconColor={colors.icon}
-              style={styles.closeButton}
-            />
-          </View>
+        <AppText
+          style={[
+            styles.headerTitle,
+            { color: colors.text, fontFamily: Fonts?.sans },
+          ]}
+        >
+          Share a Photo
+        </AppText>
+
+        <View style={styles.backButton} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          style={{ backgroundColor: colors.background }}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <AppText
+            style={[
+              styles.subtitle,
+              { color: colors.icon, fontFamily: Fonts?.sans },
+            ]}
+          >
+            Post a memory from this activity to Explore.
+          </AppText>
 
           <View
             style={[
@@ -157,15 +150,19 @@ export function UploadPhotoSheet({
                   { borderColor: colors.outline },
                 ]}
               >
-                <IconSymbol name="camera.fill" size={28} color={colors.outline} />
-                <Text
+                <IconSymbol
+                  name="camera.fill"
+                  size={28}
+                  color={colors.outline}
+                />
+                <AppText
                   style={[
                     styles.imagePlaceholderText,
                     { color: colors.outline, fontFamily: Fonts?.sans },
                   ]}
                 >
                   Tap to add a photo
-                </Text>
+                </AppText>
               </TouchableOpacity>
             )}
           </View>
@@ -191,58 +188,46 @@ export function UploadPhotoSheet({
           >
             {saving ? "Posting..." : "Post to Explore"}
           </Button>
-        </View>
-      </View>
-    </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AppView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.25)",
-  },
-  sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 16,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 4,
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  headerText: {
-    flex: 1,
-    gap: 4,
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: "700",
-    letterSpacing: -0.3,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    gap: 16,
   },
   subtitle: {
     fontSize: 13,
     lineHeight: 18,
-  },
-  closeButton: {
-    margin: 0,
-    marginTop: -6,
-    marginRight: -6,
+    marginTop: -8,
   },
   imageSection: {
     borderWidth: 1,

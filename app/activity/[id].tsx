@@ -1,5 +1,4 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
-import { UploadPhotoSheet } from "@/components/activity/upload-photo-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Menu } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const CATEGORY_IMAGES: Record<string, string> = {
@@ -149,7 +149,7 @@ export default function ActivityDetailScreen() {
   const [rideOptionsVisible, setRideOptionsVisible] =
     useState(false);
 
-  const [uploadPhotoVisible, setUploadPhotoVisible] =
+  const [menuVisible, setMenuVisible] =
     useState(false);
 
   useEffect(() => {
@@ -641,33 +641,95 @@ export default function ActivityDetailScreen() {
               />
             </TouchableOpacity>
 
-            <View
-              style={[
-                styles.categoryBadge,
-                {
-                  backgroundColor:
-                    colors.tint,
-                },
-              ]}
-            >
-              <AppText
+            <View style={styles.heroRightGroup}>
+              <View
                 style={[
-                  styles.categoryText,
+                  styles.categoryBadge,
                   {
-                    color:
-                      colors.onImageOverlay,
-                    fontFamily:
-                      Fonts?.sans,
+                    backgroundColor:
+                      colors.tint,
                   },
                 ]}
               >
-                {activity.category
-                  .charAt(0)
-                  .toUpperCase() +
-                  activity.category.slice(
-                    1,
-                  )}
-              </AppText>
+                <AppText
+                  style={[
+                    styles.categoryText,
+                    {
+                      color:
+                        colors.onImageOverlay,
+                      fontFamily:
+                        Fonts?.sans,
+                    },
+                  ]}
+                >
+                  {activity.category
+                    .charAt(0)
+                    .toUpperCase() +
+                    activity.category.slice(
+                      1,
+                    )}
+                </AppText>
+              </View>
+
+              {isHost && (
+                <Menu
+                  visible={menuVisible}
+                  onDismiss={() =>
+                    setMenuVisible(false)
+                  }
+                  anchor={
+                    <TouchableOpacity
+                      onPress={() =>
+                        setMenuVisible(true)
+                      }
+                      style={[
+                        styles.backButton,
+                        {
+                          backgroundColor:
+                            colors.background,
+                        },
+                      ]}
+                    >
+                      <IconSymbol
+                        name="ellipsis"
+                        size={20}
+                        color={colors.text}
+                      />
+                    </TouchableOpacity>
+                  }
+                  contentStyle={{
+                    backgroundColor:
+                      colors.cardBackground,
+                  }}
+                >
+                  <Menu.Item
+                    leadingIcon="pencil"
+                    title="Edit Activity"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push(
+                        `/activity/edit/${activity.id}`,
+                      );
+                    }}
+                    titleStyle={{
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
+                  <Menu.Item
+                    leadingIcon="trash-can-outline"
+                    title="Delete Activity"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      deleteActivity();
+                    }}
+                    titleStyle={{
+                      color: colors.error,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
+                </Menu>
+              )}
             </View>
           </View>
         </View>
@@ -1222,41 +1284,6 @@ export default function ActivityDetailScreen() {
       >
         {isHost ? (
           <>
-            <TouchableOpacity
-              onPress={() =>
-                router.push(
-                  `/activity/edit/${activity.id}`,
-                )
-              }
-              style={[
-                styles.rideButton,
-                {
-                  borderColor:
-                    colors.outline,
-                },
-              ]}
-            >
-              <IconSymbol
-                name="pencil"
-                size={16}
-                color={colors.text}
-              />
-
-              <AppText
-                style={[
-                  styles.rideText,
-                  {
-                    color:
-                      colors.text,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                Edit
-              </AppText>
-            </TouchableOpacity>
-
             {activity.ride_sharing && !isPast && (
               <TouchableOpacity
                 onPress={() =>
@@ -1295,7 +1322,9 @@ export default function ActivityDetailScreen() {
             {isPast && (
               <TouchableOpacity
                 onPress={() =>
-                  setUploadPhotoVisible(true)
+                  router.push(
+                    `/activity/upload-photo/${activity.id}`,
+                  )
                 }
                 style={[
                   styles.rideOptionsButton,
@@ -1456,7 +1485,9 @@ export default function ActivityDetailScreen() {
             {hasRsvp && isPast && (
               <TouchableOpacity
                 onPress={() =>
-                  setUploadPhotoVisible(true)
+                  router.push(
+                    `/activity/upload-photo/${activity.id}`,
+                  )
                 }
                 style={[
                   styles.rideOptionsButton,
@@ -1498,14 +1529,6 @@ export default function ActivityDetailScreen() {
           setRideOptionsVisible(false)
         }
       />
-
-      <UploadPhotoSheet
-        visible={uploadPhotoVisible}
-        activityId={activity.id}
-        onClose={() =>
-          setUploadPhotoVisible(false)
-        }
-      />
     </AppView>
   );
 }
@@ -1537,6 +1560,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+
+  heroRightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 
   backButton: {
@@ -1746,19 +1775,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  rideButton: {
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    borderRadius: 24,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-  },
-
-  rideText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
 });

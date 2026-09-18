@@ -47,6 +47,7 @@ const MAPPING = {
   'heart': 'favorite-border',
   'heart.fill': 'favorite',
   'ellipsis': 'more-horiz',
+  'bookmark': 'bookmark-border',
 } as IconMapping;
 
 /**

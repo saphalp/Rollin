@@ -32,13 +32,19 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
+function localDateKey(iso: string) {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function CalendarScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
   const [activities, setActivities] = useState<CalActivity[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -46,23 +52,19 @@ export default function CalendarScreen() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchActivities(currentMonth.year, currentMonth.month);
-  }, [currentMonth]);
+    fetchActivities();
+  }, []);
 
-  async function fetchActivities(year: number, month: number) {
+  async function fetchActivities() {
     setLoading(true);
     setError(false);
-
-    const start = new Date(year, month - 1, 1).toISOString();
-    const end = new Date(year, month, 0, 23, 59, 59).toISOString();
 
     const [{ data: { user } }, { data, error: fetchErr }] = await Promise.all([
       supabase.auth.getUser(),
       supabase
         .from('activities')
         .select('id, title, date_time, max_attendees, host_id, rsvps(id)')
-        .gte('date_time', start)
-        .lte('date_time', end),
+        .order('date_time', { ascending: true }),
     ]);
 
     if (fetchErr) {
@@ -87,7 +89,7 @@ export default function CalendarScreen() {
 
   // Build markedDates for the calendar
   const markedDates = activities.reduce((acc, a) => {
-    const key = a.date_time.slice(0, 10);
+    const key = localDateKey(a.date_time);
     const isOwn = a.host_id === currentUserId;
     const dot = { key: a.id, color: isOwn ? OWN_COLOR : OTHER_COLOR };
     const existing = acc[key];
@@ -107,7 +109,7 @@ export default function CalendarScreen() {
   }
 
   const dayActivities = selectedDate
-    ? activities.filter(a => a.date_time.slice(0, 10) === selectedDate)
+    ? activities.filter(a => localDateKey(a.date_time) === selectedDate)
     : [];
 
   return (
@@ -127,9 +129,6 @@ export default function CalendarScreen() {
           markingType="multi-dot"
           markedDates={markedDates}
           onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
-          onMonthChange={(month: { year: number; month: number }) =>
-            setCurrentMonth({ year: month.year, month: month.month })
-          }
           theme={{
             backgroundColor: colors.background,
             calendarBackground: colors.background,

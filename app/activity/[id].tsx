@@ -1,4 +1,5 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -150,6 +151,9 @@ export default function ActivityDetailScreen() {
     useState(false);
 
   const [menuVisible, setMenuVisible] =
+    useState(false);
+
+  const [shareSheetVisible, setShareSheetVisible] =
     useState(false);
 
   useEffect(() => {
@@ -672,6 +676,9 @@ export default function ActivityDetailScreen() {
               </View>
 
               <TouchableOpacity
+                onPress={() =>
+                  setShareSheetVisible(true)
+                }
                 style={[
                   styles.backButton,
                   {
@@ -1543,6 +1550,13 @@ export default function ActivityDetailScreen() {
         activityId={activity.id}
         onClose={() =>
           setRideOptionsVisible(false)
+        }
+      />
+
+      <ShareSheet
+        visible={shareSheetVisible}
+        onClose={() =>
+          setShareSheetVisible(false)
         }
       />
     </AppView>

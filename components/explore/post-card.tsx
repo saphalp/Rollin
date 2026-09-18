@@ -1,7 +1,9 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
@@ -48,6 +50,7 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
     post.likedByMe,
     post.likeCount,
   );
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   return (
     <View
@@ -138,7 +141,11 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           </AppText>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.shareButton} hitSlop={8}>
+        <TouchableOpacity
+          style={styles.shareButton}
+          hitSlop={8}
+          onPress={() => setShareSheetVisible(true)}
+        >
           <IconSymbol
             name="square.and.arrow.up"
             size={20}
@@ -146,6 +153,11 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           />
         </TouchableOpacity>
       </View>
+
+      <ShareSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+      />
     </View>
   );
 }

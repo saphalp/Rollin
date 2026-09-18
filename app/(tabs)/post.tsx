@@ -140,12 +140,11 @@ export default function PostScreen() {
           ? "webp"
           : "jpg";
     const path = `${userId}/${Date.now()}.${ext}`;
+    const fileResponse = await fetch(imageAsset.uri);
+    const rawBlob = await fileResponse.blob();
+    const fileBlob = rawBlob.slice(0, rawBlob.size, contentType);
     const body = new FormData();
-    body.append("file", {
-      uri: imageAsset.uri,
-      name: `image.${ext}`,
-      type: contentType,
-    } as any);
+    body.append("file", fileBlob, `image.${ext}`);
     const {
       data: { session },
     } = await supabase.auth.getSession();

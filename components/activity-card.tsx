@@ -15,6 +15,8 @@ type ActivityCardProps = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  saved?: boolean;
+  onBookmarkPress?: () => void;
   onPress?: () => void;
 };
 
@@ -26,6 +28,8 @@ export function ActivityCard({
   attendeeCount,
   maxAttendees,
   rideSharing,
+  saved = false,
+  onBookmarkPress,
   onPress,
 }: ActivityCardProps) {
   const theme = useColorScheme() ?? 'light';
@@ -65,7 +69,9 @@ export function ActivityCard({
               </AppText>
             </View>
           )}
-          <IconSymbol name="bookmark" size={20} color={colors.onImageOverlay} />
+          <TouchableOpacity hitSlop={8} onPress={(e) => { e.stopPropagation?.(); onBookmarkPress?.(); }}>
+            <IconSymbol name={saved ? 'bookmark.fill' : 'bookmark'} size={20} color={colors.onImageOverlay} />
+          </TouchableOpacity>
         </View>
       </View>
 

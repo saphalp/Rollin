@@ -23,18 +23,7 @@ export default function ProfileActionBar({
   const colors = Colors[theme];
 
   if (isOwnProfile) {
-    return (
-      <Button
-        mode="contained-tonal"
-        icon="pencil"
-        onPress={onEditPress}
-        style={styles.button}
-        contentStyle={styles.buttonContent}
-        labelStyle={styles.buttonLabel}
-      >
-        Edit Profile
-      </Button>
-    );
+    return null;
   }
 
   if (followState === "following") {

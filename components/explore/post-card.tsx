@@ -137,6 +137,14 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
             {count}
           </AppText>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.shareButton} hitSlop={8}>
+          <IconSymbol
+            name="square.and.arrow.up"
+            size={20}
+            color={colors.icon}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -206,6 +214,9 @@ const styles = StyleSheet.create({
   likeCount: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  shareButton: {
+    marginLeft: 14,
   },
   caption: {
     fontSize: 13,

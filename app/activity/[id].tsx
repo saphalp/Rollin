@@ -671,6 +671,22 @@ export default function ActivityDetailScreen() {
                 </AppText>
               </View>
 
+              <TouchableOpacity
+                style={[
+                  styles.backButton,
+                  {
+                    backgroundColor:
+                      colors.background,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="square.and.arrow.up"
+                  size={18}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
               {isHost && (
                 <Menu
                   visible={menuVisible}

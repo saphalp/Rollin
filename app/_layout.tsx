@@ -8,6 +8,7 @@ import {
   PaperProvider,
   configureFonts,
 } from "react-native-paper";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
 export const unstable_settings = {
@@ -50,6 +51,8 @@ export function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="profile/[id]" />
+        <Stack.Screen name="saved-activities" />
+        <Stack.Screen name="my-activities" />
       </Stack.Protected>
 
       <Stack.Protected
@@ -69,11 +72,13 @@ export function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <PaperProvider theme={appTheme}>
-      <AuthProvider>
-        <SplashScreenController />
-        <RootNavigator />
-      </AuthProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={appTheme}>
+        <AuthProvider>
+          <SplashScreenController />
+          <RootNavigator />
+        </AuthProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }

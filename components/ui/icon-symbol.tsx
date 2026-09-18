@@ -48,6 +48,8 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'ellipsis': 'more-horiz',
   'bookmark': 'bookmark-border',
+  'bookmark.fill': 'bookmark',
+  'line.3.horizontal': 'menu',
 } as IconMapping;
 
 /**

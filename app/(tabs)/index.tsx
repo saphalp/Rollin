@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
+import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -47,14 +48,49 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [selectedCategory]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshSavedIds();
+    }, [])
+  );
+
+  async function refreshSavedIds() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: saved } = await supabase
+      .from('saved_activities')
+      .select('activity_id')
+      .eq('user_id', user.id);
+    setSavedIds(new Set((saved ?? []).map((r: any) => r.activity_id)));
+  }
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchActivities().finally(() => setRefreshing(false));
+  }, [selectedCategory]);
+
 
   async function fetchActivities() {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = user?.id;
+
+    if (currentUserId) {
+      const { data: saved } = await supabase
+        .from('saved_activities')
+        .select('activity_id')
+        .eq('user_id', currentUserId);
+      setSavedIds(new Set((saved ?? []).map((r: any) => r.activity_id)));
+    }
 
     // A viewer can always see their own activities, plus anyone they follow.
     const visibleHostIds = currentUserId ? [currentUserId] : [];
@@ -111,14 +147,31 @@ export default function HomeScreen() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    fetchActivities();
-  }, [selectedCategory]);
+  async function toggleSave(activityId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchActivities().finally(() => setRefreshing(false));
-  }, [selectedCategory]);
+    const isSaved = savedIds.has(activityId);
+
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      isSaved ? next.delete(activityId) : next.add(activityId);
+      return next;
+    });
+
+    const { error } = isSaved
+      ? await supabase.from('saved_activities').delete().eq('user_id', user.id).eq('activity_id', activityId)
+      : await supabase.from('saved_activities').insert({ user_id: user.id, activity_id: activityId });
+
+    if (error) {
+      console.error('toggleSave error:', error);
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        isSaved ? next.add(activityId) : next.delete(activityId);
+        return next;
+      });
+    }
+  }
 
   const filtered = searchQuery.trim()
     ? activities.filter((a) => a.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -263,6 +316,8 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      saved={savedIds.has(activity.id)}
+                      onBookmarkPress={() => toggleSave(activity.id)}
                       onPress={() => router.push(`/activity/${activity.id}`)}
                     />
                   ))}

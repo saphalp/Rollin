@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { formatMiles } from '@/services/ride-routing-service';
 
 type Props = {
     distanceKm: number | null;
@@ -69,7 +70,7 @@ export function LiveRideStatus({
                         ]}
                     >
                         {arrived
-                            ? 'The driver is within about 100 meters.'
+                            ? 'The driver is within about 0.06 miles.'
                             : 'Distance and ETA update as the driver moves.'}
                     </AppText>
                 </View>
@@ -95,9 +96,7 @@ export function LiveRideStatus({
                     >
                         {distanceKm == null
                             ? '--'
-                            : distanceKm < 1
-                                ? `${Math.round(distanceKm * 1000)} m`
-                                : `${distanceKm.toFixed(1)} km`}
+                            : formatMiles(distanceKm * 1000)}
                     </AppText>
                     <AppText
                         style={[

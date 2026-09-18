@@ -124,6 +124,10 @@ export async function startDriverLocationPublisher(
 ): Promise<Location.LocationSubscription> {
     await requestLocationPermission();
 
+    // Start Drive needs a fresh published position before requesting directions.
+    const initial = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    onPublished?.(await publishDriverLocation(rideId, initial));
+
     return Location.watchPositionAsync(
         {
             accuracy: Location.Accuracy.High,
@@ -185,6 +189,7 @@ export async function fetchLatestDriverLocation(
 export function subscribeToDriverLocation(
     rideId: string,
     onLocation: (location: RideLocation) => void,
+    onConnection?: (connected: boolean) => void,
 ) {
     const channel = supabase
         .channel(`ride-location-${rideId}-${Date.now()}`)
@@ -208,14 +213,8 @@ export function subscribeToDriverLocation(
                 );
             },
         )
-        .subscribe((status, error) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.error(
-                    'Ride location Realtime error:',
-                    status,
-                    error,
-                );
-            }
+        .subscribe((status) => {
+            onConnection?.(status === 'SUBSCRIBED');
         });
 
     return () => {
@@ -261,12 +260,12 @@ export function calculateEtaMinutes(
     return Math.max(1, Math.ceil((distanceKm / speedKmh) * 60));
 }
 
-export function isLocationStale(updatedAt: string | null): boolean {
+export function isLocationStale(updatedAt: string | null, now = Date.now()): boolean {
     if (!updatedAt) {
         return true;
     }
 
-    const ageMs = Date.now() - new Date(updatedAt).getTime();
+    const ageMs = now - new Date(updatedAt).getTime();
     return !Number.isFinite(ageMs) || ageMs > 30_000;
 }
 

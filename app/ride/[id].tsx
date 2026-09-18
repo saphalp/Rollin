@@ -556,7 +556,7 @@ export default function RideDetailsScreen() {
                                 <AppText
                                     style={[styles.mainButtonText, { color: colors.onPrimary }]}
                                 >
-                                    Start Trip
+                                    Start Drive
                                 </AppText>
                             </TouchableOpacity>
                         )}
@@ -581,7 +581,7 @@ export default function RideDetailsScreen() {
                                             { color: colors.onPrimary },
                                         ]}
                                     >
-                                        Open Live Tracking
+                                        Start Drive
                                     </AppText>
                                 </TouchableOpacity>
 

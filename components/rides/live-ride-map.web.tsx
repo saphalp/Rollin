@@ -7,6 +7,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Coordinates, RideLocation } from '@/types/rides';
 
 type Props = {
+    fullScreen?: boolean;
+    routeCoordinates?: Coordinates[];
     driverLocation: RideLocation | null;
     passengerLocation: Coordinates | null;
     pickup: Coordinates | null;

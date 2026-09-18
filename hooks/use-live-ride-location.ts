@@ -34,6 +34,8 @@ export function useLiveRideLocation({
         null,
     );
     const [loading, setLoading] = useState(Boolean(rideId));
+    const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+    const [now, setNow] = useState(() => Date.now());
     const notifiedArrival = useRef(false);
 
     useEffect(() => {
@@ -44,8 +46,36 @@ export function useLiveRideLocation({
         }
 
         let active = true;
+        let connected = false;
+        let fetching = false;
+        notifiedArrival.current = false;
+        setDriverLocation(null);
+        setErrorMessage(null);
+        setConnectionMessage(null);
+        setLoading(true);
         let passengerSubscription: Location.LocationSubscription | null =
             null;
+
+        function receiveLocation(location: RideLocation | null) {
+            if (!active) return;
+            setDriverLocation((previous) => {
+                if (previous?.updatedAt && location?.updatedAt && Date.parse(previous.updatedAt) > Date.parse(location.updatedAt)) return previous;
+                return location;
+            });
+            setErrorMessage(null);
+        }
+
+        async function refreshLocation() {
+            if (!active || fetching || !currentRideId) return;
+            fetching = true;
+            try {
+                receiveLocation(await fetchLatestDriverLocation(currentRideId));
+            } catch {
+                if (active) setErrorMessage('Cannot refresh driver location. Check your connection; retrying automatically.');
+            } finally {
+                fetching = false;
+            }
+        }
 
         async function start() {
             if (!currentRideId) {
@@ -64,7 +94,7 @@ export function useLiveRideLocation({
                     return;
                 }
 
-                setDriverLocation(latestLocation);
+                receiveLocation(latestLocation);
                 setPassengerLocation(currentPassengerLocation);
 
                 if (useDeviceLocation) {
@@ -77,6 +107,7 @@ export function useLiveRideLocation({
                                     distanceInterval: 15,
                                 },
                                 (position) => {
+                                    if (!active) return;
                                     setPassengerLocation({
                                         latitude:
                                             position.coords.latitude,
@@ -85,6 +116,7 @@ export function useLiveRideLocation({
                                     });
                                 },
                             );
+                        if (!active) passengerSubscription.remove();
                     } catch {
                         // Pickup coordinates remain the fallback destination.
                     }
@@ -108,11 +140,23 @@ export function useLiveRideLocation({
 
         const unsubscribe = subscribeToDriverLocation(
             rideId,
-            setDriverLocation,
+            receiveLocation,
+            (isConnected) => {
+                if (!active) return;
+                connected = isConnected;
+                setConnectionMessage(isConnected ? null : 'Live connection interrupted. Checking driver location every 10 seconds while reconnecting.');
+                void refreshLocation();
+            },
         );
+
+        const timer = setInterval(() => {
+            setNow(Date.now());
+            if (!connected) void refreshLocation();
+        }, 10_000);
 
         return () => {
             active = false;
+            clearInterval(timer);
             passengerSubscription?.remove();
             unsubscribe();
         };
@@ -168,10 +212,11 @@ export function useLiveRideLocation({
         etaMinutes,
         arrived,
         stale: driverLocation
-            ? isLocationStale(driverLocation.updatedAt)
+            ? isLocationStale(driverLocation.updatedAt, now)
             : true,
         loading,
         errorMessage,
+        connectionMessage,
     };
 }
 
@@ -186,9 +231,8 @@ export function useDriverLocationPublisher(rideId: string | null) {
         useRef<Location.LocationSubscription | null>(null);
 
     const startSharing = useCallback(async () => {
-        if (!rideId || subscriptionRef.current) {
-            return;
-        }
+        if (!rideId) return false;
+        if (subscriptionRef.current) return true;
 
         setErrorMessage(null);
 
@@ -199,12 +243,14 @@ export function useDriverLocationPublisher(rideId: string | null) {
                     setLastLocation,
                 );
             setSharing(true);
+            return true;
         } catch (error) {
             setErrorMessage(
                 error instanceof Error
                     ? error.message
                     : 'Could not start location sharing.',
             );
+            return false;
         }
     }, [rideId]);
 

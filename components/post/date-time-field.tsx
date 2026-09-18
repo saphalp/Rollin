@@ -1,5 +1,5 @@
 import DateTimePicker, {
-  DateTimePickerEvent,
+  DateTimePickerChangeEvent,
 } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Modal, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -42,10 +42,10 @@ export function DateTimeField({
     setVisible(true);
   }
 
-  function handleChange(event: DateTimePickerEvent, selected?: Date) {
+  function handleChange(_event: DateTimePickerChangeEvent, selected: Date) {
     if (Platform.OS === 'android') {
       setVisible(false);
-      if (event.type === 'set' && selected) onChange(selected);
+      onChange(selected);
       return;
     }
     if (selected) setDraft(selected);
@@ -89,7 +89,8 @@ export function DateTimeField({
           mode={mode}
           display="default"
           minimumDate={minimumDate}
-          onChange={handleChange}
+          onValueChange={handleChange}
+          onDismiss={() => setVisible(false)}
         />
       )}
 
@@ -124,7 +125,7 @@ export function DateTimeField({
                 mode={mode}
                 display="spinner"
                 minimumDate={minimumDate}
-                onChange={handleChange}
+                onValueChange={handleChange}
                 textColor={colors.text}
                 style={styles.picker}
               />

@@ -51,10 +51,6 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
   async function fetchActivities() {
     setLoading(true);
     setError(false);
@@ -86,6 +82,10 @@ export default function CalendarScreen() {
     );
     setLoading(false);
   }
+
+  useEffect(() => {
+    fetchActivities();
+  }, []);
 
   // Build markedDates for the calendar
   const markedDates = activities.reduce((acc, a) => {
@@ -152,7 +152,7 @@ export default function CalendarScreen() {
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: OTHER_COLOR }]} />
-            <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Others' events</AppText>
+            <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Others&apos; events</AppText>
           </View>
         </View>
 

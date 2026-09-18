@@ -27,10 +27,6 @@ export default function ProfileAvatar({
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    loadProfilePicture();
-  }, []);
-
   async function loadProfilePicture() {
     try {
       setIsLoading(true);
@@ -44,6 +40,10 @@ export default function ProfileAvatar({
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadProfilePicture();
+  }, []);
 
   async function handleSelectImage() {
     const image = await selectProfileImage();

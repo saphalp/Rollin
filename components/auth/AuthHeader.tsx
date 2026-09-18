@@ -10,7 +10,7 @@ export default function AuthHeader() {
   return (
     <View style={styles.container}>
       <Text variant="headlineLarge" style={styles.heading}>
-        Rollin'
+        Rollin&apos;
       </Text>
       <Text variant="labelLarge" style={styles.subheading}>
         Explore. Connect. Rollin

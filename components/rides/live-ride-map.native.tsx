@@ -138,6 +138,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
     },
     map: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
     },
 });

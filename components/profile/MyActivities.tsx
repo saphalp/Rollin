@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },

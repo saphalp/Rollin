@@ -1529,7 +1529,7 @@ const styles = StyleSheet.create({
   },
 
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",

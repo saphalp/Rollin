@@ -225,7 +225,7 @@ The ride offerer can then see the incoming request.
 
 ### Ride Lifecycle
 
-- Start Trip -> ride becomes 'in_progress' and live tracking begins.
+- Start Drive -> ride becomes 'in_progress', location sharing starts, and the driver's full-screen route opens.
 - Complete Trip -> ride and accepted requests become 'completed'.
 - Cancel Ride -> ride becomes 'cancelled.
 

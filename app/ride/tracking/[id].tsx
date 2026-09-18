@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
@@ -11,6 +11,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LiveRideMap from '@/components/rides/live-ride-map';
+import { RoadRouteSummary } from '@/components/rides/road-route-summary';
+import { DriverDriveView } from '@/components/rides/driver-drive-view';
 import { LiveRideStatus } from '@/components/rides/live-ride-status';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -23,6 +25,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { canAccessRideTracking } from '@/services/ride-requests-service';
 import { fetchRideById } from '@/services/rides-service';
+import { fetchRoadRoute, RoadRoute } from '@/services/ride-routing-service';
 import { Coordinates, RideOffer } from '@/types/rides';
 
 export default function RideTrackingScreen() {
@@ -34,6 +37,14 @@ export default function RideTrackingScreen() {
     const insets = useSafeAreaInsets();
 
     const [ride, setRide] = useState<RideOffer | null>(null);
+    const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
+    const [driving, setDriving] = useState(false);
+    const [startingDrive, setStartingDrive] = useState(false);
+    const [driveError, setDriveError] = useState<string | null>(null);
+    const autoStartedRide = useRef<string | null>(null);
+    const startingDriveRef = useRef(false);
+
+    useEffect(() => { setRoadRoute(null); }, [rideId]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(
         null,
     );
@@ -74,7 +85,7 @@ export default function RideTrackingScreen() {
     const isDriver = currentUserId === ride?.driverId;
 
     const live = useLiveRideLocation({
-        rideId: authorized ? rideId : null,
+        rideId: authorized && !isDriver ? rideId : null,
         pickup,
         useDeviceLocation: !isDriver,
     });
@@ -136,6 +147,31 @@ export default function RideTrackingScreen() {
         }
     }, [rideId]);
 
+    const { startSharing } = driverPublisher;
+    const startDrive = useCallback(async () => {
+        if (!authorized || !isDriver || startingDriveRef.current || ride?.status !== 'in_progress') return;
+        startingDriveRef.current = true;
+        setStartingDrive(true);
+        setDriveError(null);
+        try {
+            if (!await startSharing()) return;
+            const route = await fetchRoadRoute(rideId);
+            setRoadRoute(route);
+            setDriving(true);
+        } catch (error) {
+            setDriveError(error instanceof Error ? error.message : 'Could not start drive.');
+        } finally {
+            startingDriveRef.current = false;
+            setStartingDrive(false);
+        }
+    }, [authorized, isDriver, ride?.status, rideId, startSharing]);
+
+    useEffect(() => {
+        if (!authorized || !isDriver || ride?.status !== 'in_progress' || autoStartedRide.current === rideId) return;
+        autoStartedRide.current = rideId;
+        void startDrive();
+    }, [authorized, isDriver, ride?.status, rideId, startDrive]);
+
     useEffect(() => {
         void load();
     }, [load]);
@@ -188,7 +224,7 @@ export default function RideTrackingScreen() {
                             },
                         ]}
                     >
-                        Live Ride
+                        {isDriver ? 'Your Drive' : 'Live Ride'}
                     </AppText>
                     <AppText
                         style={[
@@ -199,7 +235,7 @@ export default function RideTrackingScreen() {
                             },
                         ]}
                     >
-                        Distance and approximate ETA
+                        {isDriver ? 'Route and directions' : 'Distance and approximate ETA'}
                     </AppText>
                 </View>
 
@@ -241,6 +277,7 @@ export default function RideTrackingScreen() {
                     ]}
                 >
                     <LiveRideMap
+                        routeCoordinates={roadRoute?.coordinates}
                         driverLocation={
                             live.driverLocation ??
                             driverPublisher.lastLocation
@@ -250,12 +287,31 @@ export default function RideTrackingScreen() {
                         destination={destination}
                     />
 
-                    <LiveRideStatus
+                    {!isDriver ? <LiveRideStatus
                         distanceKm={live.distanceKm}
                         etaMinutes={live.etaMinutes}
                         arrived={live.arrived}
                         stale={live.stale}
-                    />
+                    /> : null}
+
+                    {!isDriver && live.connectionMessage ? (
+                        <AppText accessibilityLiveRegion="polite">{live.connectionMessage}</AppText>
+                    ) : null}
+
+                    {isDriver && ride.status === 'in_progress' ? (
+                        <TouchableOpacity accessibilityRole="button" disabled={startingDrive} onPress={() => void startDrive()}
+                            style={[styles.shareButton, { backgroundColor: colors.tint, borderColor: colors.tint }]}>
+                            {startingDrive ? <ActivityIndicator color={colors.onPrimary} /> : <>
+                                <MaterialCommunityIcons name="navigation" size={22} color={colors.onPrimary} />
+                                <AppText style={{ color: colors.onPrimary, fontWeight: '700' }}>Start Drive</AppText>
+                            </>}
+                        </TouchableOpacity>
+                    ) : null}
+                    {driveError ? <AppText accessibilityRole="alert">{driveError}</AppText> : null}
+                    <RoadRouteSummary key={rideId} rideId={rideId} isDriver={isDriver} route={roadRoute} onRoute={setRoadRoute} />
+                    {isDriver && driving && roadRoute ? <DriverDriveView route={roadRoute}
+                        driverLocation={driverPublisher.lastLocation ?? live.driverLocation}
+                        pickup={pickup} destination={destination} onClose={() => setDriving(false)} /> : null}
 
                     {live.errorMessage ? (
                         <AppText

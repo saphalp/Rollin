@@ -1,6 +1,6 @@
 # Live Ride Tracking
 ## Purpose
-The live ride tracking feature allows accepted passengers to see the driver's live location after the ride has started. It also allows the driver to see the passenger's location.
+The live ride tracking feature allows accepted passengers to see the driver's live location after the ride has started. Drivers use Start Drive to open their route and share their location. See [Road Routing and Driver Directions](road-routing-setup.md) for the routing setup and driver workflow.
 
 The features provides:
 - Live ride offerer location
@@ -38,7 +38,7 @@ Ride = in progress
 Live tracking begins
 
 ### Ride Offerer controls Location sharing
-- Location sharing does not happen automatically. the driver has an option to share or not share the location manually. 
+- Pressing Start Drive starts location sharing after the driver grants permission. The driver can stop sharing from the Your Drive screen.
 
 ### Supabase Realtime
 - The ride offere publishes location updates to supabase
@@ -101,8 +101,8 @@ Because of this, the ride marker may move from one coordinate to another instead
 ## Interface Details
 Ride offerer
 - The ride offerer can perform actions such as: 
-    - Start trip
-    - open live tracking
+    - Start Drive and open the full-screen route
+    - view directions
     - complete trip
     - cancel ride
 Passenger

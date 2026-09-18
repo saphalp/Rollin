@@ -32,12 +32,12 @@ export function useUploadActivityPhoto(activityId: string) {
           : "jpg";
     const path = `${user.id}/${activityId}/${Date.now()}.${ext}`;
 
+    const fileResponse = await fetch(asset.uri);
+    const rawBlob = await fileResponse.blob();
+    const fileBlob = rawBlob.slice(0, rawBlob.size, contentType);
+
     const body = new FormData();
-    body.append("file", {
-      uri: asset.uri,
-      name: `image.${ext}`,
-      type: contentType,
-    } as any);
+    body.append("file", fileBlob, `image.${ext}`);
 
     const {
       data: { session },

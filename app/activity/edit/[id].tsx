@@ -124,8 +124,11 @@ export default function EditActivityScreen() {
     const contentType = newAsset.mimeType ?? 'image/jpeg';
     const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
     const path = `${userId}/${Date.now()}.${ext}`;
+    const fileResponse = await fetch(newAsset.uri);
+    const rawBlob = await fileResponse.blob();
+    const fileBlob = rawBlob.slice(0, rawBlob.size, contentType);
     const body = new FormData();
-    body.append('file', { uri: newAsset.uri, name: `image.${ext}`, type: contentType } as any);
+    body.append('file', fileBlob, `image.${ext}`);
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/activity-images/${path}`,

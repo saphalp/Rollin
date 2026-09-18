@@ -1257,7 +1257,7 @@ export default function ActivityDetailScreen() {
               </AppText>
             </TouchableOpacity>
 
-            {activity.ride_sharing && (
+            {activity.ride_sharing && !isPast && (
               <TouchableOpacity
                 onPress={() =>
                   setRideOptionsVisible(true)
@@ -1329,97 +1329,99 @@ export default function ActivityDetailScreen() {
           </>
         ) : (
           <>
-            {!hasRsvp &&
-              activity.event_type === "private" ? (
-              <TouchableOpacity
-                onPress={handleRequestToJoin}
-                disabled={
-                  rsvpLoading ||
-                  myRequestStatus === "pending"
-                }
-                style={[
-                  styles.rsvpButton,
-                  {
-                    backgroundColor:
-                      myRequestStatus === "pending"
-                        ? colors.surfaceContainerHigh
-                        : colors.tint,
-
-                    borderColor:
-                      myRequestStatus === "pending"
-                        ? colors.outline
-                        : colors.tint,
-                  },
-                ]}
-              >
-                <AppText
+            {!isPast && (
+              !hasRsvp &&
+                activity.event_type === "private" ? (
+                <TouchableOpacity
+                  onPress={handleRequestToJoin}
+                  disabled={
+                    rsvpLoading ||
+                    myRequestStatus === "pending"
+                  }
                   style={[
-                    styles.rsvpText,
+                    styles.rsvpButton,
                     {
-                      color:
+                      backgroundColor:
                         myRequestStatus === "pending"
-                          ? colors.text
-                          : colors.onPrimary,
-                      fontFamily: Fonts?.sans,
+                          ? colors.surfaceContainerHigh
+                          : colors.tint,
+
+                      borderColor:
+                        myRequestStatus === "pending"
+                          ? colors.outline
+                          : colors.tint,
                     },
                   ]}
                 >
-                  {rsvpLoading
-                    ? "..."
-                    : myRequestStatus === "pending"
-                      ? "Request Pending"
-                      : "Request to Join"}
-                </AppText>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={toggleRsvp}
-                disabled={rsvpLoading}
-                style={[
-                  styles.rsvpButton,
-                  {
-                    backgroundColor:
-                      hasRsvp
-                        ? colors.surfaceContainerHigh
-                        : colors.tint,
-
-                    borderColor:
-                      hasRsvp
-                        ? colors.outline
-                        : colors.tint,
-                  },
-                ]}
-              >
-                {hasRsvp && (
-                  <IconSymbol
-                    name="checkmark"
-                    size={18}
-                    color={colors.text}
-                  />
-                )}
-
-                <AppText
+                  <AppText
+                    style={[
+                      styles.rsvpText,
+                      {
+                        color:
+                          myRequestStatus === "pending"
+                            ? colors.text
+                            : colors.onPrimary,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {rsvpLoading
+                      ? "..."
+                      : myRequestStatus === "pending"
+                        ? "Request Pending"
+                        : "Request to Join"}
+                  </AppText>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={toggleRsvp}
+                  disabled={rsvpLoading}
                   style={[
-                    styles.rsvpText,
+                    styles.rsvpButton,
                     {
-                      color:
+                      backgroundColor:
                         hasRsvp
-                          ? colors.text
-                          : colors.onPrimary,
-                      fontFamily: Fonts?.sans,
+                          ? colors.surfaceContainerHigh
+                          : colors.tint,
+
+                      borderColor:
+                        hasRsvp
+                          ? colors.outline
+                          : colors.tint,
                     },
                   ]}
                 >
-                  {rsvpLoading
-                    ? "..."
-                    : hasRsvp
-                      ? "Going"
-                      : "Join Activity"}
-                </AppText>
-              </TouchableOpacity>
+                  {hasRsvp && (
+                    <IconSymbol
+                      name="checkmark"
+                      size={18}
+                      color={colors.text}
+                    />
+                  )}
+
+                  <AppText
+                    style={[
+                      styles.rsvpText,
+                      {
+                        color:
+                          hasRsvp
+                            ? colors.text
+                            : colors.onPrimary,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {rsvpLoading
+                      ? "..."
+                      : hasRsvp
+                        ? "Going"
+                        : "Join Activity"}
+                  </AppText>
+                </TouchableOpacity>
+              )
             )}
 
-            {activity.ride_sharing && hasRsvp && (
+            {activity.ride_sharing && hasRsvp && !isPast && (
               <TouchableOpacity
                 onPress={() =>
                   setRideOptionsVisible(true)

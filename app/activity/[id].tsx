@@ -1558,6 +1558,8 @@ export default function ActivityDetailScreen() {
         onClose={() =>
           setShareSheetVisible(false)
         }
+        shareType="activity"
+        contentId={activity.id}
       />
     </AppView>
   );

@@ -157,6 +157,8 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
       <ShareSheet
         visible={shareSheetVisible}
         onClose={() => setShareSheetVisible(false)}
+        shareType="post"
+        contentId={post.id}
       />
     </View>
   );

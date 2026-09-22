@@ -1,11 +1,12 @@
 import ConversationHeader from "@/components/chats/ConversationHeader";
 import MessageBubble from "@/components/chats/MessageBubble";
 import MessageInput from "@/components/chats/MessageInput";
+import SharedContentBubble from "@/components/chats/SharedContentBubble";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
 import { supabase } from "@/lib/supabase";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,12 +17,38 @@ import {
   useColorScheme,
 } from "react-native";
 
+type SharedActivityPreview = {
+  id: string;
+  title: string;
+  imageUrl: string;
+};
+
+type SharedPostPreview = {
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  imageUrl: string;
+};
+
 type Message = {
   id: string;
   text: string;
   fromMe: boolean;
   time: string;
   senderName?: string;
+  type: "text" | "activity" | "post";
+  sharedActivity?: SharedActivityPreview;
+  sharedPost?: SharedPostPreview;
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  social: "https://picsum.photos/seed/social/240/240",
+  sports: "https://picsum.photos/seed/sports/240/240",
+  music: "https://picsum.photos/seed/music/240/240",
+  study: "https://picsum.photos/seed/study/240/240",
+  outdoor: "https://picsum.photos/seed/outdoor/240/240",
+  gaming: "https://picsum.photos/seed/gaming/240/240",
+  grocery: "https://picsum.photos/seed/grocery/240/240",
 };
 
 function formatTime(iso: string) {
@@ -96,18 +123,100 @@ export default function ChatConversationScreen() {
 
     const { data: messageRows } = await supabase
       .from("messages")
-      .select("id, sender_id, content, created_at")
+      .select(
+        "id, sender_id, content, type, shared_activity_id, shared_post_id, created_at",
+      )
       .eq("conversation_id", id)
       .order("created_at", { ascending: true });
 
+    const rows = messageRows ?? [];
+
+    const postIds = [
+      ...new Set(
+        rows.filter((m: any) => m.type === "post").map((m: any) => m.shared_post_id),
+      ),
+    ] as string[];
+
+    const { data: sharedPhotos } =
+      postIds.length > 0
+        ? await supabase
+            .from("activity_photos")
+            .select("id, activity_id, image_path")
+            .in("id", postIds)
+        : { data: [] as any[] };
+
+    const photoById: Record<string, any> = Object.fromEntries(
+      (sharedPhotos ?? []).map((p: any) => [p.id, p]),
+    );
+
+    const activityIds = [
+      ...new Set([
+        ...rows
+          .filter((m: any) => m.type === "activity")
+          .map((m: any) => m.shared_activity_id),
+        ...(sharedPhotos ?? []).map((p: any) => p.activity_id),
+      ]),
+    ] as string[];
+
+    const { data: sharedActivities } =
+      activityIds.length > 0
+        ? await supabase
+            .from("activities")
+            .select("id, title, image_url, category")
+            .in("id", activityIds)
+        : { data: [] as any[] };
+
+    const activityById: Record<string, any> = Object.fromEntries(
+      (sharedActivities ?? []).map((a: any) => [a.id, a]),
+    );
+
+    function activityImage(activity: any) {
+      return (
+        activity?.image_url ??
+        CATEGORY_IMAGES[activity?.category ?? ""] ??
+        "https://picsum.photos/seed/activity/240/240"
+      );
+    }
+
     setMessages(
-      (messageRows ?? []).map((m: any) => ({
-        id: m.id,
-        text: m.content,
-        fromMe: m.sender_id === uid,
-        time: formatTime(m.created_at),
-        senderName: m.sender_id !== uid ? names[m.sender_id] : undefined,
-      })),
+      rows.map((m: any) => {
+        let sharedActivity: SharedActivityPreview | undefined;
+        let sharedPost: SharedPostPreview | undefined;
+
+        if (m.type === "activity" && m.shared_activity_id) {
+          const activity = activityById[m.shared_activity_id];
+          sharedActivity = {
+            id: m.shared_activity_id,
+            title: activity?.title ?? "An activity",
+            imageUrl: activityImage(activity),
+          };
+        }
+
+        if (m.type === "post" && m.shared_post_id) {
+          const photo = photoById[m.shared_post_id];
+          const activity = photo ? activityById[photo.activity_id] : undefined;
+          sharedPost = {
+            id: m.shared_post_id,
+            activityId: photo?.activity_id,
+            activityTitle: activity?.title ?? "An activity",
+            imageUrl: photo
+              ? supabase.storage.from("activity-photos").getPublicUrl(photo.image_path)
+                  .data.publicUrl
+              : "https://picsum.photos/seed/post/240/240",
+          };
+        }
+
+        return {
+          id: m.id,
+          text: m.content ?? "",
+          fromMe: m.sender_id === uid,
+          time: formatTime(m.created_at),
+          senderName: m.sender_id !== uid ? names[m.sender_id] : undefined,
+          type: m.type ?? "text",
+          sharedActivity,
+          sharedPost,
+        };
+      }),
     );
 
     setLoading(false);
@@ -118,19 +227,25 @@ export default function ChatConversationScreen() {
   }, [id]);
 
   useMessagesRealtime(id, (incoming) => {
+    if (incoming.type && incoming.type !== "text") {
+      void load();
+      return;
+    }
+
     setMessages((prev) => {
       if (prev.some((m) => m.id === incoming.id)) return prev;
       return [
         ...prev,
         {
           id: incoming.id,
-          text: incoming.content,
+          text: incoming.content ?? "",
           fromMe: incoming.sender_id === currentUserId,
           time: formatTime(incoming.created_at),
           senderName:
             incoming.sender_id !== currentUserId
               ? participantNames[incoming.sender_id]
               : undefined,
+          type: "text",
         },
       ];
     });
@@ -172,15 +287,56 @@ export default function ChatConversationScreen() {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
           >
-            {messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                text={m.text}
-                fromMe={m.fromMe}
-                time={m.time}
-                senderName={conversationType === "group" ? m.senderName : undefined}
-              />
-            ))}
+            {messages.map((m) => {
+              const senderName =
+                conversationType === "group" ? m.senderName : undefined;
+
+              if (m.type === "activity" && m.sharedActivity) {
+                return (
+                  <SharedContentBubble
+                    key={m.id}
+                    kind="activity"
+                    fromMe={m.fromMe}
+                    time={m.time}
+                    senderName={senderName}
+                    title={m.sharedActivity.title}
+                    subtitle="Tap to view activity"
+                    imageUrl={m.sharedActivity.imageUrl}
+                    onPress={() =>
+                      router.push(`/activity/${m.sharedActivity!.id}`)
+                    }
+                  />
+                );
+              }
+
+              if (m.type === "post" && m.sharedPost) {
+                return (
+                  <SharedContentBubble
+                    key={m.id}
+                    kind="post"
+                    fromMe={m.fromMe}
+                    time={m.time}
+                    senderName={senderName}
+                    title={m.sharedPost.activityTitle}
+                    subtitle="Tap to view post"
+                    imageUrl={m.sharedPost.imageUrl}
+                    onPress={() =>
+                      router.push(`/activity/${m.sharedPost!.activityId}`)
+                    }
+                  />
+                );
+              }
+
+              return (
+                <MessageBubble
+                  key={m.id}
+                  text={m.text}
+                  fromMe={m.fromMe}
+                  time={m.time}
+                  senderName={senderName}
+                />
+              );
+            })}
           </ScrollView>
         )}
 

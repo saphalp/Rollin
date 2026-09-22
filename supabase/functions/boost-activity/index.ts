@@ -29,19 +29,21 @@ Deno.serve(async (req) => {
 
         if (!activityId) {
             return new Response(
-                JSON.stringify({ error: "activityId is required" }),
+                JSON.stringify({
+                    error: "activityId is required",
+                }),
                 {
                     status: 400,
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                 }
             );
         }
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
         const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-
-        const anonKey =
-            Deno.env.get("SUPABASE_ANON_KEY");
 
         if (!supabaseUrl || !anonKey || !geminiApiKey) {
             throw new Error(
@@ -77,18 +79,6 @@ Deno.serve(async (req) => {
             }
         );
 
-        const authHeader = req.headers.get("Authorization");
-
-        if (!authHeader) {
-            return new Response(
-                JSON.stringify({ error: "Not authenticated" }),
-                {
-                    status: 401,
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-        }
-
         const token = authHeader.replace("Bearer ", "");
 
         const {
@@ -98,27 +88,33 @@ Deno.serve(async (req) => {
 
         if (authError || !user) {
             return new Response(
-                JSON.stringify({ error: "Invalid user" }),
+                JSON.stringify({
+                    error: "Invalid user",
+                }),
                 {
                     status: 401,
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                 }
             );
         }
 
-        const { data: activity, error: activityError } =
-            await supabase
-                .from("activities")
-                .select(`
-          id,
-          title,
-          category,
-          description,
-          location,
-          host_id
-        `)
-                .eq("id", activityId)
-                .single();
+        const {
+            data: activity,
+            error: activityError,
+        } = await supabase
+            .from("activities")
+            .select(`
+        id,
+        title,
+        category,
+        description,
+        location,
+        host_id
+      `)
+            .eq("id", activityId)
+            .single();
 
         if (activityError || !activity) {
             console.log("Activity ID received:", activityId);
@@ -136,18 +132,21 @@ Deno.serve(async (req) => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                },
+                }
             );
         }
 
         if (activity.host_id !== user.id) {
             return new Response(
                 JSON.stringify({
-                    error: "Only the activity host can boost this activity.",
+                    error:
+                        "Only the activity host can boost this activity.",
                 }),
                 {
                     status: 403,
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                 }
             );
         }
@@ -165,6 +164,7 @@ Rules:
 - Return 1 to 3 interests.
 - Do not invent interests.
 - Return ONLY a JSON array.
+- No markdown.
 - No explanation.
 
 Activity title:
@@ -181,7 +181,7 @@ ${activity.location ?? ""}
 `;
 
         const geminiResponse = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
             {
                 method: "POST",
                 headers: {
@@ -191,6 +191,7 @@ ${activity.location ?? ""}
                 body: JSON.stringify({
                     contents: [
                         {
+                            role: "user",
                             parts: [
                                 {
                                     text: prompt,
@@ -206,47 +207,115 @@ ${activity.location ?? ""}
         );
 
         if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text();
-            console.error("Gemini error:", errorText);
+            const errorText =
+                await geminiResponse.text();
 
-            throw new Error("Gemini request failed.");
+            console.log(
+                "Gemini API error:",
+                errorText
+            );
+
+            return new Response(
+                JSON.stringify({
+                    error: "Gemini request failed",
+                    details: errorText,
+                }),
+                {
+                    status: 500,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
         }
 
-        const geminiData = await geminiResponse.json();
+        const geminiData =
+            await geminiResponse.json();
 
         const raw =
-            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            geminiData
+                ?.candidates?.[0]
+                ?.content?.parts?.[0]
+                ?.text?.trim();
 
         if (!raw) {
-            throw new Error("Gemini returned no result.");
+            return new Response(
+                JSON.stringify({
+                    error: "Gemini returned no result",
+                }),
+                {
+                    status: 500,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
         }
+
+        console.log(
+            "Gemini raw response:",
+            raw
+        );
 
         let interests: string[] = [];
 
         try {
             interests = JSON.parse(raw);
         } catch {
-            throw new Error(
-                `Gemini returned invalid JSON: ${raw}`
+            return new Response(
+                JSON.stringify({
+                    error: "Gemini returned invalid JSON",
+                    raw,
+                }),
+                {
+                    status: 500,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
             );
         }
 
-        interests = interests.filter((interest) =>
-            ALLOWED_INTERESTS.includes(interest)
+        interests = interests.filter(
+            (interest) =>
+                typeof interest === "string" &&
+                ALLOWED_INTERESTS.includes(interest)
         );
+
+        if (interests.length === 0) {
+            return new Response(
+                JSON.stringify({
+                    error: "No matching interests found",
+                    raw,
+                }),
+                {
+                    status: 422,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
 
         return new Response(
             JSON.stringify({
+                success: true,
                 activityId: activity.id,
+                activityTitle: activity.title,
                 interests,
             }),
             {
                 status: 200,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
         );
     } catch (error) {
-        console.error(error);
+        console.log(
+            "boost-activity error:",
+            error
+        );
 
         return new Response(
             JSON.stringify({
@@ -257,7 +326,9 @@ ${activity.location ?? ""}
             }),
             {
                 status: 500,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
         );
     }

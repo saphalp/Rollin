@@ -60,6 +60,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~57.0.2",
     "patch-package": "^8.0.1",
+    "supabase": "^2.117.0",
     "typescript": "~6.0.3"
   },
   "private": true

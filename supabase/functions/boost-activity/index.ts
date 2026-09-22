@@ -1,5 +1,9 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
+/*
+ * These must match the interests available
+ * in the Rollin' profile interest picker.
+ */
 const ALLOWED_INTERESTS = [
     "Art",
     "Basketball",
@@ -23,51 +27,88 @@ const ALLOWED_INTERESTS = [
     "Yoga",
 ];
 
+/*
+ * Standard JSON response helper.
+ */
+function jsonResponse(
+    body: Record<string, unknown>,
+    status = 200
+) {
+    return new Response(
+        JSON.stringify(body),
+        {
+            status,
+            headers: {
+                "Content-Type": "application/json",
+            },
+        }
+    );
+}
+
 Deno.serve(async (req) => {
     try {
+        /*
+         * =====================================================
+         * 1. Read request body
+         * =====================================================
+         */
+
         const { activityId } = await req.json();
 
         if (!activityId) {
-            return new Response(
-                JSON.stringify({
-                    error: "activityId is required",
-                }),
+            return jsonResponse(
                 {
-                    status: 400,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error: "activityId is required",
+                },
+                400
             );
         }
 
-        const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-        const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+        /*
+         * =====================================================
+         * 2. Load environment variables
+         * =====================================================
+         */
 
-        if (!supabaseUrl || !anonKey || !geminiApiKey) {
+        const supabaseUrl =
+            Deno.env.get("SUPABASE_URL");
+
+        const anonKey =
+            Deno.env.get("SUPABASE_ANON_KEY");
+
+        const serviceRoleKey =
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        const geminiApiKey =
+            Deno.env.get("GEMINI_API_KEY");
+
+        if (
+            !supabaseUrl ||
+            !anonKey ||
+            !serviceRoleKey ||
+            !geminiApiKey
+        ) {
             throw new Error(
-                "Missing Supabase or Gemini environment variables."
+                "Missing required environment variables."
             );
         }
 
-        const authHeader = req.headers.get("Authorization");
+        const authHeader =
+            req.headers.get("Authorization");
 
         if (!authHeader) {
-            return new Response(
-                JSON.stringify({
-                    error: "Not authenticated",
-                }),
+            return jsonResponse(
                 {
-                    status: 401,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error: "Not authenticated",
+                },
+                401
             );
         }
 
-        const supabase = createClient(
+        /*
+         * Logged-in user's Supabase client.
+         */
+        const userSupabase = createClient(
             supabaseUrl,
             anonKey,
             {
@@ -79,99 +120,141 @@ Deno.serve(async (req) => {
             }
         );
 
-        const token = authHeader.replace("Bearer ", "");
+        /*
+         * Backend/admin client.
+         */
+        const adminSupabase = createClient(
+            supabaseUrl,
+            serviceRoleKey
+        );
 
+        /*
+         * Get logged-in user.
+         */
         const {
             data: { user },
             error: authError,
-        } = await supabase.auth.getUser(token);
+        } = await userSupabase.auth.getUser();
 
         if (authError || !user) {
-            return new Response(
-                JSON.stringify({
-                    error: "Invalid user",
-                }),
+            return jsonResponse(
                 {
-                    status: 401,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error: "Invalid user",
+                },
+                401
             );
         }
+        /*
+         * =====================================================
+         * 4. Load activity
+         * =====================================================
+         */
 
         const {
             data: activity,
             error: activityError,
-        } = await supabase
+        } = await userSupabase
             .from("activities")
             .select(`
-        id,
-        title,
-        category,
-        description,
-        location,
-        host_id
-      `)
+                id,
+                title,
+                category,
+                description,
+                location,
+                host_id
+  `)
             .eq("id", activityId)
             .single();
 
         if (activityError || !activity) {
-            console.log("Activity ID received:", activityId);
-            console.log("Activity query error:", activityError);
-            console.log("Activity data:", activity);
+            console.log(
+                "Activity ID received:",
+                activityId
+            );
 
-            return new Response(
-                JSON.stringify({
+            console.log(
+                "Activity query error:",
+                activityError
+            );
+
+            return jsonResponse(
+                {
                     error: "Activity not found",
                     activityId,
-                    databaseError: activityError?.message ?? null,
-                }),
-                {
-                    status: 404,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    databaseError:
+                        activityError?.message ?? null,
+                },
+                404
             );
         }
+
+        /*
+         * =====================================================
+         * 5. Only the host can boost
+         * =====================================================
+         */
 
         if (activity.host_id !== user.id) {
-            return new Response(
-                JSON.stringify({
+            return jsonResponse(
+                {
                     error:
                         "Only the activity host can boost this activity.",
-                }),
-                {
-                    status: 403,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                },
+                403
             );
         }
 
+        /*
+         * =====================================================
+         * 6. Build Gemini prompt
+         * =====================================================
+         */
+
         const prompt = `
-You classify activities for a university social app.
+You classify activities for a university social app called Rollin'.
 
-Choose only interests that genuinely match this activity.
+Determine which user interests genuinely match this activity.
 
-You MUST ONLY choose from this list:
+You MUST ONLY choose from these interests:
 
 ${ALLOWED_INTERESTS.join(", ")}
 
 Rules:
-- Return 1 to 3 interests.
-- Do not invent interests.
-- Return ONLY a JSON array.
-- No markdown.
-- No explanation.
 
-Activity title:
+- Return between 1 and 3 interests.
+- Only choose interests that are genuinely relevant.
+- Do not invent new interests.
+- Do not return explanations.
+- Do not return markdown.
+- Return ONLY a JSON array of strings.
+
+Examples:
+
+Activity:
+Soccer game at the lower field
+
+Return:
+["Soccer"]
+
+Activity:
+Programming study session for CS students
+
+Return:
+["Coding", "Study Nights"]
+
+Activity:
+Basketball pickup game
+
+Return:
+["Basketball"]
+
+Now classify this activity:
+
+Title:
 ${activity.title}
 
 Category:
-${activity.category}
+${activity.category ?? ""}
 
 Description:
 ${activity.description ?? ""}
@@ -180,31 +263,53 @@ Location:
 ${activity.location ?? ""}
 `;
 
-        const geminiResponse = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": geminiApiKey,
-                },
-                body: JSON.stringify({
-                    contents: [
-                        {
-                            role: "user",
-                            parts: [
-                                {
-                                    text: prompt,
-                                },
-                            ],
-                        },
-                    ],
-                    generationConfig: {
-                        temperature: 0.1,
+        /*
+         * =====================================================
+         * 7. Ask Gemini to classify the activity
+         * =====================================================
+         */
+
+        const geminiResponse =
+            await fetch(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "x-goog-api-key":
+                            geminiApiKey,
                     },
-                }),
-            }
-        );
+
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: "user",
+
+                                parts: [
+                                    {
+                                        text: prompt,
+                                    },
+                                ],
+                            },
+                        ],
+
+                        generationConfig: {
+                            temperature: 0.1,
+                            responseMimeType:
+                                "application/json",
+                        },
+                    }),
+                }
+            );
+
+        /*
+         * =====================================================
+         * 8. Handle Gemini errors
+         * =====================================================
+         */
 
         if (!geminiResponse.ok) {
             const errorText =
@@ -215,40 +320,32 @@ ${activity.location ?? ""}
                 errorText
             );
 
-            return new Response(
-                JSON.stringify({
-                    error: "Gemini request failed",
-                    details: errorText,
-                }),
+            return jsonResponse(
                 {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error:
+                        "Gemini classification failed",
+                    geminiError: errorText,
+                },
+                500
             );
         }
 
         const geminiData =
             await geminiResponse.json();
 
-        const raw =
+        let raw =
             geminiData
                 ?.candidates?.[0]
                 ?.content?.parts?.[0]
                 ?.text?.trim();
 
         if (!raw) {
-            return new Response(
-                JSON.stringify({
-                    error: "Gemini returned no result",
-                }),
+            return jsonResponse(
                 {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error:
+                        "Gemini returned an empty response.",
+                },
+                500
             );
         }
 
@@ -257,79 +354,236 @@ ${activity.location ?? ""}
             raw
         );
 
-        let interests: string[] = [];
+        /*
+         * Remove markdown fences just in case
+         * Gemini ever returns them.
+         */
+        raw = raw
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        /*
+         * =====================================================
+         * 9. Convert Gemini response into array
+         * =====================================================
+         */
+
+        let interests: string[];
 
         try {
             interests = JSON.parse(raw);
         } catch {
-            return new Response(
-                JSON.stringify({
-                    error: "Gemini returned invalid JSON",
-                    raw,
-                }),
+            return jsonResponse(
                 {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error:
+                        "Gemini returned invalid JSON.",
+                    raw,
+                },
+                500
             );
         }
 
-        interests = interests.filter(
-            (interest) =>
-                typeof interest === "string" &&
-                ALLOWED_INTERESTS.includes(interest)
+        if (!Array.isArray(interests)) {
+            return jsonResponse(
+                {
+                    error:
+                        "Gemini response was not an array.",
+                    raw,
+                },
+                500
+            );
+        }
+
+        /*
+         * Security / validation:
+         *
+         * Gemini can ONLY return interests that
+         * exist in Rollin'.
+         */
+        interests = interests
+            .filter(
+                (interest):
+                    interest is string =>
+                    typeof interest === "string"
+            )
+            .filter((interest) =>
+                ALLOWED_INTERESTS.includes(
+                    interest
+                )
+            );
+
+        /*
+         * Remove duplicate interests.
+         */
+        interests = [
+            ...new Set(interests),
+        ];
+
+        console.log(
+            "Validated interests:",
+            interests
         );
+
+        /*
+         * =====================================================
+         * 10. Find matching interest IDs
+         * =====================================================
+         */
 
         if (interests.length === 0) {
-            return new Response(
-                JSON.stringify({
-                    error: "No matching interests found",
-                    raw,
-                }),
+            return jsonResponse({
+                success: true,
+                activityId: activity.id,
+                interests: [],
+                matchedUsers: [],
+                matchedUserCount: 0,
+            });
+        }
+
+        const {
+            data: interestRows,
+            error: interestLookupError,
+        } = await adminSupabase
+            .from("interests")
+            .select("id, name")
+            .in("name", interests);
+
+        if (interestLookupError) {
+            console.log(
+                "Interest lookup error:",
+                interestLookupError
+            );
+
+            return jsonResponse(
                 {
-                    status: 422,
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
+                    error:
+                        "Could not look up matching interests.",
+                    databaseError:
+                        interestLookupError.message,
+                },
+                500
             );
         }
 
-        return new Response(
-            JSON.stringify({
-                success: true,
-                activityId: activity.id,
-                activityTitle: activity.title,
-                interests,
-            }),
-            {
-                status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            }
+        const matchedInterestIds =
+            (interestRows ?? []).map(
+                (interest) => interest.id
+            );
+
+        console.log(
+            "Matched interest IDs:",
+            matchedInterestIds
         );
+
+        /*
+         * =====================================================
+         * 11. Find users who selected those interests
+         * =====================================================
+         */
+
+        let matchingProfileIds:
+            string[] = [];
+
+        if (
+            matchedInterestIds.length > 0
+        ) {
+            const {
+                data: profileMatches,
+                error: profileMatchError,
+            } = await adminSupabase
+                .from("profile_interests")
+                .select("profile_id")
+                .in(
+                    "interest_id",
+                    matchedInterestIds
+                );
+
+            if (profileMatchError) {
+                console.log(
+                    "Profile matching error:",
+                    profileMatchError
+                );
+
+                return jsonResponse(
+                    {
+                        error:
+                            "Could not find users with matching interests.",
+                        databaseError:
+                            profileMatchError.message,
+                    },
+                    500
+                );
+            }
+
+            /*
+             * Remove:
+             *
+             * - duplicate users
+             * - the activity host
+             */
+            matchingProfileIds = [
+                ...new Set(
+                    (profileMatches ?? [])
+                        .map(
+                            (row) =>
+                                row.profile_id as string
+                        )
+                        .filter(
+                            (profileId) =>
+                                profileId &&
+                                profileId !==
+                                activity.host_id
+                        )
+                ),
+            ];
+        }
+
+        console.log(
+            "Matching users:",
+            matchingProfileIds
+        );
+
+        /*
+         * =====================================================
+         * 12. Final successful response
+         * =====================================================
+         *
+         * Push notifications will be added
+         * after this matching step is verified.
+         */
+
+        return jsonResponse({
+            success: true,
+
+            activityId:
+                activity.id,
+
+            activityTitle:
+                activity.title,
+
+            interests,
+
+            matchedUsers:
+                matchingProfileIds,
+
+            matchedUserCount:
+                matchingProfileIds.length,
+        });
     } catch (error) {
         console.log(
-            "boost-activity error:",
+            "boost-activity unexpected error:",
             error
         );
 
-        return new Response(
-            JSON.stringify({
+        return jsonResponse(
+            {
                 error:
                     error instanceof Error
                         ? error.message
-                        : "Unknown error",
-            }),
-            {
-                status: 500,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            }
+                        : "Unknown server error",
+            },
+            500
         );
     }
 });

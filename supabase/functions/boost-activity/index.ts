@@ -38,16 +38,43 @@ Deno.serve(async (req) => {
         }
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
-        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
         const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
 
-        if (!supabaseUrl || !serviceRoleKey || !geminiApiKey) {
-            throw new Error("Missing Supabase or Gemini environment variables.");
+        const anonKey =
+            Deno.env.get("SUPABASE_ANON_KEY");
+
+        if (!supabaseUrl || !anonKey || !geminiApiKey) {
+            throw new Error(
+                "Missing Supabase or Gemini environment variables."
+            );
+        }
+
+        const authHeader = req.headers.get("Authorization");
+
+        if (!authHeader) {
+            return new Response(
+                JSON.stringify({
+                    error: "Not authenticated",
+                }),
+                {
+                    status: 401,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
         }
 
         const supabase = createClient(
             supabaseUrl,
-            serviceRoleKey
+            anonKey,
+            {
+                global: {
+                    headers: {
+                        Authorization: authHeader,
+                    },
+                },
+            }
         );
 
         const authHeader = req.headers.get("Authorization");

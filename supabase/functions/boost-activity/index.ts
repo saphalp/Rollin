@@ -1,9 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-/*
- * These must match the interests available
- * in the Rollin' profile interest picker.
- */
 const ALLOWED_INTERESTS = [
     "Art",
     "Basketball",
@@ -27,21 +23,119 @@ const ALLOWED_INTERESTS = [
     "Yoga",
 ];
 
-/*
- * Standard JSON response helper.
- */
 function jsonResponse(
     body: Record<string, unknown>,
     status = 200
 ) {
-    return new Response(
-        JSON.stringify(body),
-        {
-            status,
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+}
+
+function sleep(ms: number) {
+    return new Promise((resolve) =>
+        setTimeout(resolve, ms)
+    );
+}
+
+async function callGeminiWithRetry(
+    apiKey: string,
+    prompt: string,
+    maxAttempts = 4
+): Promise<Response> {
+    const url =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+
+    for (
+        let attempt = 1;
+        attempt <= maxAttempts;
+        attempt++
+    ) {
+        console.log(
+            `Gemini request attempt ${attempt}/${maxAttempts}`
+        );
+
+        const response = await fetch(url, {
+            method: "POST",
+
             headers: {
                 "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
             },
+
+            body: JSON.stringify({
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            {
+                                text: prompt,
+                            },
+                        ],
+                    },
+                ],
+
+                generationConfig: {
+                    responseMimeType: "application/json",
+                },
+            }),
+        });
+
+        if (response.ok) {
+            console.log(
+                `Gemini succeeded on attempt ${attempt}`
+            );
+
+            return response;
         }
+
+        const errorText =
+            await response.text();
+
+        console.log(
+            `Gemini attempt ${attempt} failed:`,
+            response.status,
+            errorText
+        );
+
+        const shouldRetry =
+            response.status === 408 ||
+            response.status === 429 ||
+            response.status >= 500;
+
+        if (
+            !shouldRetry ||
+            attempt === maxAttempts
+        ) {
+            return new Response(errorText, {
+                status: response.status,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+        }
+
+        const baseDelay =
+            Math.pow(2, attempt - 1) * 1000;
+
+        const jitter =
+            Math.floor(Math.random() * 500);
+
+        const waitTime =
+            baseDelay + jitter;
+
+        console.log(
+            `Waiting ${waitTime}ms before retry...`
+        );
+
+        await sleep(waitTime);
+    }
+
+    throw new Error(
+        "Gemini retry process unexpectedly ended."
     );
 }
 
@@ -49,129 +143,187 @@ Deno.serve(async (req) => {
     try {
         /*
          * =====================================================
-         * 1. Read request body
+         * 1. READ REQUEST
          * =====================================================
          */
 
-        const { activityId } = await req.json();
+        const { activityId } =
+            await req.json();
 
         if (!activityId) {
             return jsonResponse(
                 {
-                    error: "activityId is required",
+                    error:
+                        "activityId is required",
                 },
                 400
             );
         }
 
+        console.log(
+            "Boosting activity:",
+            activityId
+        );
+
         /*
          * =====================================================
-         * 2. Load environment variables
+         * 2. ENVIRONMENT VARIABLES
          * =====================================================
          */
 
         const supabaseUrl =
-            Deno.env.get("SUPABASE_URL");
+            Deno.env.get(
+                "SUPABASE_URL"
+            );
 
         const anonKey =
-            Deno.env.get("SUPABASE_ANON_KEY");
+            Deno.env.get(
+                "SUPABASE_ANON_KEY"
+            );
 
         const serviceRoleKey =
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+            Deno.env.get(
+                "SUPABASE_SERVICE_ROLE_KEY"
+            );
 
         const geminiApiKey =
-            Deno.env.get("GEMINI_API_KEY");
+            Deno.env.get(
+                "GEMINI_API_KEY"
+            );
 
-        if (
-            !supabaseUrl ||
-            !anonKey ||
-            !serviceRoleKey ||
-            !geminiApiKey
-        ) {
+        if (!supabaseUrl) {
             throw new Error(
-                "Missing required environment variables."
+                "SUPABASE_URL is missing."
             );
         }
 
+        if (!anonKey) {
+            throw new Error(
+                "SUPABASE_ANON_KEY is missing."
+            );
+        }
+
+        if (!serviceRoleKey) {
+            throw new Error(
+                "SUPABASE_SERVICE_ROLE_KEY is missing."
+            );
+        }
+
+        if (!geminiApiKey) {
+            throw new Error(
+                "GEMINI_API_KEY is missing."
+            );
+        }
+
+        /*
+         * =====================================================
+         * 3. AUTH HEADER
+         * =====================================================
+         */
+
         const authHeader =
-            req.headers.get("Authorization");
+            req.headers.get(
+                "Authorization"
+            );
 
         if (!authHeader) {
             return jsonResponse(
                 {
-                    error: "Not authenticated",
+                    error:
+                        "Not authenticated",
                 },
                 401
             );
         }
 
         /*
-         * Logged-in user's Supabase client.
+         * =====================================================
+         * 4. CREATE SUPABASE CLIENTS
+         * =====================================================
          */
-        const userSupabase = createClient(
-            supabaseUrl,
-            anonKey,
-            {
-                global: {
-                    headers: {
-                        Authorization: authHeader,
+
+        const userSupabase =
+            createClient(
+                supabaseUrl,
+                anonKey,
+                {
+                    global: {
+                        headers: {
+                            Authorization:
+                                authHeader,
+                        },
                     },
-                },
-            }
-        );
+                }
+            );
+
+        const adminSupabase =
+            createClient(
+                supabaseUrl,
+                serviceRoleKey
+            );
 
         /*
-         * Backend/admin client.
+         * =====================================================
+         * 5. VERIFY USER
+         * =====================================================
          */
-        const adminSupabase = createClient(
-            supabaseUrl,
-            serviceRoleKey
-        );
 
-        /*
-         * Get logged-in user.
-         */
         const {
             data: { user },
             error: authError,
-        } = await userSupabase.auth.getUser();
+        } =
+            await userSupabase.auth.getUser();
 
-        if (authError || !user) {
+        if (
+            authError ||
+            !user
+        ) {
+            console.log(
+                "Authentication error:",
+                authError
+            );
+
             return jsonResponse(
                 {
-                    error: "Invalid user",
+                    error:
+                        "Invalid user",
                 },
                 401
             );
         }
+
+        console.log(
+            "Authenticated user:",
+            user.id
+        );
+
         /*
          * =====================================================
-         * 4. Load activity
+         * 6. LOAD ACTIVITY
          * =====================================================
          */
 
         const {
             data: activity,
             error: activityError,
-        } = await userSupabase
-            .from("activities")
-            .select(`
-                id,
-                title,
-                category,
-                description,
-                location,
-                host_id
-  `)
-            .eq("id", activityId)
-            .single();
+        } =
+            await userSupabase
+                .from("activities")
+                .select(`
+          id,
+          title,
+          category,
+          description,
+          location,
+          host_id
+        `)
+                .eq(
+                    "id",
+                    activityId
+                )
+                .single();
 
-        if (activityError || !activity) {
-            console.log(
-                "Activity ID received:",
-                activityId
-            );
-
+        if (activityError) {
             console.log(
                 "Activity query error:",
                 activityError
@@ -179,22 +331,42 @@ Deno.serve(async (req) => {
 
             return jsonResponse(
                 {
-                    error: "Activity not found",
+                    error:
+                        "Could not read activity",
                     activityId,
                     databaseError:
-                        activityError?.message ?? null,
+                        activityError.message,
+                },
+                500
+            );
+        }
+
+        if (!activity) {
+            return jsonResponse(
+                {
+                    error:
+                        "Activity not found",
+                    activityId,
                 },
                 404
             );
         }
 
+        console.log(
+            "Activity found:",
+            activity.title
+        );
+
         /*
          * =====================================================
-         * 5. Only the host can boost
+         * 7. VERIFY HOST
          * =====================================================
          */
 
-        if (activity.host_id !== user.id) {
+        if (
+            activity.host_id !==
+            user.id
+        ) {
             return jsonResponse(
                 {
                     error:
@@ -206,7 +378,103 @@ Deno.serve(async (req) => {
 
         /*
          * =====================================================
-         * 6. Build Gemini prompt
+         * 8. BOOST RATE LIMIT
+         * One successful boost every 10 minutes per user
+         * =====================================================
+         */
+
+        const {
+            data: latestBoost,
+            error: boostLookupError,
+        } =
+            await adminSupabase
+                .from("activity_boosts")
+                .select("boosted_at")
+                .eq(
+                    "user_id",
+                    user.id
+                )
+                .order(
+                    "boosted_at",
+                    {
+                        ascending: false,
+                    }
+                )
+                .limit(1)
+                .maybeSingle();
+
+        if (boostLookupError) {
+            console.log(
+                "Boost rate limit lookup error:",
+                boostLookupError
+            );
+
+            return jsonResponse(
+                {
+                    error:
+                        "Could not check boost rate limit.",
+                    databaseError:
+                        boostLookupError.message,
+                },
+                500
+            );
+        }
+
+        if (latestBoost) {
+            const lastBoostTime =
+                new Date(
+                    latestBoost.boosted_at
+                ).getTime();
+
+            const now =
+                Date.now();
+
+            const cooldownMs =
+                10 * 60 * 1000;
+
+            const elapsed =
+                now - lastBoostTime;
+
+            if (
+                elapsed <
+                cooldownMs
+            ) {
+                const remainingMs =
+                    cooldownMs - elapsed;
+
+                const remainingSeconds =
+                    Math.ceil(
+                        remainingMs / 1000
+                    );
+
+                const remainingMinutes =
+                    Math.ceil(
+                        remainingSeconds / 60
+                    );
+
+                console.log(
+                    "Boost blocked by cooldown."
+                );
+
+                return jsonResponse(
+                    {
+                        error:
+                            "BOOST_RATE_LIMIT",
+
+                        message:
+                            `You can boost again in ${remainingMinutes} minute${remainingMinutes === 1 ? "" : "s"}.`,
+
+                        retryAfterSeconds:
+                            remainingSeconds,
+                    },
+                    429
+                );
+            }
+        }
+
+        /*
+         * =====================================================
+         * 9. BUILD GEMINI PROMPT
          * =====================================================
          */
 
@@ -248,6 +516,18 @@ Basketball pickup game
 Return:
 ["Basketball"]
 
+Activity:
+Movie night with friends
+
+Return:
+["Movies"]
+
+Activity:
+Morning hiking trip
+
+Return:
+["Hiking"]
+
 Now classify this activity:
 
 Title:
@@ -265,58 +545,22 @@ ${activity.location ?? ""}
 
         /*
          * =====================================================
-         * 7. Ask Gemini to classify the activity
+         * 10. CALL GEMINI
          * =====================================================
          */
 
         const geminiResponse =
-            await fetch(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json",
-
-                        "x-goog-api-key":
-                            geminiApiKey,
-                    },
-
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                role: "user",
-
-                                parts: [
-                                    {
-                                        text: prompt,
-                                    },
-                                ],
-                            },
-                        ],
-
-                        generationConfig: {
-                            temperature: 0.1,
-                            responseMimeType:
-                                "application/json",
-                        },
-                    }),
-                }
+            await callGeminiWithRetry(
+                geminiApiKey,
+                prompt
             );
-
-        /*
-         * =====================================================
-         * 8. Handle Gemini errors
-         * =====================================================
-         */
 
         if (!geminiResponse.ok) {
             const errorText =
                 await geminiResponse.text();
 
             console.log(
-                "Gemini API error:",
+                "Final Gemini error:",
                 errorText
             );
 
@@ -324,11 +568,18 @@ ${activity.location ?? ""}
                 {
                     error:
                         "Gemini classification failed",
-                    geminiError: errorText,
+                    geminiError:
+                        errorText,
                 },
-                500
+                geminiResponse.status
             );
         }
+
+        /*
+         * =====================================================
+         * 11. READ GEMINI RESPONSE
+         * =====================================================
+         */
 
         const geminiData =
             await geminiResponse.json();
@@ -338,6 +589,11 @@ ${activity.location ?? ""}
                 ?.candidates?.[0]
                 ?.content?.parts?.[0]
                 ?.text?.trim();
+
+        console.log(
+            "Gemini raw response:",
+            raw
+        );
 
         if (!raw) {
             return jsonResponse(
@@ -349,30 +605,28 @@ ${activity.location ?? ""}
             );
         }
 
-        console.log(
-            "Gemini raw response:",
-            raw
-        );
-
-        /*
-         * Remove markdown fences just in case
-         * Gemini ever returns them.
-         */
         raw = raw
-            .replace(/```json/g, "")
-            .replace(/```/g, "")
+            .replace(
+                /```json/g,
+                ""
+            )
+            .replace(
+                /```/g,
+                ""
+            )
             .trim();
 
         /*
          * =====================================================
-         * 9. Convert Gemini response into array
+         * 12. PARSE GEMINI INTERESTS
          * =====================================================
          */
 
         let interests: string[];
 
         try {
-            interests = JSON.parse(raw);
+            interests =
+                JSON.parse(raw);
         } catch {
             return jsonResponse(
                 {
@@ -384,7 +638,11 @@ ${activity.location ?? ""}
             );
         }
 
-        if (!Array.isArray(interests)) {
+        if (
+            !Array.isArray(
+                interests
+            )
+        ) {
             return jsonResponse(
                 {
                     error:
@@ -396,28 +654,31 @@ ${activity.location ?? ""}
         }
 
         /*
-         * Security / validation:
-         *
-         * Gemini can ONLY return interests that
-         * exist in Rollin'.
+         * =====================================================
+         * 13. VALIDATE INTERESTS
+         * =====================================================
          */
-        interests = interests
-            .filter(
-                (interest):
-                    interest is string =>
-                    typeof interest === "string"
-            )
-            .filter((interest) =>
-                ALLOWED_INTERESTS.includes(
-                    interest
-                )
-            );
 
-        /*
-         * Remove duplicate interests.
-         */
+        interests =
+            interests
+                .filter(
+                    (
+                        interest
+                    ): interest is string =>
+                        typeof interest ===
+                        "string"
+                )
+                .filter(
+                    (interest) =>
+                        ALLOWED_INTERESTS.includes(
+                            interest
+                        )
+                );
+
         interests = [
-            ...new Set(interests),
+            ...new Set(
+                interests
+            ),
         ];
 
         console.log(
@@ -427,29 +688,52 @@ ${activity.location ?? ""}
 
         /*
          * =====================================================
-         * 10. Find matching interest IDs
+         * 14. NO VALID INTERESTS
          * =====================================================
          */
 
-        if (interests.length === 0) {
+        if (
+            interests.length ===
+            0
+        ) {
             return jsonResponse({
                 success: true,
-                activityId: activity.id,
+                activityId:
+                    activity.id,
+                activityTitle:
+                    activity.title,
                 interests: [],
                 matchedUsers: [],
                 matchedUserCount: 0,
             });
         }
 
+        /*
+         * =====================================================
+         * 15. LOOK UP INTEREST IDS
+         * =====================================================
+         */
+
         const {
             data: interestRows,
-            error: interestLookupError,
-        } = await adminSupabase
-            .from("interests")
-            .select("id, name")
-            .in("name", interests);
+            error:
+            interestLookupError,
+        } =
+            await adminSupabase
+                .from(
+                    "interests"
+                )
+                .select(
+                    "id, name"
+                )
+                .in(
+                    "name",
+                    interests
+                );
 
-        if (interestLookupError) {
+        if (
+            interestLookupError
+        ) {
             console.log(
                 "Interest lookup error:",
                 interestLookupError
@@ -467,8 +751,11 @@ ${activity.location ?? ""}
         }
 
         const matchedInterestIds =
-            (interestRows ?? []).map(
-                (interest) => interest.id
+            (
+                interestRows ?? []
+            ).map(
+                (interest) =>
+                    interest.id
             );
 
         console.log(
@@ -478,7 +765,7 @@ ${activity.location ?? ""}
 
         /*
          * =====================================================
-         * 11. Find users who selected those interests
+         * 16. FIND MATCHING USERS
          * =====================================================
          */
 
@@ -486,20 +773,30 @@ ${activity.location ?? ""}
             string[] = [];
 
         if (
-            matchedInterestIds.length > 0
+            matchedInterestIds.length >
+            0
         ) {
             const {
-                data: profileMatches,
-                error: profileMatchError,
-            } = await adminSupabase
-                .from("profile_interests")
-                .select("profile_id")
-                .in(
-                    "interest_id",
-                    matchedInterestIds
-                );
+                data:
+                profileMatches,
+                error:
+                profileMatchError,
+            } =
+                await adminSupabase
+                    .from(
+                        "profile_interests"
+                    )
+                    .select(
+                        "profile_id"
+                    )
+                    .in(
+                        "interest_id",
+                        matchedInterestIds
+                    );
 
-            if (profileMatchError) {
+            if (
+                profileMatchError
+            ) {
                 console.log(
                     "Profile matching error:",
                     profileMatchError
@@ -516,27 +813,27 @@ ${activity.location ?? ""}
                 );
             }
 
-            /*
-             * Remove:
-             *
-             * - duplicate users
-             * - the activity host
-             */
-            matchingProfileIds = [
-                ...new Set(
-                    (profileMatches ?? [])
-                        .map(
-                            (row) =>
-                                row.profile_id as string
+            matchingProfileIds =
+                [
+                    ...new Set(
+                        (
+                            profileMatches ??
+                            []
                         )
-                        .filter(
-                            (profileId) =>
-                                profileId &&
-                                profileId !==
-                                activity.host_id
-                        )
-                ),
-            ];
+                            .map(
+                                (row) =>
+                                    row.profile_id as string
+                            )
+                            .filter(
+                                (
+                                    profileId
+                                ) =>
+                                    profileId &&
+                                    profileId !==
+                                    activity.host_id
+                            )
+                    ),
+                ];
         }
 
         console.log(
@@ -546,11 +843,54 @@ ${activity.location ?? ""}
 
         /*
          * =====================================================
-         * 12. Final successful response
+         * 17. RECORD SUCCESSFUL BOOST
          * =====================================================
          *
-         * Push notifications will be added
-         * after this matching step is verified.
+         * Important:
+         * We only record this AFTER Gemini and
+         * matching both succeed.
+         *
+         * A Gemini 503 will NOT consume the user's cooldown.
+         */
+
+        const {
+            error: saveBoostError,
+        } =
+            await adminSupabase
+                .from(
+                    "activity_boosts"
+                )
+                .insert({
+                    user_id:
+                        user.id,
+
+                    activity_id:
+                        activity.id,
+                });
+
+        if (
+            saveBoostError
+        ) {
+            console.log(
+                "Save boost error:",
+                saveBoostError
+            );
+
+            return jsonResponse(
+                {
+                    error:
+                        "Could not save boost history.",
+                    databaseError:
+                        saveBoostError.message,
+                },
+                500
+            );
+        }
+
+        /*
+         * =====================================================
+         * 18. SUCCESS
+         * =====================================================
          */
 
         return jsonResponse({
@@ -569,6 +909,8 @@ ${activity.location ?? ""}
 
             matchedUserCount:
                 matchingProfileIds.length,
+
+            cooldownMinutes: 10,
         });
     } catch (error) {
         console.log(

@@ -1,6 +1,10 @@
 import { Switch, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { DateTimeField } from '@/components/post/date-time-field';
+import {
+  LocationAutocompleteField,
+  type PlaceSelection,
+} from '@/components/post/location-autocomplete-field';
 import { PostField } from '@/components/post/post-field';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
@@ -27,6 +31,8 @@ type OfferRideFormProps = {
   pickupPlaceholder?: string;
   destinationPlaceholder?: string;
   notesPlaceholder?: string;
+  onPickupPlaceSelect?: (place: PlaceSelection) => void;
+  onDestinationPlaceSelect?: (place: PlaceSelection) => void;
 };
 
 export function OfferRideForm({
@@ -50,6 +56,8 @@ export function OfferRideForm({
   pickupPlaceholder = 'Where should riders meet you?',
   destinationPlaceholder = 'Where are you headed?',
   notesPlaceholder = 'Car details, meeting spot, anything riders should know...',
+  onPickupPlaceSelect,
+  onDestinationPlaceSelect,
 }: OfferRideFormProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
@@ -77,21 +85,32 @@ export function OfferRideForm({
           <AppText style={{ flex: 1 }}>Pick up passengers at their locations</AppText>
           <Switch value={individualPickup} onValueChange={onIndividualPickupChange} accessibilityLabel="Individual passenger pickups" />
         </View>}
-        {!individualPickup && <PostField
+        {!individualPickup && <LocationAutocompleteField
           label="Pickup Location"
           value={pickupLocation}
-          onChangeText={onPickupLocationChange}
+          onChangeText={(text) => { onPickupLocationChange(text); }}
+          onPlaceSelect={(place) => { onPickupLocationChange(place.displayText); onPickupPlaceSelect?.(place); }}
           placeholder={pickupPlaceholder}
         />}
 
         <View style={styles.destinationSection}>
-          <PostField
-            label="Destination"
-            value={destination}
-            onChangeText={onDestinationChange}
-            placeholder={destinationPlaceholder}
-            editable={!destinationLocked}
-          />
+          {destinationLocked ? (
+            <PostField
+              label="Destination"
+              value={destination}
+              onChangeText={onDestinationChange}
+              placeholder={destinationPlaceholder}
+              editable={false}
+            />
+          ) : (
+            <LocationAutocompleteField
+              label="Destination"
+              value={destination}
+              onChangeText={(text) => { onDestinationChange(text); }}
+              onPlaceSelect={(place) => { onDestinationChange(place.displayText); onDestinationPlaceSelect?.(place); }}
+              placeholder={destinationPlaceholder}
+            />
+          )}
 
           {destinationLocked && (
             <AppText

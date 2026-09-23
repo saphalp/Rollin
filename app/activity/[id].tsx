@@ -1,4 +1,5 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -150,6 +151,12 @@ export default function ActivityDetailScreen() {
     useState(false);
 
   const [menuVisible, setMenuVisible] =
+    useState(false);
+
+  const [shareSheetVisible, setShareSheetVisible] =
+    useState(false);
+
+  const [boosted, setBoosted] =
     useState(false);
 
   useEffect(() => {
@@ -507,6 +514,82 @@ export default function ActivityDetailScreen() {
     setRsvpLoading(false);
   }
 
+  async function handleBoostActivity() {
+    if (!activity) return;
+
+    console.log("Boosting activity ID:", activity.id);
+
+    try {
+      const { data, error } =
+        await supabase.functions.invoke(
+          "boost-activity",
+          {
+            body: {
+              activityId: activity.id,
+            },
+          }
+        );
+
+      if (error) {
+        let message = error.message;
+
+        try {
+          const response = (error as any).context;
+
+          if (response) {
+            const body = await response.json();
+
+            console.log(
+              "EDGE FUNCTION BODY:",
+              body
+            );
+
+            message =
+              body?.error ??
+              JSON.stringify(body);
+          }
+        } catch (readError) {
+          console.log(
+            "Could not read Edge Function response:",
+            readError
+          );
+        }
+
+        Alert.alert(
+          "Boost failed",
+          message
+        );
+
+        return;
+      }
+
+      console.log(
+        "Boost response:",
+        data
+      );
+
+      setBoosted(true);
+
+      Alert.alert(
+        "Boost successful",
+        `Matched interests: ${data?.interests?.join(", ") ||
+        "No interests found"
+        }`
+      );
+
+    } catch (error: any) {
+      console.log(
+        "Boost error:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        error?.message ??
+        "Something went wrong."
+      );
+    }
+  }
   /*
    * Ride actions.
    *
@@ -671,6 +754,25 @@ export default function ActivityDetailScreen() {
                 </AppText>
               </View>
 
+              <TouchableOpacity
+                onPress={() =>
+                  setShareSheetVisible(true)
+                }
+                style={[
+                  styles.backButton,
+                  {
+                    backgroundColor:
+                      colors.background,
+                  },
+                ]}
+              >
+                <IconSymbol
+                  name="square.and.arrow.up"
+                  size={18}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
               {isHost && (
                 <Menu
                   visible={menuVisible}
@@ -716,6 +818,31 @@ export default function ActivityDetailScreen() {
                       fontFamily: Fonts?.sans,
                     }}
                   />
+
+                  <Menu.Item
+                    leadingIcon={
+                      boosted
+                        ? "check-circle-outline"
+                        : "rocket-launch-outline"
+                    }
+                    title={
+                      boosted
+                        ? "Boosted"
+                        : "Boost Activity"
+                    }
+                    disabled={boosted}
+                    onPress={() => {
+                      setMenuVisible(false);
+                      handleBoostActivity();
+                    }}
+                    titleStyle={{
+                      color: boosted
+                        ? colors.outline
+                        : colors.tint,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
+
                   <Menu.Item
                     leadingIcon="trash-can-outline"
                     title="Delete Activity"
@@ -1528,6 +1655,15 @@ export default function ActivityDetailScreen() {
         onClose={() =>
           setRideOptionsVisible(false)
         }
+      />
+
+      <ShareSheet
+        visible={shareSheetVisible}
+        onClose={() =>
+          setShareSheetVisible(false)
+        }
+        shareType="activity"
+        contentId={activity.id}
       />
     </AppView>
   );

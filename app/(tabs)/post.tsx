@@ -19,6 +19,10 @@ import {
   EventType,
   EventTypeDropdown,
 } from "@/components/post/event-type-dropdown";
+import {
+  LocationAutocompleteField,
+  type PlaceSelection,
+} from "@/components/post/location-autocomplete-field";
 import { PostField } from "@/components/post/post-field";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -104,6 +108,7 @@ export default function PostScreen() {
   const [category, setCategory] = useState("Social");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSelection | null>(null);
   const [activityDateTime, setActivityDateTime] = useState<Date | null>(null);
   const [maxAttendees, setMaxAttendees] = useState("");
   const [eventType, setEventType] = useState<EventType>("public");
@@ -190,7 +195,9 @@ export default function PostScreen() {
       return;
     }
 
-    const activityCoordinate = await geocodeActivityLocation(location.trim());
+    let activityCoordinate = selectedPlace
+      ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }
+      : await geocodeActivityLocation(location.trim());
 
     if (!activityCoordinate) {
       setSaving(false);
@@ -208,6 +215,8 @@ export default function PostScreen() {
       location: location.trim(),
       latitude: activityCoordinate.latitude,
       longitude: activityCoordinate.longitude,
+      place_id: selectedPlace?.placeId ?? null,
+      formatted_address: selectedPlace?.formattedAddress ?? null,
       date_time: activityDateTime ? activityDateTime.toISOString() : null,
       max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
       event_type: eventType,
@@ -225,6 +234,7 @@ export default function PostScreen() {
     setCategory("Social");
     setDescription("");
     setLocation("");
+    setSelectedPlace(null);
     setActivityDateTime(null);
     setMaxAttendees("");
     setEventType("public");
@@ -368,10 +378,11 @@ export default function PostScreen() {
               multiline
             />
 
-            <PostField
+            <LocationAutocompleteField
               label="Location"
               value={location}
-              onChangeText={setLocation}
+              onChangeText={(text) => { setLocation(text); setSelectedPlace(null); }}
+              onPlaceSelect={(place) => { setLocation(place.displayText); setSelectedPlace(place); }}
               placeholder="Lambright Sports Center, Ruston, LA"
             />
           </View>

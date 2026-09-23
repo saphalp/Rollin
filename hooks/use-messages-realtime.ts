@@ -6,7 +6,10 @@ export type MessagePayload = {
   id: string;
   conversation_id: string;
   sender_id: string;
-  content: string;
+  content: string | null;
+  type: "text" | "activity" | "post";
+  shared_activity_id: string | null;
+  shared_post_id: string | null;
   created_at: string;
 };
 

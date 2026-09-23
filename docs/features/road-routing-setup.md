@@ -28,7 +28,7 @@ Drivers can move pickups up in the list. That order is saved until they choose t
 
 ### Google Maps
 
-Start Drive plans the route and opens Google Maps with the stops already filled in. Google Maps calculates its own roads, so its route may differ from the overview in Rollin. If Google Maps is not installed, the link opens in a browser.
+Start Drive opens the route overview. The driver reviews the stops, then taps Open Google Maps to navigate with the stops already filled in. Google Maps calculates its own roads, so its route may differ from the overview in Rollin. If Google Maps is not installed, the link opens in a browser.
 
 The link includes up to three intermediate stops plus the destination. For longer trips, the driver is told that navigation will open one stop at a time. Navigate to next stop always opens only the next pickup or destination.
 
@@ -44,10 +44,10 @@ Location sharing runs while Rollin is open. It pauses when the driver switches t
 2. Passengers request seats and provide alternate pickup addresses if needed
 3. The driver reviews and accepts the requests
 4. The driver presses Start Drive on Ride Details
-5. Rollin calculates the route from the driver's current location and opens Google Maps
+5. Rollin displays the route from the driver's current location. The driver taps Open Google Maps when ready
 6. At a pickup, while parked, the driver returns to Rollin and presses Picked up for that passenger
-7. Rollin updates the remaining route, and Navigate to next stop opens Google Maps again
-8. After reaching the destination, the driver returns to Ride Details and completes the trip
+7. Rollin updates the remaining route. Open Google Maps starts navigation again
+8. After reaching the destination, the driver returns to Rollin and taps Complete ride on the overview
 9. The driver and passengers can rate each other
 
 ## Technical Hurdles

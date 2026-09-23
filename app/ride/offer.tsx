@@ -49,6 +49,8 @@ export default function OfferRideScreen() {
   const [availableSeats, setAvailableSeats] = useState('1');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedPickupPlace, setSelectedPickupPlace] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedDestinationPlace, setSelectedDestinationPlace] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     if (!activityId) {
@@ -171,8 +173,8 @@ export default function OfferRideScreen() {
 
       const [pickupCoordinates, destinationCoordinates] =
         await Promise.all([
-          individualPickup ? Promise.resolve(null) : geocodeAddress(cleanedPickup),
-          geocodeAddress(cleanedDestination),
+          individualPickup ? null : (selectedPickupPlace ?? geocodeAddress(cleanedPickup)),
+          selectedDestinationPlace ?? geocodeAddress(cleanedDestination),
         ]);
 
       const { error } = await supabase
@@ -269,9 +271,11 @@ export default function OfferRideScreen() {
             individualPickup={individualPickup}
             onIndividualPickupChange={setIndividualPickup}
             pickupLocation={pickupLocation}
-            onPickupLocationChange={setPickupLocation}
+            onPickupLocationChange={(text) => { setPickupLocation(text); setSelectedPickupPlace(null); }}
+            onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); setSelectedPickupPlace(place); }}
             destination={destination}
-            onDestinationChange={setDestination}
+            onDestinationChange={(text) => { setDestination(text); setSelectedDestinationPlace(null); }}
+            onDestinationPlaceSelect={(place) => { setDestination(place.displayText); setSelectedDestinationPlace(place); }}
             destinationLocked={Boolean(activityId)}
             rideDateTime={rideDateTime}
             onRideDateTimeChange={setRideDateTime}

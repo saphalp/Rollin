@@ -208,9 +208,11 @@ export default function RequestRideScreen() {
 
           <OfferRideForm
             pickupLocation={pickupLocation}
-            onPickupLocationChange={setPickupLocation}
+            onPickupLocationChange={(text) => { setPickupLocation(text); }}
+            onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); }}
             destination={destination}
-            onDestinationChange={setDestination}
+            onDestinationChange={(text) => { setDestination(text); }}
+            onDestinationPlaceSelect={(place) => { setDestination(place.displayText); }}
             rideDateTime={rideDateTime}
             onRideDateTimeChange={setRideDateTime}
             notes={notes}

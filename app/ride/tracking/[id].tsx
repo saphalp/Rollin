@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
@@ -13,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LiveRideMap from '@/components/rides/live-ride-map';
 import { RoadRouteSummary } from '@/components/rides/road-route-summary';
 import { PickupStops } from '@/components/rides/pickup-stops';
-import { openGoogleMaps } from '@/services/ride-navigation-service';
+import { completeRide } from '@/services/ride-lifecycle-service';
 import { LiveRideStatus } from '@/components/rides/live-ride-status';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -40,8 +41,9 @@ export default function RideTrackingScreen() {
     const [ride, setRide] = useState<RideOffer | null>(null);
     const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
     const [startingDrive, setStartingDrive] = useState(false);
+    const [finishing, setFinishing] = useState(false);
     const [driveError, setDriveError] = useState<string | null>(null);
-    const autoStartedRide = useRef<string | null>(null);
+    const preparedRide = useRef<string | null>(null);
     const startingDriveRef = useRef(false);
 
     useEffect(() => { setRoadRoute(null); }, [rideId]);
@@ -148,7 +150,7 @@ export default function RideTrackingScreen() {
     }, [rideId]);
 
     const { startSharing } = driverPublisher;
-    const startDrive = useCallback(async () => {
+    const prepareRoute = useCallback(async () => {
         if (!authorized || !isDriver || startingDriveRef.current || ride?.status !== 'in_progress') return;
         startingDriveRef.current = true;
         setStartingDrive(true);
@@ -157,8 +159,6 @@ export default function RideTrackingScreen() {
             if (!await startSharing()) return;
             const route = await fetchRoadRoute(rideId);
             setRoadRoute(route);
-            if (!route.stops?.length) throw new Error('Update the ride-route function before opening navigation.');
-            await openGoogleMaps(route.stops);
         } catch (error) {
             setDriveError(error instanceof Error ? error.message : 'Could not start drive.');
         } finally {
@@ -168,14 +168,25 @@ export default function RideTrackingScreen() {
     }, [authorized, isDriver, ride?.status, rideId, startSharing]);
 
     useEffect(() => {
-        if (!authorized || !isDriver || ride?.status !== 'in_progress' || autoStartedRide.current === rideId) return;
-        autoStartedRide.current = rideId;
-        void startDrive();
-    }, [authorized, isDriver, ride?.status, rideId, startDrive]);
+        if (!authorized || !isDriver || ride?.status !== 'in_progress' || preparedRide.current === rideId) return;
+        preparedRide.current = rideId;
+        void prepareRoute();
+    }, [authorized, isDriver, ride?.status, rideId, prepareRoute]);
 
     useEffect(() => {
         void load();
     }, [load]);
+
+    async function finishDrive() {
+        if (finishing) return;
+        setFinishing(true);
+        try {
+            await completeRide(rideId);
+            await driverPublisher.stopSharing();
+            router.replace({ pathname: '/ride/ratings/[id]', params: { id: rideId } });
+        } catch (error) { Alert.alert('Could not complete ride', error instanceof Error ? error.message : 'Try again.'); }
+        finally { setFinishing(false); }
+    }
 
     return (
         <AppView
@@ -300,22 +311,16 @@ export default function RideTrackingScreen() {
                         <AppText accessibilityLiveRegion="polite">{live.connectionMessage}</AppText>
                     ) : null}
 
-                    {isDriver && ride.status === 'in_progress' ? (
-                        <TouchableOpacity accessibilityRole="button" disabled={startingDrive} onPress={() => void startDrive()}
-                            style={[styles.shareButton, { backgroundColor: colors.tint, borderColor: colors.tint }]}>
-                            {startingDrive ? <ActivityIndicator color={colors.onPrimary} /> : <>
-                                <MaterialCommunityIcons name="navigation" size={22} color={colors.onPrimary} />
-                                <AppText style={{ color: colors.onPrimary, fontWeight: '700' }}>Open Google Maps</AppText>
-                            </>}
-                        </TouchableOpacity>
-                    ) : null}
+                    {isDriver && startingDrive ? <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <ActivityIndicator color={colors.tint} /><AppText>Loading route…</AppText>
+                    </View> : null}
                     {driveError ? <AppText accessibilityRole="alert">{driveError}</AppText> : null}
                     <RoadRouteSummary key={rideId} rideId={rideId} isDriver={isDriver} route={roadRoute} onRoute={setRoadRoute} />
                     {isDriver && ride.status === 'in_progress' ? <PickupStops rideId={rideId} route={roadRoute}
                         refresh={async (optimize = false) => { setRoadRoute(await fetchRoadRoute(rideId, optimize)); }} /> : null}
-                    <AppText style={{ fontSize: 12 }}>Location updates pause while the driver uses another app. Last update: {live.driverLocation?.updatedAt
+                    {!isDriver && <AppText style={{ fontSize: 12 }}>Location updates pause while the driver uses another app. Last update: {live.driverLocation?.updatedAt
                         ? new Date(live.driverLocation.updatedAt).toLocaleTimeString() : driverPublisher.lastLocation?.updatedAt
-                            ? new Date(driverPublisher.lastLocation.updatedAt).toLocaleTimeString() : 'not available'}.</AppText>
+                            ? new Date(driverPublisher.lastLocation.updatedAt).toLocaleTimeString() : 'not available'}.</AppText>}
 
                     {live.errorMessage ? (
                         <AppText
@@ -331,108 +336,23 @@ export default function RideTrackingScreen() {
                         </AppText>
                     ) : null}
 
-                    {isDriver ? (
-                        <View
-                            style={[
-                                styles.driverCard,
-                                {
-                                    backgroundColor:
-                                        colors.cardBackground,
-                                    borderColor:
-                                        colors.outlineVariant,
-                                },
-                            ]}
-                        >
-                            <AppText
-                                style={[
-                                    styles.driverTitle,
-                                    {
-                                        color: colors.text,
-                                        fontFamily: Fonts?.sans,
-                                    },
-                                ]}
-                            >
-                                Driver location sharing
-                            </AppText>
-                            <AppText
-                                style={[
-                                    styles.driverDescription,
-                                    {
-                                        color: colors.icon,
-                                        fontFamily: Fonts?.sans,
-                                    },
-                                ]}
-                            >
-                                Start sharing when you begin driving.
-                                Stop sharing when the ride ends.
-                            </AppText>
-
-                            <TouchableOpacity
-                                onPress={
-                                    driverPublisher.sharing
-                                        ? driverPublisher.stopSharing
-                                        : driverPublisher.startSharing
-                                }
-                                style={[
-                                    styles.shareButton,
-                                    {
-                                        backgroundColor:
-                                            driverPublisher.sharing
-                                                ? colors.surfaceContainer
-                                                : colors.tint,
-                                        borderColor:
-                                            driverPublisher.sharing
-                                                ? colors.outlineVariant
-                                                : colors.tint,
-                                    },
-                                ]}
-                            >
-                                <MaterialCommunityIcons
-                                    name={
-                                        driverPublisher.sharing
-                                            ? 'stop-circle-outline'
-                                            : 'crosshairs-gps'
-                                    }
-                                    size={21}
-                                    color={
-                                        driverPublisher.sharing
-                                            ? colors.tint
-                                            : colors.onPrimary
-                                    }
-                                />
-                                <AppText
-                                    style={[
-                                        styles.shareText,
-                                        {
-                                            color:
-                                                driverPublisher.sharing
-                                                    ? colors.tint
-                                                    : colors.onPrimary,
-                                            fontFamily: Fonts?.sans,
-                                        },
-                                    ]}
-                                >
-                                    {driverPublisher.sharing
-                                        ? 'Stop Sharing'
-                                        : 'Start Sharing'}
-                                </AppText>
+                    {isDriver && ride.status === 'in_progress' ? <>
+                        <TouchableOpacity accessibilityRole="button" onPress={() => Alert.alert('Complete ride?',
+                            'Confirm everyone has arrived. You can rate your passengers next.', [
+                                { text: 'Not yet', style: 'cancel' },
+                                { text: 'Complete ride', onPress: () => void finishDrive() },
+                            ])} disabled={finishing}
+                            style={[styles.shareButton, { borderColor: colors.outlineVariant, marginTop: 0 }]}>
+                            <AppText style={{ color: colors.tint, fontWeight: '700' }}>{finishing ? 'Completing…' : 'Complete ride'}</AppText>
+                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <AppText style={{ fontSize: 12, color: colors.icon }}>Location sharing {driverPublisher.sharing ? 'on' : 'paused'}</AppText>
+                            <TouchableOpacity onPress={() => void (driverPublisher.sharing ? driverPublisher.stopSharing() : driverPublisher.startSharing())}>
+                                <AppText style={{ color: colors.tint, padding: 8 }}>{driverPublisher.sharing ? 'Pause' : 'Resume'}</AppText>
                             </TouchableOpacity>
-
-                            {driverPublisher.errorMessage ? (
-                                <AppText
-                                    style={[
-                                        styles.errorMessage,
-                                        {
-                                            color: colors.error,
-                                            fontFamily: Fonts?.sans,
-                                        },
-                                    ]}
-                                >
-                                    {driverPublisher.errorMessage}
-                                </AppText>
-                            ) : null}
                         </View>
-                    ) : null}
+                        {driverPublisher.errorMessage ? <AppText accessibilityRole="alert">{driverPublisher.errorMessage}</AppText> : null}
+                    </> : null}
                 </ScrollView>
             )}
         </AppView>

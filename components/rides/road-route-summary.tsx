@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, TouchableOpacity, View } from 'react-native';
 
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppText } from '@/components/text';
 import { fetchRoadRoute, fetchSharedRoadRoute, formatMiles, RoadRoute } from '@/services/ride-routing-service';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +15,7 @@ type Props = {
 };
 
 export function RoadRouteSummary({ rideId, isDriver, route, onRoute }: Props) {
+    const colors = Colors[useColorScheme() ?? 'light'];
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const busy = useRef(false);
@@ -64,40 +67,20 @@ export function RoadRouteSummary({ rideId, isDriver, route, onRoute }: Props) {
     }
 
     return (
-        <View style={{ gap: 8 }}>
-            <TouchableOpacity
-                accessibilityRole="button"
-                disabled={loading}
-                onPress={() => void load()}
-                style={{ padding: 14, borderRadius: 12, backgroundColor: '#165FD5', alignItems: 'center' }}
-            >
-                {loading ? <ActivityIndicator color="#fff" /> : (
-                    <AppText style={{ color: '#fff', fontWeight: '700' }}>
-                        {isDriver ? (route ? 'Refresh road route' : 'Load road route') : 'Refresh driver’s route'}
-                    </AppText>
-                )}
-            </TouchableOpacity>
+        <View style={{ gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <AppText style={{ fontWeight: '700', flex: 1 }}>{route
+                    ? formatMiles(route.distanceMeters) + ' · ~' + Math.max(1, Math.ceil(route.durationSeconds / 60)) + ' min'
+                    : isDriver ? 'Route overview' : 'Waiting for driver’s route'}</AppText>
+                <TouchableOpacity accessibilityRole="button" disabled={loading} onPress={() => void load()} style={{ padding: 10 }}>
+                    {loading ? <ActivityIndicator color={colors.tint} /> : <AppText style={{ color: colors.tint }}>{route ? 'Refresh' : 'Load route'}</AppText>}
+                </TouchableOpacity>
+            </View>
             {error ? <AppText accessibilityRole="alert">{error}</AppText> : null}
-            {route ? (
-                <>
-                    <AppText>
-                        {route.stops?.length ? 'Driver → remaining pickups → destination' : 'Saved route'}
-                    </AppText>
-                    <AppText>
-                        {formatMiles(route.distanceMeters)} · approximately {Math.max(1, Math.ceil(route.durationSeconds / 60))} min total
-                    </AppText>
-                    <AppText style={{ fontSize: 12 }}>
-                        Estimated driving time without live traffic. {isDriver ? 'Refresh to recalculate the route.' : 'Following the driver’s shared route.'}
-                    </AppText>
-                    <AppText
-                        accessibilityRole="link"
-                        style={{ fontSize: 12, textDecorationLine: 'underline' }}
-                        onPress={() => void Linking.openURL('https://openrouteservice.org').catch(() => {})}
-                    >
-                        Routing © openrouteservice | Map data © OpenStreetMap contributors
-                    </AppText>
-                </>
-            ) : !loading ? <AppText>{isDriver ? 'Load a route or tap Start Drive.' : 'Waiting for the driver to plan the route.'}</AppText> : null}
+            {route ? <AppText accessibilityRole="link" style={{ fontSize: 10, color: colors.icon }}
+                onPress={() => void Linking.openURL('https://openrouteservice.org').catch(() => {})}>
+                © openrouteservice · © OpenStreetMap contributors
+            </AppText> : null}
         </View>
     );
 }

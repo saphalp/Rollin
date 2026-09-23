@@ -1,5 +1,4 @@
 import { Colors, Fonts } from "@/constants/theme";
-import { useAuthContext } from "@/hooks/use-auth-context";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
@@ -11,7 +10,6 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
@@ -27,11 +25,8 @@ import MyActivities from "@/components/profile/MyActivities";
 import ProfileActionBar from "@/components/profile/ProfileActionBar";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ProfileInfo from "@/components/profile/ProfileInfo";
-import { EditProfileSheet } from "@/components/profile/EditProfileSheet";
-import { ProfileSettingsSidebar } from "@/components/profile/ProfileSettingsSidebar";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 
 import { RideRatingSummary } from './RideRatingSummary';
 
@@ -115,7 +110,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const { refreshProfile } = useAuthContext();
   const { profile, isLoading: profileLoading, isOwnProfile } =
     useProfile(userId);
   const { followState, toggle: toggleFollow } = useFollow(userId);
@@ -123,8 +117,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
     useProfileInterests(userId);
 
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [editSheetVisible, setEditSheetVisible] = useState(false);
-  const [settingsSidebarVisible, setSettingsSidebarVisible] = useState(false);
   const [activityView, setActivityView] =
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
@@ -280,10 +272,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
     });
   }
 
-  function handleEditPress() {
-    setEditSheetVisible(true);
-  }
-
   if (profileLoading) {
     return (
       <View style={styles.center}>
@@ -310,13 +298,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
   return (
     <>
-      {isOwnProfile && (
-        <View style={[styles.topBar, { backgroundColor: colors.background }]}>
-          <TouchableOpacity hitSlop={10} onPress={() => setSettingsSidebarVisible(true)}>
-            <IconSymbol name="line.3.horizontal" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      )}
       <ScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
@@ -333,7 +314,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
         <ProfileActionBar
           isOwnProfile={isOwnProfile}
           followState={followState}
-          onEditPress={handleEditPress}
           onFollowPress={toggleFollow}
           onMessagePress={handleMessagePress}
         />
@@ -441,39 +421,11 @@ export default function UserProfile({ userId }: UserProfileProps) {
         />
       )}
 
-      {isOwnProfile && (
-        <EditProfileSheet
-          visible={editSheetVisible}
-          onClose={() => setEditSheetVisible(false)}
-          userId={userId}
-          initialName={profile.full_name ?? ''}
-          initialUniversity={profile.university ?? ''}
-          initialMajor={profile.major ?? ''}
-          initialAvatar={profile.profile_picture}
-          onSaved={() => { void refreshProfile(); }}
-        />
-      )}
-
-      {isOwnProfile && (
-        <ProfileSettingsSidebar
-          visible={settingsSidebarVisible}
-          onClose={() => setSettingsSidebarVisible(false)}
-          email={profile.email}
-          onEditPress={handleEditPress}
-        />
-      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
   content: {
     paddingHorizontal: 16,
     paddingBottom: 32,

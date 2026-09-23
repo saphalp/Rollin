@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -192,7 +193,7 @@ export function useLiveRideLocation({
     }, [distanceKm, driverLocation]);
 
     const arrived =
-        distanceKm != null && hasDriverArrived(distanceKm);
+        Boolean(driverLocation?.isActive) && !isLocationStale(driverLocation?.updatedAt ?? null, now) && distanceKm != null && hasDriverArrived(distanceKm);
 
     useEffect(() => {
         if (!arrived || notifiedArrival.current) {
@@ -212,7 +213,7 @@ export function useLiveRideLocation({
         etaMinutes,
         arrived,
         stale: driverLocation
-            ? isLocationStale(driverLocation.updatedAt, now)
+            ? !driverLocation.isActive || isLocationStale(driverLocation.updatedAt, now)
             : true,
         loading,
         errorMessage,
@@ -230,59 +231,69 @@ export function useDriverLocationPublisher(rideId: string | null) {
     const subscriptionRef =
         useRef<Location.LocationSubscription | null>(null);
 
-    const startSharing = useCallback(async () => {
-        if (!rideId) return false;
+    const generation = useRef(0);
+    const wantsSharing = useRef(false);
+    const pendingStart = useRef<Promise<boolean> | null>(null);
+
+    const startSharing = useCallback(async (): Promise<boolean> => {
+        if (!rideId || AppState.currentState !== 'active') return false;
+        wantsSharing.current = true;
         if (subscriptionRef.current) return true;
-
+        if (pendingStart.current) return pendingStart.current;
+        const current = generation.current;
         setErrorMessage(null);
-
-        try {
-            subscriptionRef.current =
-                await startDriverLocationPublisher(
-                    rideId,
-                    setLastLocation,
-                );
-            setSharing(true);
-            return true;
-        } catch (error) {
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : 'Could not start location sharing.',
-            );
-            return false;
-        }
+        const task = (async () => {
+            try {
+                const subscription = await startDriverLocationPublisher(rideId, location => {
+                    if (generation.current === current) setLastLocation(location);
+                });
+                if (generation.current !== current || !wantsSharing.current) { subscription.remove(); return false; }
+                subscriptionRef.current = subscription;
+                setSharing(true);
+                return true;
+            } catch (error) {
+                if (generation.current === current) setErrorMessage(error instanceof Error ? error.message : 'Could not start sharing.');
+                return false;
+            } finally { if (generation.current === current) pendingStart.current = null; }
+        })();
+        pendingStart.current = task;
+        return task;
     }, [rideId]);
 
     const stopSharing = useCallback(async () => {
+        wantsSharing.current = false;
+        generation.current++;
+        pendingStart.current = null;
         subscriptionRef.current?.remove();
         subscriptionRef.current = null;
         setSharing(false);
-
         if (rideId) {
-            try {
-                await stopDriverLocation(rideId);
-            } catch (error) {
-                setErrorMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Could not stop location sharing.',
-                );
-            }
+            try { await stopDriverLocation(rideId); }
+            catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Could not stop sharing.'); }
         }
     }, [rideId]);
 
     useEffect(() => {
+        const subscription = AppState.addEventListener('change', state => {
+            if (state === 'active') {
+                if (wantsSharing.current) void startSharing();
+            } else {
+                generation.current++;
+                pendingStart.current = null;
+                subscriptionRef.current?.remove();
+                subscriptionRef.current = null;
+                setSharing(false);
+            }
+        });
         return () => {
+            wantsSharing.current = false;
+            generation.current++;
+            pendingStart.current = null;
             subscriptionRef.current?.remove();
+            subscriptionRef.current = null;
+            subscription.remove();
         };
-    }, []);
+    }, [startSharing]);
 
-    return {
-        sharing,
-        lastLocation,
-        errorMessage,
-        startSharing,
-        stopSharing,
-    };
+    return { sharing, lastLocation, errorMessage, startSharing, stopSharing };
 }

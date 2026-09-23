@@ -1,3 +1,4 @@
+import { geocodeAddress } from '@/services/geocoding-service';
 import { supabase } from '@/lib/supabase';
 import {
     RideOffer,
@@ -6,6 +7,7 @@ import {
 } from '@/types/rides';
 
 type RawRideRequest = {
+    pickup_address?: string | null;
     id: string;
     ride_id: string | null;
     activity_id: string | null;
@@ -31,6 +33,7 @@ function mapRideRequest(
 
     return {
         id: row.id,
+        pickupAddress: row.pickup_address,
         rideId: row.ride_id,
         activityId: row.activity_id,
         requesterId: row.requester_id,
@@ -138,6 +141,7 @@ export async function fetchMyActivityRideRequest(
  */
 export async function createRideRequest(
     ride: RideOffer,
+    pickupAddress?: string,
 ): Promise<RideRequest> {
     const userId = await getAuthenticatedUserId();
 
@@ -265,9 +269,15 @@ export async function createRideRequest(
      * activity_id ALWAYS comes from the
      * selected ride itself.
      */
+    const address = pickupAddress?.trim();
+    if (ride.pickupMode === 'individual' && !address) throw new Error('Enter your pickup address.');
+    const coords = address ? await geocodeAddress(address) : null;
     const { data, error } = await supabase
         .from('ride_requests')
         .insert({
+            pickup_address: address || null,
+            pickup_latitude: coords?.latitude ?? null,
+            pickup_longitude: coords?.longitude ?? null,
             ride_id: ride.id,
             activity_id: ride.activityId ?? null,
             requester_id: userId,

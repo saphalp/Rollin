@@ -5,6 +5,8 @@ import {
     ActivityIndicator,
     Alert,
     RefreshControl,
+    Switch,
+    TextInput,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
@@ -48,6 +50,8 @@ export default function RideDetailsScreen() {
     const colors = Colors[theme];
     const insets = useSafeAreaInsets();
 
+    const [alternatePickup, setAlternatePickup] = useState(false);
+    const [pickupAddress, setPickupAddress] = useState('');
     const [ride, setRide] = useState<RideOffer | null>(null);
     const [isOfferer, setIsOfferer] = useState(false);
     const [requests, setRequests] = useState<OffererPassengerRequest[]>([]);
@@ -151,8 +155,12 @@ export default function RideDetailsScreen() {
     }
 
     async function handleRequest() {
+        if ((alternatePickup || ride?.pickupMode === 'individual') && !pickupAddress.trim()) {
+            Alert.alert('Pickup address required', 'Enter the address you want the driver to approve.');
+            return;
+        }
         try {
-            await requestSeat();
+            await requestSeat(alternatePickup || ride?.pickupMode === 'individual' ? pickupAddress : undefined);
 
             Alert.alert(
                 'Request sent',
@@ -211,7 +219,7 @@ export default function RideDetailsScreen() {
         Alert.alert(
             `${action === 'accept' ? 'Accept' : 'Decline'} request?`,
             `${action === 'accept' ? 'Accept' : 'Decline'} ${item.requesterName
-            }?`,
+            }?${action === 'accept' ? '\nPickup: ' + (item.pickupAddress || ride?.pickupLocation) : ''}`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -257,10 +265,9 @@ export default function RideDetailsScreen() {
                         setTripBusy(true);
 
                         try {
-                            await stopDriverLocation(ride.id);
                             await completeRide(ride.id);
 
-                            router.replace('/(tabs)/rides');
+                            router.replace({ pathname: '/ride/ratings/[id]', params: { id: ride.id } });
                         } catch (e) {
                             Alert.alert(
                                 'Could not complete trip',
@@ -364,6 +371,7 @@ export default function RideDetailsScreen() {
                             ]}
                         >
                             {isAccepted ? 'Accepted passenger' : 'Pending request'}
+                            {'\nPickup: '}{item.pickupAddress || ride?.pickupLocation}
                         </AppText>
                     </View>
 
@@ -486,6 +494,11 @@ export default function RideDetailsScreen() {
                 ]}
             >
                 <RideDetailCard ride={ride} />
+                {request?.pickupAddress ? <AppText>Your requested pickup: {request.pickupAddress}</AppText> : null}
+                {ride.status === 'completed' && <TouchableOpacity onPress={() => router.push({ pathname: '/ride/ratings/[id]', params: { id: ride.id } })}
+                    style={[styles.mainButton, { backgroundColor: colors.tint }]}>
+                    <AppText style={{ color: colors.onPrimary }}>Add or edit ride ratings</AppText>
+                </TouchableOpacity>}
 
                 {isOfferer ? (
                     <>
@@ -677,6 +690,17 @@ export default function RideDetailsScreen() {
                             </TouchableOpacity>
                         )}
 
+                        {!request && ride.status === 'open' && <View style={{ gap: 10 }}>
+                            {ride.pickupMode !== 'individual' && <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <AppText style={{ flex: 1 }}>Request a different pickup spot</AppText>
+                                <Switch value={alternatePickup} onValueChange={setAlternatePickup} />
+                            </View>}
+                            {(alternatePickup || ride.pickupMode === 'individual') && <>
+                                <AppText>Your pickup address (driver approves when accepting)</AppText>
+                                <TextInput value={pickupAddress} onChangeText={setPickupAddress} placeholder="Street, city, state" placeholderTextColor={colors.icon}
+                                    style={{ color: colors.text, padding: 14, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: 12 }} />
+                            </>}
+                        </View>}
                         <RideRequestButton
                             request={request}
                             loading={requestLoading || submitting}

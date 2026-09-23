@@ -42,6 +42,7 @@ export default function OfferRideScreen() {
     useState<LinkedActivity | null>(null);
 
   const [pickupLocation, setPickupLocation] = useState(prefilledPickup ?? '');
+  const [individualPickup, setIndividualPickup] = useState(false);
   const [destination, setDestination] = useState('');
   const [rideDateTime, setRideDateTime] =
     useState<Date | null>(null);
@@ -97,7 +98,7 @@ export default function OfferRideScreen() {
     const cleanedPickup = pickupLocation.trim();
     const cleanedDestination = destination.trim();
 
-    if (!cleanedPickup) {
+    if (!individualPickup && !cleanedPickup) {
       Alert.alert(
         'Missing pickup location',
         'Please enter where riders should meet you.',
@@ -114,7 +115,7 @@ export default function OfferRideScreen() {
     }
 
     if (
-      cleanedPickup.toLowerCase() ===
+      !individualPickup && cleanedPickup.toLowerCase() ===
       cleanedDestination.toLowerCase()
     ) {
       Alert.alert(
@@ -172,7 +173,7 @@ export default function OfferRideScreen() {
 
       const [pickupCoordinates, destinationCoordinates] =
         await Promise.all([
-          selectedPickupPlace ?? geocodeAddress(cleanedPickup),
+          individualPickup ? null : (selectedPickupPlace ?? geocodeAddress(cleanedPickup)),
           selectedDestinationPlace ?? geocodeAddress(cleanedDestination),
         ]);
 
@@ -182,9 +183,10 @@ export default function OfferRideScreen() {
           driver_id: user.id,
           activity_id: linkedActivity?.id ?? null,
 
-          pickup_location: cleanedPickup,
-          pickup_latitude: pickupCoordinates.latitude,
-          pickup_longitude: pickupCoordinates.longitude,
+          pickup_mode: individualPickup ? 'individual' : 'fixed',
+          pickup_location: individualPickup ? null : cleanedPickup,
+          pickup_latitude: pickupCoordinates?.latitude ?? null,
+          pickup_longitude: pickupCoordinates?.longitude ?? null,
 
           destination: cleanedDestination,
           destination_latitude:
@@ -266,6 +268,8 @@ export default function OfferRideScreen() {
           />
 
           <OfferRideForm
+            individualPickup={individualPickup}
+            onIndividualPickupChange={setIndividualPickup}
             pickupLocation={pickupLocation}
             onPickupLocationChange={(text) => { setPickupLocation(text); setSelectedPickupPlace(null); }}
             onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); setSelectedPickupPlace(place); }}

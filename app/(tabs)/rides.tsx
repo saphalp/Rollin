@@ -453,6 +453,9 @@ export default function RidesScreen() {
               <RideHistoryDashboardCard
                 key={item.id}
                 item={item}
+                onPress={() => item.rideId
+                  ? openRideDetails(item.rideId)
+                  : Alert.alert('Ride request', item.pickupLocation + ' → ' + item.destination + '\nStatus: ' + item.status)}
               />
             ))}
           </View>

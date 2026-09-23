@@ -14,6 +14,7 @@ type AvailableRideOptions = {
 };
 
 type RawRide = {
+    pickup_mode?: 'fixed' | 'individual';
     id: string;
     driver_id: string;
     activity_id: string | null;
@@ -134,7 +135,8 @@ async function hydrateRides(rawRides: RawRide[]): Promise<RideOffer[]> {
         driverId: ride.driver_id,
         activityId: ride.activity_id,
 
-        pickupLocation: ride.pickup_location,
+        pickupMode: ride.pickup_mode ?? 'fixed',
+        pickupLocation: ride.pickup_location || 'Individual pickups',
         pickupLatitude: toNullableNumber(ride.pickup_latitude),
         pickupLongitude: toNullableNumber(ride.pickup_longitude),
 

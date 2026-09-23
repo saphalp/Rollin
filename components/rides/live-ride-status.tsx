@@ -71,7 +71,7 @@ export function LiveRideStatus({
                     >
                         {arrived
                             ? 'The driver is within about 0.06 miles.'
-                            : 'Distance and ETA update as the driver moves.'}
+                            : stale ? 'Showing the last shared position. Updates resume when the driver returns to Rollin.' : 'Estimate based on the latest shared position.'}
                     </AppText>
                 </View>
             </View>

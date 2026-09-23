@@ -1,0 +1,75 @@
+begin;
+
+create table if not exists public.activity_photo_images (
+    id uuid primary key default gen_random_uuid(),
+    post_id uuid not null
+        references public.activity_photos(id)
+        on delete cascade,
+    image_path text not null,
+    position integer not null default 0,
+    created_at timestamp with time zone not null default now()
+);
+
+create index if not exists activity_photo_images_post_id_idx
+    on public.activity_photo_images(post_id);
+
+-- Backfill: every existing single-image post becomes a one-image gallery.
+insert into public.activity_photo_images (post_id, image_path, position)
+select ap.id, ap.image_path, 0
+from public.activity_photos ap
+where ap.image_path is not null
+  and not exists (
+      select 1
+      from public.activity_photo_images pi
+      where pi.post_id = ap.id
+  );
+
+alter table public.activity_photo_images enable row level security;
+
+grant select, insert, delete
+on public.activity_photo_images
+to authenticated;
+
+drop policy if exists "Photo images are viewable by authenticated users"
+on public.activity_photo_images;
+
+drop policy if exists "Post owner can add images"
+on public.activity_photo_images;
+
+drop policy if exists "Post owner can delete images"
+on public.activity_photo_images;
+
+create policy "Photo images are viewable by authenticated users"
+on public.activity_photo_images
+for select
+to authenticated
+using (true);
+
+create policy "Post owner can add images"
+on public.activity_photo_images
+for insert
+to authenticated
+with check (
+    exists (
+        select 1
+        from public.activity_photos post
+        where post.id = activity_photo_images.post_id
+          and post.user_id = (select auth.uid())
+    )
+);
+
+create policy "Post owner can delete images"
+on public.activity_photo_images
+for delete
+to authenticated
+using (
+    exists (
+        select 1
+        from public.activity_photos post
+        where post.id = activity_photo_images.post_id
+          and post.user_id = (select auth.uid())
+    )
+);
+
+commit;
+

@@ -49,7 +49,7 @@ export default function ExploreScreen() {
     const activityIds = [...new Set(photos.map((p: any) => p.activity_id))];
     const postIds = photos.map((p: any) => p.id);
 
-    const [{ data: profiles }, { data: activities }, { data: likes }, { data: myLikes }] =
+    const [{ data: profiles }, { data: activities }, { data: likes }, { data: myLikes }, { data: images }] =
       await Promise.all([
         supabase.from('profiles').select('id, full_name, email, profile_picture').in('id', userIds),
         supabase.from('activities').select('id, title').in('id', activityIds),
@@ -57,6 +57,11 @@ export default function ExploreScreen() {
         userId
           ? supabase.from('post_likes').select('post_id').eq('user_id', userId).in('post_id', postIds)
           : Promise.resolve({ data: [] as { post_id: string }[] }),
+        supabase
+          .from('activity_photo_images')
+          .select('post_id, image_path, position')
+          .in('post_id', postIds)
+          .order('position', { ascending: true }),
       ]);
 
     const profileMap: Record<string, { full_name?: string; email?: string; profile_picture?: string }> =
@@ -73,11 +78,20 @@ export default function ExploreScreen() {
 
     const myLikedSet = new Set((myLikes ?? []).map((l: any) => l.post_id));
 
+    const imageUrlsByPost: Record<string, string[]> = {};
+    for (const image of images ?? []) {
+      const url = supabase.storage.from('activity-photos').getPublicUrl(image.image_path).data.publicUrl;
+      (imageUrlsByPost[image.post_id] ??= []).push(url);
+    }
+
     return photos.map((p: any) => {
       const profile = profileMap[p.user_id];
       const name = profile?.full_name
         ?? (profile?.email ? profile.email.split('@')[0] : null)
         ?? 'Rollin\' User';
+
+      const imageUrls = imageUrlsByPost[p.id]
+        ?? [supabase.storage.from('activity-photos').getPublicUrl(p.image_path).data.publicUrl];
 
       return {
         id: p.id,
@@ -88,7 +102,7 @@ export default function ExploreScreen() {
         activityId: p.activity_id,
         activityTitle: activityTitleMap[p.activity_id] ?? 'An activity',
         caption: p.caption,
-        imageUrl: supabase.storage.from('activity-photos').getPublicUrl(p.image_path).data.publicUrl,
+        imageUrls,
         likeCount: likeCountMap[p.id] ?? 0,
         likedByMe: myLikedSet.has(p.id),
       } satisfies PostViewModel;

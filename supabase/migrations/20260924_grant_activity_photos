@@ -1,0 +1,7 @@
+begin;
+
+grant select, insert, update, delete
+on public.activity_photos
+to authenticated;
+
+commit;

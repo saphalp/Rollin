@@ -43,6 +43,8 @@ const MAPPING = {
   'ellipsis': 'more-horiz',
   'bookmark': 'bookmark-border',
   'square.and.arrow.up': 'share',
+  'xmark.circle.fill': 'cancel',
+  'plus': 'add',
 } as IconMapping;
 
 

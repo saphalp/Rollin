@@ -154,6 +154,8 @@ export default function ActivityDetailScreen() {
     useState(false);
 
   const [shareSheetVisible, setShareSheetVisible] =
+    useState(false);
+
   const [boosted, setBoosted] =
     useState(false);
 

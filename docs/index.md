@@ -19,4 +19,6 @@ The main features of the Rollin application so far are as follows:
 - Messaging and notifications
 - Ride sharing
 - Live ride tracking
-- [Road routing and driver directions](features/road-routing-setup.md)
+- [Road routing and passenger pickups](features/road-routing-setup.md)
+
+- [Ride ratings](features/ride-ratings.md)

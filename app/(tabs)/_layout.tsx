@@ -2,6 +2,7 @@ import { Redirect, Tabs } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { RatingReminder } from '@/components/rides/rating-reminder';
 import Header from "@/components/Header";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -35,6 +36,7 @@ export default function TabLayout() {
       >
         <Header />
       </View>
+      <RatingReminder />
       <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,

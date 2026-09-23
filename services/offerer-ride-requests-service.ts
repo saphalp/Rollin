@@ -5,6 +5,7 @@ export type OffererPassengerRequest = {
     rideId: string;
     requesterId: string;
     requesterName: string;
+    pickupAddress: string | null;
     status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
     createdAt: string | null;
 };
@@ -61,7 +62,8 @@ export async function fetchRidePassengerRequests(
         ride_id,
         requester_id,
         status,
-        created_at
+        created_at,
+        pickup_address
         `,
             )
             .eq('ride_id', rideId)
@@ -126,6 +128,7 @@ export async function fetchRidePassengerRequests(
                     profileMap.get(
                         request.requester_id,
                     ) ?? 'Rollin user',
+                pickupAddress: request.pickup_address,
                 status: request.status,
                 createdAt:
                     request.created_at,

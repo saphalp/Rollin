@@ -27,6 +27,8 @@ export type MyRideRequestDashboardItem = MyRideRequestDashboardItemBase &
   );
 
 export type RideHistoryDashboardItem = {
+  rideId?: string;
+  wantedRequestId?: string;
   id: string;
   type: 'offered' | 'requested';
   pickupLocation: string;
@@ -91,7 +93,7 @@ export async function fetchMyActiveOffers(): Promise<OfferedRideDashboardItem[]>
 
   return rides.map((ride) => ({
     id: ride.id,
-    pickupLocation: ride.pickup_location,
+    pickupLocation: ride.pickup_location || 'Individual pickups',
     destination: ride.destination,
     dateTime: ride.date_time,
     availableSeats: Number(ride.available_seats ?? 0),
@@ -162,7 +164,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
       rideId: request.ride_id,
       status: request.status,
       createdAt: request.created_at,
-      pickupLocation: ride.pickup_location,
+      pickupLocation: ride.pickup_location || 'Individual pickups',
       destination: ride.destination,
       dateTime: ride.date_time,
       offererName: request.driver_id
@@ -208,8 +210,9 @@ export async function fetchMyRideHistory(
     for (const ride of offered ?? []) {
       result.push({
         id: `offered-${ride.id}`,
+        rideId: ride.id,
         type: 'offered',
-        pickupLocation: ride.pickup_location,
+        pickupLocation: ride.pickup_location || 'Individual pickups',
         destination: ride.destination,
         dateTime: ride.date_time,
         status: ride.status,
@@ -260,8 +263,9 @@ export async function fetchMyRideHistory(
 
         result.push({
           id: `requested-${request.id}`,
+          rideId: request.ride_id,
           type: 'requested',
-          pickupLocation: ride.pickup_location,
+          pickupLocation: ride.pickup_location || 'Individual pickups',
           destination: ride.destination,
           dateTime: ride.date_time,
           status: request.status,
@@ -284,6 +288,7 @@ export async function fetchMyRideHistory(
     for (const request of wantedRequests ?? []) {
       result.push({
         id: `wanted-${request.id}`,
+        wantedRequestId: request.id,
         type: 'requested',
         pickupLocation: request.pickup_location,
         destination: request.destination,

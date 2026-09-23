@@ -81,7 +81,7 @@ export function RoadRouteSummary({ rideId, isDriver, route, onRoute }: Props) {
             {route ? (
                 <>
                     <AppText>
-                        {route.includesDriver ? 'Driver → pickup → destination' : 'Pickup → destination'}
+                        {route.stops?.length ? 'Driver → remaining pickups → destination' : 'Saved route'}
                     </AppText>
                     <AppText>
                         {formatMiles(route.distanceMeters)} · approximately {Math.max(1, Math.ceil(route.durationSeconds / 60))} min total

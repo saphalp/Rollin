@@ -33,6 +33,8 @@ import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
+import { RideRatingSummary } from './RideRatingSummary';
+
 const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
 
 type ActivityRow = {
@@ -127,6 +129,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [rating, setRating] = useState<number | null>(null);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -339,9 +342,11 @@ export default function UserProfile({ userId }: UserProfileProps) {
           statsData={{
             ...EMPTY_STATS,
             rides: rideCount,
+            rating,
           }}
         />
 
+        <RideRatingSummary userId={userId} isOwnProfile={isOwnProfile} onAverage={setRating} />
         <View>
           <SectionHeader header="Interests" />
           <View style={styles.chipsRow}>

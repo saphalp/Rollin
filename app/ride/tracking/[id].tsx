@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LiveRideMap from '@/components/rides/live-ride-map';
 import { RoadRouteSummary } from '@/components/rides/road-route-summary';
-import { DriverDriveView } from '@/components/rides/driver-drive-view';
+import { PickupStops } from '@/components/rides/pickup-stops';
+import { openGoogleMaps } from '@/services/ride-navigation-service';
 import { LiveRideStatus } from '@/components/rides/live-ride-status';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -38,7 +39,6 @@ export default function RideTrackingScreen() {
 
     const [ride, setRide] = useState<RideOffer | null>(null);
     const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
-    const [driving, setDriving] = useState(false);
     const [startingDrive, setStartingDrive] = useState(false);
     const [driveError, setDriveError] = useState<string | null>(null);
     const autoStartedRide = useRef<string | null>(null);
@@ -157,7 +157,8 @@ export default function RideTrackingScreen() {
             if (!await startSharing()) return;
             const route = await fetchRoadRoute(rideId);
             setRoadRoute(route);
-            setDriving(true);
+            if (!route.stops?.length) throw new Error('Update the ride-route function before opening navigation.');
+            await openGoogleMaps(route.stops);
         } catch (error) {
             setDriveError(error instanceof Error ? error.message : 'Could not start drive.');
         } finally {
@@ -235,7 +236,7 @@ export default function RideTrackingScreen() {
                             },
                         ]}
                     >
-                        {isDriver ? 'Route and directions' : 'Distance and approximate ETA'}
+                        {isDriver ? 'Route overview' : 'Distance and approximate ETA'}
                     </AppText>
                 </View>
 
@@ -278,6 +279,7 @@ export default function RideTrackingScreen() {
                 >
                     <LiveRideMap
                         routeCoordinates={roadRoute?.coordinates}
+                        stops={roadRoute?.stops}
                         driverLocation={
                             live.driverLocation ??
                             driverPublisher.lastLocation
@@ -303,15 +305,17 @@ export default function RideTrackingScreen() {
                             style={[styles.shareButton, { backgroundColor: colors.tint, borderColor: colors.tint }]}>
                             {startingDrive ? <ActivityIndicator color={colors.onPrimary} /> : <>
                                 <MaterialCommunityIcons name="navigation" size={22} color={colors.onPrimary} />
-                                <AppText style={{ color: colors.onPrimary, fontWeight: '700' }}>Start Drive</AppText>
+                                <AppText style={{ color: colors.onPrimary, fontWeight: '700' }}>Open Google Maps</AppText>
                             </>}
                         </TouchableOpacity>
                     ) : null}
                     {driveError ? <AppText accessibilityRole="alert">{driveError}</AppText> : null}
                     <RoadRouteSummary key={rideId} rideId={rideId} isDriver={isDriver} route={roadRoute} onRoute={setRoadRoute} />
-                    {isDriver && driving && roadRoute ? <DriverDriveView route={roadRoute}
-                        driverLocation={driverPublisher.lastLocation ?? live.driverLocation}
-                        pickup={pickup} destination={destination} onClose={() => setDriving(false)} /> : null}
+                    {isDriver && ride.status === 'in_progress' ? <PickupStops rideId={rideId} route={roadRoute}
+                        refresh={async (optimize = false) => { setRoadRoute(await fetchRoadRoute(rideId, optimize)); }} /> : null}
+                    <AppText style={{ fontSize: 12 }}>Location updates pause while the driver uses another app. Last update: {live.driverLocation?.updatedAt
+                        ? new Date(live.driverLocation.updatedAt).toLocaleTimeString() : driverPublisher.lastLocation?.updatedAt
+                            ? new Date(driverPublisher.lastLocation.updatedAt).toLocaleTimeString() : 'not available'}.</AppText>
 
                     {live.errorMessage ? (
                         <AppText

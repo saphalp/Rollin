@@ -8,6 +8,7 @@ import { Coordinates, RideLocation } from '@/types/rides';
 type Props = {
     fullScreen?: boolean;
     routeCoordinates?: Coordinates[];
+    stops?: (Coordinates & { label: string })[];
     driverLocation: RideLocation | null;
     passengerLocation: Coordinates | null;
     pickup: Coordinates | null;
@@ -17,6 +18,7 @@ type Props = {
 export default function LiveRideMap({
     fullScreen = false,
     routeCoordinates,
+    stops,
     driverLocation,
     passengerLocation,
     pickup,
@@ -78,7 +80,7 @@ export default function LiveRideMap({
                     <Marker
                         coordinate={driverCoordinates}
                         title="Driver"
-                        description="Live driver location"
+                        description="Last shared driver location"
                         anchor={{ x: 0.5, y: 0.5 }}
                         zIndex={10}
                     >
@@ -97,7 +99,8 @@ export default function LiveRideMap({
                     />
                 ) : null}
 
-                {pickup ? (
+                {stops?.map((stop, i) => <Marker key={i} coordinate={stop} title={`${i + 1}. ${stop.label}`} pinColor="orange" />)}
+                {!stops?.length && pickup ? (
                     <Marker
                         coordinate={pickup}
                         title="Pickup"

@@ -20,13 +20,15 @@ import {
 type SharedActivityPreview = {
   id: string;
   title: string;
+  hostName: string;
   imageUrl: string;
 };
 
 type SharedPostPreview = {
   id: string;
   activityId: string;
-  activityTitle: string;
+  posterName: string;
+  caption: string | null;
   imageUrl: string;
 };
 
@@ -141,7 +143,7 @@ export default function ChatConversationScreen() {
       postIds.length > 0
         ? await supabase
             .from("activity_photos")
-            .select("id, activity_id, image_path")
+            .select("id, activity_id, user_id, image_path, caption")
             .in("id", postIds)
         : { data: [] as any[] };
 
@@ -162,12 +164,31 @@ export default function ChatConversationScreen() {
       activityIds.length > 0
         ? await supabase
             .from("activities")
-            .select("id, title, image_url, category")
+            .select("id, title, image_url, category, host_id")
             .in("id", activityIds)
         : { data: [] as any[] };
 
     const activityById: Record<string, any> = Object.fromEntries(
       (sharedActivities ?? []).map((a: any) => [a.id, a]),
+    );
+
+    const sharedProfileIds = [
+      ...new Set([
+        ...(sharedActivities ?? []).map((a: any) => a.host_id),
+        ...(sharedPhotos ?? []).map((p: any) => p.user_id),
+      ]),
+    ].filter(Boolean) as string[];
+
+    const { data: sharedProfiles } =
+      sharedProfileIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", sharedProfileIds)
+        : { data: [] as any[] };
+
+    const sharedNameById: Record<string, string> = Object.fromEntries(
+      (sharedProfiles ?? []).map((p: any) => [p.id, p.full_name ?? "Rollin' User"]),
     );
 
     function activityImage(activity: any) {
@@ -188,17 +209,18 @@ export default function ChatConversationScreen() {
           sharedActivity = {
             id: m.shared_activity_id,
             title: activity?.title ?? "An activity",
+            hostName: sharedNameById[activity?.host_id] ?? "Rollin' User",
             imageUrl: activityImage(activity),
           };
         }
 
         if (m.type === "post" && m.shared_post_id) {
           const photo = photoById[m.shared_post_id];
-          const activity = photo ? activityById[photo.activity_id] : undefined;
           sharedPost = {
             id: m.shared_post_id,
             activityId: photo?.activity_id,
-            activityTitle: activity?.title ?? "An activity",
+            posterName: sharedNameById[photo?.user_id] ?? "Rollin' User",
+            caption: photo?.caption ?? null,
             imageUrl: photo
               ? supabase.storage.from("activity-photos").getPublicUrl(photo.image_path)
                   .data.publicUrl
@@ -300,7 +322,7 @@ export default function ChatConversationScreen() {
                     time={m.time}
                     senderName={senderName}
                     title={m.sharedActivity.title}
-                    subtitle="Tap to view activity"
+                    hostName={m.sharedActivity.hostName}
                     imageUrl={m.sharedActivity.imageUrl}
                     onPress={() =>
                       router.push(`/activity/${m.sharedActivity!.id}`)
@@ -317,8 +339,8 @@ export default function ChatConversationScreen() {
                     fromMe={m.fromMe}
                     time={m.time}
                     senderName={senderName}
-                    title={m.sharedPost.activityTitle}
-                    subtitle="Tap to view post"
+                    posterName={m.sharedPost.posterName}
+                    caption={m.sharedPost.caption}
                     imageUrl={m.sharedPost.imageUrl}
                     onPress={() =>
                       router.push(`/activity/${m.sharedPost!.activityId}`)

@@ -10,29 +10,22 @@ type SharedContentBubbleProps = {
   fromMe: boolean;
   time: string;
   senderName?: string;
-  kind: "activity" | "post";
-  title: string;
-  subtitle: string;
   imageUrl: string;
   onPress: () => void;
-};
+} & (
+  | { kind: "activity"; title: string; hostName: string }
+  | { kind: "post"; posterName: string; caption: string | null }
+);
 
-export default function SharedContentBubble({
-  fromMe,
-  time,
-  senderName,
-  kind,
-  title,
-  subtitle,
-  imageUrl,
-  onPress,
-}: SharedContentBubbleProps) {
+export default function SharedContentBubble(props: SharedContentBubbleProps) {
+  const { fromMe, time, senderName, imageUrl, onPress, kind } = props;
+
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
   const bubbleColor = fromMe ? colors.tint : colors.surfaceContainerHigh;
   const textColor = fromMe ? colors.onPrimary : colors.text;
-  const subtitleColor = fromMe ? "rgba(255,255,255,0.8)" : colors.outline;
+  const metaColor = fromMe ? "rgba(255,255,255,0.82)" : colors.outline;
   const timeColor = fromMe ? colors.onPrimary : colors.icon;
 
   return (
@@ -42,8 +35,8 @@ export default function SharedContentBubble({
           styles.bubble,
           {
             backgroundColor: bubbleColor,
-            borderBottomRightRadius: fromMe ? 4 : 18,
-            borderBottomLeftRadius: fromMe ? 18 : 4,
+            borderBottomRightRadius: fromMe ? 4 : 20,
+            borderBottomLeftRadius: fromMe ? 20 : 4,
           },
         ]}
       >
@@ -55,50 +48,63 @@ export default function SharedContentBubble({
           </Text>
         )}
 
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.85}
-          onPress={onPress}
-        >
+        <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
           <Image
             source={{ uri: imageUrl }}
-            style={styles.thumbnail}
+            style={styles.previewImage}
             contentFit="cover"
           />
 
-          <View style={styles.cardText}>
+          <View style={styles.cardBody}>
             <View style={styles.kindRow}>
               <IconSymbol
                 name={kind === "activity" ? "calendar" : "camera.fill"}
                 size={12}
-                color={textColor}
+                color={metaColor}
               />
               <Text
                 style={[
                   styles.kindLabel,
-                  { color: textColor, fontFamily: Fonts.sans },
+                  { color: metaColor, fontFamily: Fonts.sans },
                 ]}
               >
                 {kind === "activity" ? "Activity" : "Post"}
               </Text>
             </View>
 
-            <Text
-              numberOfLines={2}
-              style={[styles.title, { color: textColor, fontFamily: Fonts.sans }]}
-            >
-              {title}
-            </Text>
+            {kind === "activity" ? (
+              <>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.title, { color: textColor, fontFamily: Fonts.sans }]}
+                >
+                  {props.title}
+                </Text>
 
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.subtitle,
-                { color: subtitleColor, fontFamily: Fonts.sans },
-              ]}
-            >
-              {subtitle}
-            </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.meta, { color: metaColor, fontFamily: Fonts.sans }]}
+                >
+                  Hosted by {props.hostName}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.title, { color: textColor, fontFamily: Fonts.sans }]}
+                >
+                  {props.posterName}
+                </Text>
+
+                <Text
+                  numberOfLines={2}
+                  style={[styles.meta, { color: metaColor, fontFamily: Fonts.sans }]}
+                >
+                  {props.caption?.trim() ? props.caption : "Shared a photo"}
+                </Text>
+              </>
+            )}
           </View>
         </TouchableOpacity>
 
@@ -132,57 +138,56 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   bubble: {
-    maxWidth: "78%",
-    padding: 8,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    gap: 4,
+    width: "72%",
+    overflow: "hidden",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 6,
   },
   senderName: {
     fontSize: 12,
     fontWeight: "700",
-    marginLeft: 4,
-    marginTop: 2,
+    marginTop: 8,
+    marginHorizontal: 12,
+    marginBottom: 4,
   },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 2,
-  },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
+  previewImage: {
+    width: "100%",
+    aspectRatio: 4 / 3,
     backgroundColor: "#DDDDDD",
   },
-  cardText: {
-    flex: 1,
-    gap: 2,
+  cardBody: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    gap: 3,
   },
   kindRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    marginBottom: 1,
   },
   kindLabel: {
     fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",
-    opacity: 0.8,
+    letterSpacing: 0.3,
+    opacity: 0.85,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 19,
   },
-  subtitle: {
+  meta: {
     fontSize: 12,
+    lineHeight: 16,
   },
   time: {
     fontSize: 10,
     fontWeight: "500",
     alignSelf: "flex-end",
-    marginTop: 2,
+    marginTop: 4,
+    marginRight: 12,
   },
 });

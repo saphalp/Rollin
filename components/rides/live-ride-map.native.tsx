@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
 import { Coordinates, RideLocation } from '@/types/rides';
 
 type Props = {
+    fullScreen?: boolean;
+    routeCoordinates?: Coordinates[];
     driverLocation: RideLocation | null;
     passengerLocation: Coordinates | null;
     pickup: Coordinates | null;
@@ -12,6 +15,8 @@ type Props = {
 };
 
 export default function LiveRideMap({
+    fullScreen = false,
+    routeCoordinates,
     driverLocation,
     passengerLocation,
     pickup,
@@ -19,15 +24,16 @@ export default function LiveRideMap({
 }: Props) {
     const mapRef = useRef<MapView | null>(null);
 
-    const driverCoordinates = driverLocation
+    const driverCoordinates = useMemo(() => driverLocation
         ? {
             latitude: driverLocation.latitude,
             longitude: driverLocation.longitude,
         }
-        : null;
+        : null, [driverLocation]);
 
     useEffect(() => {
         const coordinates = [
+            ...(routeCoordinates ?? []),
             driverCoordinates,
             passengerLocation,
             pickup,
@@ -46,14 +52,7 @@ export default function LiveRideMap({
             });
         }
     }, [
-        destination?.latitude,
-        destination?.longitude,
-        driverCoordinates?.latitude,
-        driverCoordinates?.longitude,
-        passengerLocation?.latitude,
-        passengerLocation?.longitude,
-        pickup?.latitude,
-        pickup?.longitude,
+        routeCoordinates, destination, driverCoordinates, passengerLocation, pickup,
     ]);
 
     const initial = driverCoordinates ??
@@ -65,7 +64,7 @@ export default function LiveRideMap({
     };
 
     return (
-        <View style={styles.wrapper}>
+        <View style={fullScreen ? { flex: 1 } : styles.wrapper}>
             <MapView
                 ref={mapRef}
                 style={styles.map}
@@ -80,8 +79,13 @@ export default function LiveRideMap({
                         coordinate={driverCoordinates}
                         title="Driver"
                         description="Live driver location"
-                        pinColor="blue"
-                    />
+                        anchor={{ x: 0.5, y: 0.5 }}
+                        zIndex={10}
+                    >
+                        <View style={{ backgroundColor: '#165FD5', borderColor: '#fff', borderWidth: 3, borderRadius: 24, padding: 7 }}>
+                            <MaterialCommunityIcons name="car" color="#fff" size={24} />
+                        </View>
+                    </Marker>
                 ) : null}
 
                 {passengerLocation ? (
@@ -109,21 +113,11 @@ export default function LiveRideMap({
                     />
                 ) : null}
 
-                {driverCoordinates && (passengerLocation ?? pickup) ? (
+                {routeCoordinates && routeCoordinates.length >= 2 ? (
                     <Polyline
-                        coordinates={[
-                            driverCoordinates,
-                            (passengerLocation ?? pickup) as Coordinates,
-                        ]}
+                        coordinates={routeCoordinates}
                         strokeWidth={4}
-                    />
-                ) : null}
-
-                {pickup && destination ? (
-                    <Polyline
-                        coordinates={[pickup, destination]}
-                        strokeWidth={3}
-                        lineDashPattern={[8, 6]}
+                        strokeColor="#165FD5"
                     />
                 ) : null}
             </MapView>

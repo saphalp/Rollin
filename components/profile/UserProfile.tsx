@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { Chip, Text } from "react-native-paper";
 
-import LogoutButton from "@/components/auth/LogoutButton";
 import ActivitySegmentedControl, {
   type ActivityView,
 } from "@/components/profile/ActivitySegmentedControl";
@@ -27,7 +26,6 @@ import ProfileActionBar from "@/components/profile/ProfileActionBar";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
-import ResetPasswordButton from "@/components/profile/ResetPasswordButton";
 import SectionHeader from "@/components/profile/SectionHeader";
 
 const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
@@ -271,10 +269,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
     });
   }
 
-  function handleEditPress() {
-    // TODO: open edit-profile modal / sheet
-  }
-
   if (profileLoading) {
     return (
       <View style={styles.center}>
@@ -302,7 +296,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   return (
     <>
       <ScrollView
-        style={{ backgroundColor: colors.background, paddingTop: 25 }}
+        style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -317,7 +311,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
         <ProfileActionBar
           isOwnProfile={isOwnProfile}
           followState={followState}
-          onEditPress={handleEditPress}
           onFollowPress={toggleFollow}
           onMessagePress={handleMessagePress}
         />
@@ -408,12 +401,6 @@ export default function UserProfile({ userId }: UserProfileProps) {
           </View>
         </View>
 
-        {isOwnProfile && (
-          <View style={styles.accountActions}>
-            <ResetPasswordButton email={profile.email} />
-            <LogoutButton />
-          </View>
-        )}
       </ScrollView>
 
       {isOwnProfile && (
@@ -428,6 +415,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
           }}
         />
       )}
+
     </>
   );
 }

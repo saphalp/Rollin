@@ -14,6 +14,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  LocationAutocompleteField,
+  type PlaceSelection,
+} from '@/components/post/location-autocomplete-field';
 import { PostField } from '@/components/post/post-field';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -47,6 +51,7 @@ export default function EditActivityScreen() {
   const [category, setCategory] = useState('Social');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSelection | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
@@ -173,6 +178,9 @@ export default function EditActivityScreen() {
         description: description.trim() || null,
         image_url: imageUrl,
         location: location.trim() || null,
+        place_id: selectedPlace?.placeId ?? null,
+        formatted_address: selectedPlace?.formattedAddress ?? null,
+        ...(selectedPlace ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude } : {}),
         date_time: dateTime,
         max_attendees: maxAttendees
           ? parseInt(maxAttendees)
@@ -402,7 +410,13 @@ export default function EditActivityScreen() {
               </View>
 
               <PostField label="Description" value={description} onChangeText={setDescription} placeholder="Add details people should know..." multiline />
-              <PostField label="Location" value={location} onChangeText={setLocation} placeholder="Lambright, Starbucks, Walmart..." />
+              <LocationAutocompleteField
+                label="Location"
+                value={location}
+                onChangeText={(text) => { setLocation(text); setSelectedPlace(null); }}
+                onPlaceSelect={(place) => { setLocation(place.displayText); setSelectedPlace(place); }}
+                placeholder="Lambright, Starbucks, Walmart..."
+              />
             </View>
 
             {/* Time / capacity */}

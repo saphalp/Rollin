@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 
+import { ProfileSidebar } from "@/components/profile-sidebar";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
@@ -13,6 +14,8 @@ export default function Header() {
   const colors = Colors[theme];
 
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
   useEffect(() => {
     async function loadProfilePicture() {
       const url = await getProfilePictureUrl();
@@ -26,7 +29,7 @@ export default function Header() {
     <View style={styles.header}>
       <TouchableOpacity
         hitSlop={8}
-        onPress={() => router.push("/(tabs)/profile")}
+        onPress={() => setSidebarVisible(true)}
       >
         {profilePicture ? (
           <Image
@@ -42,6 +45,11 @@ export default function Header() {
           />
         )}
       </TouchableOpacity>
+      <ProfileSidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+        profilePictureUrl={profilePicture}
+      />
 
       <AppText
         style={[

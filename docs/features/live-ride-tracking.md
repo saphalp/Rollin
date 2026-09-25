@@ -1,6 +1,6 @@
 # Live Ride Tracking
 ## Purpose
-The live ride tracking feature allows accepted passengers to see the driver's live location after the ride has started. Drivers use Start Drive to open their route and share their location. See [Road Routing and Driver Directions](road-routing-setup.md) for the routing setup and driver workflow.
+The live ride tracking feature allows accepted passengers to see the driver's live location after the ride has started. Drivers use Start Drive to plan their route and open Google Maps. See [Road Routing and Passenger Pickups](road-routing-setup.md) for the routing setup and driver workflow.
 
 The features provides:
 - Live ride offerer location
@@ -101,8 +101,8 @@ Because of this, the ride marker may move from one coordinate to another instead
 ## Interface Details
 Ride offerer
 - The ride offerer can perform actions such as: 
-    - Start Drive and open the full-screen route
-    - view directions
+    - Start Drive and open Google Maps
+    - review remaining pickup stops
     - complete trip
     - cancel ride
 Passenger
@@ -142,3 +142,5 @@ Future improvements:
 | `navigation/ride-navigation.ts` | Opens the dynamic live-tracking route |
 | `types/rides.ts` | Defines the shared coordinate and live-location types |
 | `supabase/migrations/20260804_sprint3_live_tracking` | Creates the live-location table, access policies, and realtime publication |
+
+Location updates currently pause when the driver switches away from Rollin. The passenger sees the last update time. Background tracking is deferred until a development build is available.

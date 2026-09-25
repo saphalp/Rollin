@@ -1,9 +1,12 @@
+import * as Location from 'expo-location';
+import { publishDriverLocation, requestLocationPermission } from '@/services/ride-tracking-service';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
 import { Coordinates } from '@/types/rides';
 
 export type RoadRoute = {
+    stops?: (Coordinates & { requestId: string | null; label: string })[];
     coordinates: Coordinates[];
     distanceMeters: number;
     durationSeconds: number;
@@ -23,9 +26,11 @@ export async function fetchSharedRoadRoute(rideId: string): Promise<RoadRoute | 
     return data?.route as RoadRoute ?? null;
 }
 
-export async function fetchRoadRoute(rideId: string): Promise<RoadRoute> {
+export async function fetchRoadRoute(rideId: string, optimize = false): Promise<RoadRoute> {
+    await requestLocationPermission();
+    await publishDriverLocation(rideId, await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }));
     const { data, error } = await supabase.functions.invoke('ride-route', {
-        body: { rideId },
+        body: { rideId, optimize },
     });
     if (error) {
         let message = 'Could not load the road route. Check your connection and try again.';

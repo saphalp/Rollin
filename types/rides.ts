@@ -36,6 +36,7 @@ export type ActivitySummary = {
 };
 
 export type RideOffer = {
+    pickupMode?: 'fixed' | 'individual';
     id: string;
     driverId: string;
     activityId: string | null;
@@ -75,6 +76,7 @@ export type WantedRide = {
 };
 
 export type RideRequest = {
+    pickupAddress?: string | null;
     id: string;
     rideId: string;
     activityId: string | null;

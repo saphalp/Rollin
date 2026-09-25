@@ -6,7 +6,7 @@ interface StatsData {
   attended: number;
   hosted: number;
   rides: number;
-  rating: number;
+  rating: number | null;
 }
 
 interface ProfileStatsProps {
@@ -33,7 +33,7 @@ export default function ProfileStats({ statsData }: ProfileStatsProps) {
         <View key={key} style={styles.item}>
           <StatsCard
             label={key}
-            score={key === "rating" ? value.toFixed(1) : value}
+            score={key === "rating" ? (value == null ? '—' : value.toFixed(1)) : (value ?? 0)}
           />
           {index < entries.length - 1 && (
             <View

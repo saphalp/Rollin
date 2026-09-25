@@ -1,11 +1,14 @@
-import Constants from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { supabase } from "@/lib/supabase";
 
 export async function registerPushToken() {
+    // Remote push registration requires a development build, not Expo Go.
+    if (Platform.OS === 'web' || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+        return null;
+    }
     try {
         /*
          * Push notifications need a real supported device.
@@ -17,6 +20,8 @@ export async function registerPushToken() {
 
             return null;
         }
+
+        const Notifications = await import('expo-notifications');
 
         /*
          * Android notification channel.

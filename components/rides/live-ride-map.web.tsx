@@ -9,6 +9,7 @@ import { Coordinates, RideLocation } from '@/types/rides';
 type Props = {
     fullScreen?: boolean;
     routeCoordinates?: Coordinates[];
+    stops?: (Coordinates & { label: string })[];
     driverLocation: RideLocation | null;
     passengerLocation: Coordinates | null;
     pickup: Coordinates | null;

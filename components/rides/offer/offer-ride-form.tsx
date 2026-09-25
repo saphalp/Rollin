@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Switch, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { DateTimeField } from '@/components/post/date-time-field';
 import {
@@ -11,6 +11,8 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type OfferRideFormProps = {
+  individualPickup?: boolean;
+  onIndividualPickupChange?: (value: boolean) => void;
   pickupLocation: string;
   onPickupLocationChange: (value: string) => void;
   destination: string;
@@ -34,6 +36,8 @@ type OfferRideFormProps = {
 };
 
 export function OfferRideForm({
+  individualPickup = false,
+  onIndividualPickupChange,
   pickupLocation,
   onPickupLocationChange,
   destination,
@@ -77,13 +81,17 @@ export function OfferRideForm({
           Trip Details
         </AppText>
 
-        <LocationAutocompleteField
+        {onIndividualPickupChange && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <AppText style={{ flex: 1 }}>Pick up passengers at their locations</AppText>
+          <Switch value={individualPickup} onValueChange={onIndividualPickupChange} accessibilityLabel="Individual passenger pickups" />
+        </View>}
+        {!individualPickup && <LocationAutocompleteField
           label="Pickup Location"
           value={pickupLocation}
           onChangeText={(text) => { onPickupLocationChange(text); }}
           onPlaceSelect={(place) => { onPickupLocationChange(place.displayText); onPickupPlaceSelect?.(place); }}
           placeholder={pickupPlaceholder}
-        />
+        />}
 
         <View style={styles.destinationSection}>
           {destinationLocked ? (

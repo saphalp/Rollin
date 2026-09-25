@@ -56,44 +56,8 @@ export async function startRide(rideId: string) {
 }
 
 export async function completeRide(rideId: string) {
-    const userId = await getUserId();
-
-    const { data: ride, error } = await supabase
-        .from('rides_offered')
-        .select('id, driver_id, status')
-        .eq('id', rideId)
-        .single();
-
+    const { error } = await supabase.rpc('finish_ride', { p_ride_id: rideId });
     if (error) throw new Error(error.message);
-
-    if (ride.driver_id !== userId) {
-        throw new Error('You cannot complete this ride.');
-    }
-
-    if (ride.status !== 'in_progress') {
-        throw new Error('This ride has not started.');
-    }
-
-    const updatedRide = await updateMyRide(
-        rideId,
-        'completed',
-    );
-
-    // Accepted passengers become completed.
-    await supabase
-        .from('ride_requests')
-        .update({ status: 'completed' })
-        .eq('ride_id', rideId)
-        .eq('status', 'accepted');
-
-    // Pending passengers are no longer relevant.
-    await supabase
-        .from('ride_requests')
-        .update({ status: 'rejected' })
-        .eq('ride_id', rideId)
-        .eq('status', 'pending');
-
-    return updatedRide;
 }
 
 export async function cancelRide(rideId: string) {

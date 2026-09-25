@@ -53,7 +53,7 @@ export function useRideRequest(ride: RideOffer | null) {
         return unsubscribe;
     }, [loadRequest, ride]);
 
-    const requestSeat = useCallback(async () => {
+    const requestSeat = useCallback(async (pickupAddress?: string) => {
         if (!ride) {
             return;
         }
@@ -62,7 +62,7 @@ export function useRideRequest(ride: RideOffer | null) {
         setErrorMessage(null);
 
         try {
-            const created = await createRideRequest(ride);
+            const created = await createRideRequest(ride, pickupAddress);
             setRequest(created);
         } catch (error) {
             setErrorMessage(

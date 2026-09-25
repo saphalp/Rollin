@@ -225,7 +225,7 @@ The ride offerer can then see the incoming request.
 
 ### Ride Lifecycle
 
-- Start Drive -> ride becomes 'in_progress', location sharing starts, and the driver's full-screen route opens.
+- Start Drive -> ride becomes 'in_progress', location sharing starts, and Google Maps opens with the planned stops.
 - Complete Trip -> ride and accepted requests become 'completed'.
 - Cancel Ride -> ride becomes 'cancelled.
 

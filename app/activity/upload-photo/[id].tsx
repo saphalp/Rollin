@@ -22,6 +22,8 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useUploadActivityPhoto } from "@/hooks/use-upload-activity-photo";
 
+const MAX_PHOTOS = 10;
+
 export default function UploadActivityPhotoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useColorScheme() ?? "light";
@@ -29,8 +31,8 @@ export default function UploadActivityPhotoScreen() {
   const insets = useSafeAreaInsets();
   const { saving, upload } = useUploadActivityPhoto(id);
 
-  const [imageAsset, setImageAsset] =
-    useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [imageAssets, setImageAssets] =
+    useState<ImagePicker.ImagePickerAsset[]>([]);
   const [caption, setCaption] = useState("");
 
   function goBack() {
@@ -41,30 +43,40 @@ export default function UploadActivityPhotoScreen() {
     router.replace(`/activity/${id}`);
   }
 
-  async function pickImage() {
+  async function pickImages() {
+    const remaining = MAX_PHOTOS - imageAssets.length;
+    if (remaining <= 0) return;
+
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
         "Permission required",
-        "Photo library access is needed to select an image.",
+        "Photo library access is needed to select photos.",
       );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsMultipleSelection: true,
+      orderedSelection: true,
+      selectionLimit: remaining,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) setImageAsset(result.assets[0]);
+    if (!result.canceled && result.assets.length > 0) {
+      setImageAssets((prev) => [...prev, ...result.assets]);
+    }
+  }
+
+  function removeImage(index: number) {
+    setImageAssets((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit() {
-    if (!imageAsset) {
-      Alert.alert("Add a photo", "Pick a photo to share first.");
+    if (imageAssets.length === 0) {
+      Alert.alert("Add a photo", "Pick at least one photo to share first.");
       return;
     }
-    const ok = await upload(imageAsset, caption.trim());
+    const ok = await upload(imageAssets, caption.trim());
     if (ok) goBack();
   }
 
@@ -122,7 +134,8 @@ export default function UploadActivityPhotoScreen() {
               { color: colors.icon, fontFamily: Fonts?.sans },
             ]}
           >
-            Post a memory from this activity to Explore.
+            Post a memory from this activity to Explore. Add up to{" "}
+            {MAX_PHOTOS} photos.
           </AppText>
 
           <View
@@ -134,17 +147,9 @@ export default function UploadActivityPhotoScreen() {
               },
             ]}
           >
-            {imageAsset ? (
-              <TouchableOpacity onPress={pickImage} activeOpacity={0.85}>
-                <Image
-                  source={{ uri: imageAsset.uri }}
-                  style={styles.imagePreview}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ) : (
+            {imageAssets.length === 0 ? (
               <TouchableOpacity
-                onPress={pickImage}
+                onPress={pickImages}
                 style={[
                   styles.imagePlaceholder,
                   { borderColor: colors.outline },
@@ -161,9 +166,49 @@ export default function UploadActivityPhotoScreen() {
                     { color: colors.outline, fontFamily: Fonts?.sans },
                   ]}
                 >
-                  Tap to add a photo
+                  Tap to add photos
                 </AppText>
               </TouchableOpacity>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailRow}
+              >
+                {imageAssets.map((asset, index) => (
+                  <View key={asset.assetId ?? asset.uri} style={styles.thumbnailWrap}>
+                    <Image
+                      source={{ uri: asset.uri }}
+                      style={styles.thumbnail}
+                      resizeMode="cover"
+                    />
+
+                    <TouchableOpacity
+                      onPress={() => removeImage(index)}
+                      style={styles.removeBadge}
+                      hitSlop={6}
+                    >
+                      <IconSymbol
+                        name="xmark.circle.fill"
+                        size={20}
+                        color="#FFFFFF"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {imageAssets.length < MAX_PHOTOS && (
+                  <TouchableOpacity
+                    onPress={pickImages}
+                    style={[
+                      styles.addMoreTile,
+                      { borderColor: colors.outline },
+                    ]}
+                  >
+                    <IconSymbol name="plus" size={22} color={colors.outline} />
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
             )}
           </View>
 
@@ -178,7 +223,7 @@ export default function UploadActivityPhotoScreen() {
           <Button
             mode="contained"
             onPress={handleSubmit}
-            disabled={saving || !imageAsset}
+            disabled={saving || imageAssets.length === 0}
             loading={saving}
             buttonColor={colors.tint}
             textColor={colors.onPrimary}
@@ -246,10 +291,32 @@ const styles = StyleSheet.create({
   imagePlaceholderText: {
     fontSize: 14,
   },
-  imagePreview: {
-    width: "100%",
-    height: 220,
+  thumbnailRow: {
+    gap: 10,
+  },
+  thumbnailWrap: {
+    position: "relative",
+  },
+  thumbnail: {
+    width: 96,
+    height: 96,
     borderRadius: 12,
+  },
+  removeBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 10,
+  },
+  addMoreTile: {
+    width: 96,
+    height: 96,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
   },
   submitButton: {
     borderRadius: 14,

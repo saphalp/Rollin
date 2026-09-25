@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+import { PostImageCarousel } from "@/components/explore/post-image-carousel";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -19,7 +20,7 @@ export type PostViewModel = {
   activityId: string;
   activityTitle: string;
   caption: string | null;
-  imageUrl: string;
+  imageUrls: string[];
   likeCount: number;
   likedByMe: boolean;
 };
@@ -120,12 +121,12 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         </AppText>
       </TouchableOpacity>
 
-      <Image
-        source={{ uri: post.imageUrl }}
-        style={styles.photo}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-      />
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={() => router.push(`/post/${post.id}`)}
+      >
+        <PostImageCarousel imageUrls={post.imageUrls} />
+      </TouchableOpacity>
 
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.likeButton} onPress={toggle} hitSlop={8}>
@@ -209,12 +210,6 @@ const styles = StyleSheet.create({
   eventTagText: {
     fontSize: 12,
     fontWeight: "600",
-  },
-  photo: {
-    width: "100%",
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: "#DDDDDD",
   },
   actionRow: {
     flexDirection: "row",

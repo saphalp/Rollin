@@ -343,7 +343,7 @@ export default function ChatConversationScreen() {
                     caption={m.sharedPost.caption}
                     imageUrl={m.sharedPost.imageUrl}
                     onPress={() =>
-                      router.push(`/activity/${m.sharedPost!.activityId}`)
+                      router.push(`/post/${m.sharedPost!.id}`)
                     }
                   />
                 );

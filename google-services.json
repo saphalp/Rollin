@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "877283227026",
+    "project_id": "rollin-da61b",
+    "storage_bucket": "rollin-da61b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:877283227026:android:fbcf39f8cda2e996bdbd4b",
+        "android_client_info": {
+          "package_name": "com.anonymous.Rollin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvc6YhFlas5PNev46diDMTX2swqEAFln4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

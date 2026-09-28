@@ -25,7 +25,7 @@ There is one rating per author, recipient, and ride. Saving again updates that r
 
 ### In-app reminders
 
-Completing a ride takes the driver to the rating form. Other participants get a reminder for unrated completed rides while using the app or when they return. Later dismisses the reminder for the current app session; the ride remains available in History. Push notifications are not required for this version.
+Completing a ride takes the driver to the rating form. Other participants get a reminder for unrated completed rides while using the app or when they return. Each ride is prompted once per account on the device. The app saves that record across restarts and refreshes. Not now closes the prompt; ratings remain available in History. Clearing app storage or using a different device can show the reminder again. Push notifications are not required for this version.
 
 ## Technical Hurdles
 

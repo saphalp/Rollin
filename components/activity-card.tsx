@@ -69,9 +69,15 @@ export function ActivityCard({
               </AppText>
             </View>
           )}
-          <TouchableOpacity hitSlop={8} onPress={(e) => { e.stopPropagation?.(); onBookmarkPress?.(); }}>
-            <IconSymbol name={saved ? 'bookmark.fill' : 'bookmark'} size={20} color={colors.onImageOverlay} />
-          </TouchableOpacity>
+          <View onStartShouldSetResponder={() => true}>
+            <TouchableOpacity hitSlop={8} onPress={() => onBookmarkPress?.()}>
+              <IconSymbol
+                name={saved ? 'bookmark.fill' : 'bookmark'}
+                size={22}
+                color="#ffffff"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

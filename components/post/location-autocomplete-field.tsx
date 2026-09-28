@@ -56,6 +56,7 @@ export function LocationAutocompleteField({
   const sessionToken = useRef(generateToken());
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
+  const skipSearch = useRef(false);
 
   function generateToken() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -116,6 +117,11 @@ export function LocationAutocompleteField({
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
+    if (skipSearch.current) {
+      skipSearch.current = false;
+      return;
+    }
+
     if (value.length < MIN_CHARS) {
       setSuggestions([]);
       setOpen(false);
@@ -156,18 +162,21 @@ export function LocationAutocompleteField({
 
       const data = await res.json();
 
+      const fullAddress = data.formattedAddress ?? `${suggestion.mainText}${suggestion.secondaryText ? ', ' + suggestion.secondaryText : ''}`;
+      skipSearch.current = true;
       onPlaceSelect({
-        displayText: suggestion.mainText,
-        formattedAddress: data.formattedAddress ?? suggestion.mainText,
+        displayText: fullAddress,
+        formattedAddress: fullAddress,
         placeId: suggestion.placeId,
         latitude: data.location?.latitude ?? 0,
         longitude: data.location?.longitude ?? 0,
       });
     } catch {
-      // Still set the text so the user sees their selection
+      const fallbackText = `${suggestion.mainText}${suggestion.secondaryText ? ', ' + suggestion.secondaryText : ''}`;
+      skipSearch.current = true;
       onPlaceSelect({
-        displayText: suggestion.mainText,
-        formattedAddress: suggestion.mainText,
+        displayText: fallbackText,
+        formattedAddress: fallbackText,
         placeId: suggestion.placeId,
         latitude: 0,
         longitude: 0,

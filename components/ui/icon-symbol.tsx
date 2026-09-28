@@ -42,6 +42,7 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'ellipsis': 'more-horiz',
   'bookmark': 'bookmark-border',
+  'bookmark.fill': 'bookmark',
   'square.and.arrow.up': 'share',
   'xmark.circle.fill': 'cancel',
   'plus': 'add',

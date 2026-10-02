@@ -45,7 +45,14 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-notifications",
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyDTw7lU7ilKXpQiY7vi8DVzzeRka1hKOM8"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

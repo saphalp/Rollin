@@ -39,6 +39,13 @@ export default function Login({ onSignUpClick }: LoginProps) {
     setIsLoggingIn(false);
 
     if (error) {
+      if (error.code === "email_not_confirmed") {
+        router.replace({
+          pathname: "/(auth)/EmailConfirmation",
+          params: { email: normalizedEmail },
+        });
+        return;
+      }
       setLoginError(
         error.code === "invalid_credentials"
           ? "Incorrect email or password."
@@ -50,7 +57,10 @@ export default function Login({ onSignUpClick }: LoginProps) {
     if (data.user?.confirmed_at) {
       router.replace("/(tabs)");
     } else if (data.user) {
-      router.replace("/(auth)/EmailConfirmation");
+      router.replace({
+        pathname: "/(auth)/EmailConfirmation",
+        params: { email: normalizedEmail },
+      });
     }
   }
 

@@ -1,6 +1,6 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,13 +16,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import DriverVehicleFields from '@/components/profile/DriverVehicleFields';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getDriverProfile, upsertDriverProfile } from '@/lib/profile/driver-profile';
 import { FALLBACK_AVATAR, resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import { selectProfileImage } from '@/lib/profile/select-profile-image';
 import { uploadProfilePicture } from '@/lib/profile/upload-profile-picture';
 import { supabase } from '@/lib/supabase';
+import { validateDriverFields } from '@/lib/profile/validate-driver-fields';
 
 type Props = {
   visible: boolean;
@@ -55,7 +58,37 @@ export function EditProfileSheet({
   const [selectedImage, setSelectedImage] = useState<ImagePickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [showDriverFields, setShowDriverFields] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [licensePlateNumber, setLicensePlateNumber] = useState('');
+
   const avatarUri = selectedImage?.uri ?? resolveAvatarUri(initialAvatar);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    let active = true;
+
+    getDriverProfile(userId)
+      .then((row) => {
+        if (!active || !row) return;
+
+        setShowDriverFields(true);
+        setVerificationStatus(row.verification_status);
+        setVehicleMake(row.vehicle_make);
+        setVehicleModel(row.vehicle_model);
+        setVehicleColor(row.vehicle_color);
+        setLicensePlateNumber(row.license_plate_number);
+      })
+      .catch((err) => console.error('Unable to load driver profile:', err));
+
+    return () => {
+      active = false;
+    };
+  }, [visible, userId]);
 
   async function handlePickImage() {
     const image = await selectProfileImage();
@@ -67,6 +100,21 @@ export function EditProfileSheet({
       Alert.alert('Missing info', 'Full name is required.');
       return;
     }
+
+    if (showDriverFields) {
+      const driverError = validateDriverFields({
+        vehicleMake,
+        vehicleModel,
+        vehicleColor,
+        licensePlateNumber,
+      });
+
+      if (driverError) {
+        Alert.alert('Missing info', driverError);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (selectedImage) {
@@ -83,6 +131,15 @@ export function EditProfileSheet({
         .eq('id', userId);
 
       if (error) throw error;
+
+      if (showDriverFields) {
+        await upsertDriverProfile({
+          vehicleMake,
+          vehicleModel,
+          vehicleColor,
+          licensePlateNumber,
+        });
+      }
 
       onSaved();
       onClose();
@@ -154,6 +211,42 @@ export function EditProfileSheet({
                 placeholderTextColor={colors.outline}
               />
             </View>
+
+            {!showDriverFields ? (
+              <TouchableOpacity
+                style={[styles.registerDriverRow, { borderColor: colors.outlineVariant }]}
+                onPress={() => setShowDriverFields(true)}
+                activeOpacity={0.8}
+              >
+                <View>
+                  <AppText style={[styles.registerDriverTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                    Register as Driver
+                  </AppText>
+                  <AppText style={[styles.registerDriverSubtitle, { color: colors.outline, fontFamily: Fonts?.sans }]}>
+                    Offer rides to other students
+                  </AppText>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.fields}>
+                <AppText style={[styles.label, { color: colors.outline, fontFamily: Fonts?.sans }]}>
+                  Vehicle Information
+                  {verificationStatus ? ` · Status: ${verificationStatus}` : ''}
+                </AppText>
+
+                <DriverVehicleFields
+                  vehicleMake={vehicleMake}
+                  vehicleModel={vehicleModel}
+                  vehicleColor={vehicleColor}
+                  licensePlateNumber={licensePlateNumber}
+                  onChangeVehicleMake={setVehicleMake}
+                  onChangeVehicleModel={setVehicleModel}
+                  onChangeVehicleColor={setVehicleColor}
+                  onChangeLicensePlateNumber={setLicensePlateNumber}
+                  disabled={saving}
+                />
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.saveButton, { backgroundColor: colors.tint }, saving && styles.saveButtonDisabled]}
@@ -234,6 +327,21 @@ const styles = StyleSheet.create({
   fields: {
     gap: 6,
     marginBottom: 24,
+  },
+  registerDriverRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 24,
+  },
+  registerDriverTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  registerDriverSubtitle: {
+    fontSize: 13,
   },
   label: {
     fontSize: 12,

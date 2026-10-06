@@ -13,6 +13,8 @@ export type BasicInfoValues = {
 
 type BasicInfoCardProps = BasicInfoValues & {
   onNext: (values: BasicInfoValues) => void;
+  title?: string;
+  subtitle?: string;
 };
 
 export default function BasicInfoCard({
@@ -20,6 +22,8 @@ export default function BasicInfoCard({
   university: initialUniversity,
   major: initialMajor,
   onNext,
+  title = "Complete Your Profile",
+  subtitle = "Tell us a little about yourself before you start rolling.",
 }: BasicInfoCardProps) {
   const colors = Colors.light;
 
@@ -52,7 +56,7 @@ export default function BasicInfoCard({
         <Text
           style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}
         >
-          Complete Your Profile
+          {title}
         </Text>
 
         <Text
@@ -61,7 +65,7 @@ export default function BasicInfoCard({
             { color: colors.icon, fontFamily: Fonts.sans },
           ]}
         >
-          Tell us a little about yourself before you start rolling.
+          {subtitle}
         </Text>
       </View>
 

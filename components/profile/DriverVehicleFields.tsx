@@ -5,10 +5,12 @@ import { TextInput } from "react-native-paper";
 type DriverVehicleFieldsProps = {
   vehicleMake: string;
   vehicleModel: string;
+  vehicleYear: string;
   vehicleColor: string;
   licensePlateNumber: string;
   onChangeVehicleMake: (value: string) => void;
   onChangeVehicleModel: (value: string) => void;
+  onChangeVehicleYear: (value: string) => void;
   onChangeVehicleColor: (value: string) => void;
   onChangeLicensePlateNumber: (value: string) => void;
   disabled?: boolean;
@@ -17,10 +19,12 @@ type DriverVehicleFieldsProps = {
 export default function DriverVehicleFields({
   vehicleMake,
   vehicleModel,
+  vehicleYear,
   vehicleColor,
   licensePlateNumber,
   onChangeVehicleMake,
   onChangeVehicleModel,
+  onChangeVehicleYear,
   onChangeVehicleColor,
   onChangeLicensePlateNumber,
   disabled,
@@ -58,6 +62,16 @@ export default function DriverVehicleFields({
 
       <TextInput
         {...inputProps}
+        label="Vehicle Year"
+        value={vehicleYear}
+        onChangeText={onChangeVehicleYear}
+        autoCapitalize="none"
+        keyboardType="number-pad"
+        maxLength={4}
+      />
+
+      <TextInput
+        {...inputProps}
         label="Vehicle Color"
         value={vehicleColor}
         onChangeText={onChangeVehicleColor}
@@ -67,7 +81,7 @@ export default function DriverVehicleFields({
         {...inputProps}
         label="License Plate Number"
         value={licensePlateNumber}
-        onChangeText={onChangeLicensePlateNumber}
+        onChangeText={(value) => onChangeLicensePlateNumber(value.toUpperCase())}
         autoCapitalize="characters"
       />
     </View>

@@ -9,6 +9,7 @@ import { Button, Text } from "react-native-paper";
 export type DriverRegistrationValues = {
   vehicleMake: string;
   vehicleModel: string;
+  vehicleYear: string;
   vehicleColor: string;
   licensePlateNumber: string;
 };
@@ -30,11 +31,18 @@ export default function DriverRegistrationCard({
 
   const [vehicleMake, setVehicleMake] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [licensePlateNumber, setLicensePlateNumber] = useState("");
 
   function handleRegister() {
-    const values = { vehicleMake, vehicleModel, vehicleColor, licensePlateNumber };
+    const values = {
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      vehicleColor,
+      licensePlateNumber,
+    };
 
     const error = validateDriverFields(values);
 
@@ -69,10 +77,12 @@ export default function DriverRegistrationCard({
       <DriverVehicleFields
         vehicleMake={vehicleMake}
         vehicleModel={vehicleModel}
+        vehicleYear={vehicleYear}
         vehicleColor={vehicleColor}
         licensePlateNumber={licensePlateNumber}
         onChangeVehicleMake={setVehicleMake}
         onChangeVehicleModel={setVehicleModel}
+        onChangeVehicleYear={setVehicleYear}
         onChangeVehicleColor={setVehicleColor}
         onChangeLicensePlateNumber={setLicensePlateNumber}
         disabled={isSaving}

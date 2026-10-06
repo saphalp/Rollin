@@ -3,16 +3,18 @@ import { supabase } from "@/lib/supabase";
 export type DriverProfileInput = {
   vehicleMake: string;
   vehicleModel: string;
+  vehicleYear: string;
   vehicleColor: string;
   licensePlateNumber: string;
 };
 
 const DRIVER_PROFILE_COLUMNS =
-  "profile_id, vehicle_make, vehicle_model, vehicle_color, license_plate_number, verification_status, created_at, updated_at";
+  "profile_id, vehicle_make, vehicle_model, vehicle_year, vehicle_color, license_plate_number, verification_status, verification_session_id, created_at, updated_at";
 
 export async function upsertDriverProfile({
   vehicleMake,
   vehicleModel,
+  vehicleYear,
   vehicleColor,
   licensePlateNumber,
 }: DriverProfileInput) {
@@ -36,6 +38,7 @@ export async function upsertDriverProfile({
         profile_id: user.id,
         vehicle_make: vehicleMake.trim(),
         vehicle_model: vehicleModel.trim(),
+        vehicle_year: parseInt(vehicleYear.trim(), 10),
         vehicle_color: vehicleColor.trim(),
         license_plate_number: licensePlateNumber.trim().toUpperCase(),
         updated_at: new Date().toISOString(),

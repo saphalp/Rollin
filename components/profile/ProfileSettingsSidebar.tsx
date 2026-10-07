@@ -114,6 +114,10 @@ export function ProfileSettingsSidebar({ visible, onClose, email, onEditPress }:
             <AppText style={[styles.itemText, { color: colors.text, fontFamily: Fonts?.sans }]}>Saved Activities</AppText>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.item} onPress={() => navigate('/tutorial')}>
+            <AppText style={[styles.itemText, { color: colors.text, fontFamily: Fonts?.sans }]}>App Tutorial</AppText>
+          </TouchableOpacity>
+
           <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
 
           <TouchableOpacity style={styles.item} onPress={confirmReset} disabled={sendingReset}>

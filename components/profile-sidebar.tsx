@@ -126,6 +126,11 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Edit Profile</AppText>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/tutorial')}>
+              <IconSymbol name="book.fill" size={20} color={colors.icon} />
+              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>App Tutorial</AppText>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={confirmReset} disabled={sendingReset}>
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>
                 {sendingReset ? 'Sending…' : 'Reset Password'}

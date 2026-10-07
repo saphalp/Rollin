@@ -159,6 +159,12 @@ export default function ActivityDetailScreen() {
   const [boosted, setBoosted] =
     useState(false);
 
+  const [waitlistPosition, setWaitlistPosition] =
+    useState<number | null>(null);
+
+  const [waitlistLoading, setWaitlistLoading] =
+    useState(false);
+
   useEffect(() => {
     if (id) {
       void load();
@@ -222,6 +228,17 @@ export default function ActivityDetailScreen() {
         )
         : false,
     );
+
+    setWaitlistPosition(null);
+    if (user) {
+      const { data: spots } =
+        await supabase.rpc("my_waitlist_positions");
+      const mine = (spots ?? []).find(
+        (s: { activity_id: string }) =>
+          s.activity_id === activityData.id,
+      );
+      setWaitlistPosition(mine?.position_in_line ?? null);
+    }
 
     /*
      * Private activity join request.
@@ -377,17 +394,10 @@ export default function ActivityDetailScreen() {
        */
       if (hasRsvp) {
         const { error } =
-          await supabase
-            .from("rsvps")
-            .delete()
-            .eq(
-              "activity_id",
-              activity.id,
-            )
-            .eq(
-              "user_id",
-              currentUserId,
-            );
+          await supabase.functions.invoke(
+            "leave-activity",
+            { body: { activityId: activity.id } },
+          );
 
         if (error) {
           throw error;
@@ -423,7 +433,8 @@ export default function ActivityDetailScreen() {
 
           setMyRequestStatus("none");
         }
-
+        
+        void load();
         return;
       }
 
@@ -468,6 +479,40 @@ export default function ActivityDetailScreen() {
       );
     } finally {
       setRsvpLoading(false);
+    }
+  }
+
+  async function toggleWaitlist() {
+    if (!activity || !currentUserId) return;
+
+    setWaitlistLoading(true);
+
+    try {
+      if (waitlistPosition !== null) {
+        const { error } = await supabase
+          .from("waitlist")
+          .delete()
+          .eq("activity_id", activity.id)
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        setWaitlistPosition(null);
+      } else {
+        const { error } = await supabase
+          .from("waitlist")
+          .insert({
+            activity_id: activity.id,
+            user_id: currentUserId,
+          });
+        if (error) throw error;
+        void load();
+      }
+    } catch (error: any) {
+      Alert.alert(
+        "Could not update waitlist",
+        error?.message ?? "Something went wrong.",
+      );
+    } finally {
+      setWaitlistLoading(false);
     }
   }
 
@@ -660,7 +705,10 @@ export default function ActivityDetailScreen() {
     currentUserId ===
     activity.host_id;
 
-  const isPast =
+  const isFull =
+    rsvpCount >= activity.max_attendees;
+  
+    const isPast =
     activity.date_time
       ? new Date(activity.date_time) < new Date()
       : false;
@@ -1526,6 +1574,43 @@ export default function ActivityDetailScreen() {
                       : myRequestStatus === "pending"
                         ? "Request Pending"
                         : "Request to Join"}
+                  </AppText>
+                </TouchableOpacity>
+                            ) : !hasRsvp && isFull ? (
+                <TouchableOpacity
+                  onPress={toggleWaitlist}
+                  disabled={waitlistLoading}
+                  style={[
+                    styles.rsvpButton,
+                    {
+                      backgroundColor:
+                        waitlistPosition !== null
+                          ? colors.surfaceContainerHigh
+                          : colors.tint,
+                      borderColor:
+                        waitlistPosition !== null
+                          ? colors.outline
+                          : colors.tint,
+                    },
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.rsvpText,
+                      {
+                        color:
+                          waitlistPosition !== null
+                            ? colors.text
+                            : colors.onPrimary,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {waitlistLoading
+                      ? "..."
+                      : waitlistPosition !== null
+                        ? `Leave Waitlist (#${waitlistPosition})`
+                        : "Join Waitlist"}
                   </AppText>
                 </TouchableOpacity>
               ) : (

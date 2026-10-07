@@ -15,6 +15,7 @@ type ActivityCardProps = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  waitlistPosition?: number | null;
   saved?: boolean;
   onBookmarkPress?: () => void;
   onPress?: () => void;
@@ -28,6 +29,7 @@ export function ActivityCard({
   attendeeCount,
   maxAttendees,
   rideSharing,
+  waitlistPosition,
   saved = false,
   onBookmarkPress,
   onPress,
@@ -101,6 +103,14 @@ export function ActivityCard({
               {attendeeCount}/{maxAttendees}
             </AppText>
           </View>
+             {waitlistPosition ? (
+            <View style={styles.metaItem}>
+              <IconSymbol name="clock" size={12} color={colors.onImageOverlay} />
+              <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                Waitlist #{waitlistPosition}
+              </AppText>
+            </View>
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>

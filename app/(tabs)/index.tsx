@@ -35,6 +35,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  waitlistPosition?: number | null;
 };
 
 function formatDate(dateStr: string | null): string | undefined {
@@ -129,6 +130,10 @@ export default function HomeScreen() {
       setLoading(false);
       return;
     }
+    const { data: spots } = await supabase.rpc('my_waitlist_positions');
+    const positions = new Map<string, number>(
+      (spots ?? []).map((s: any) => [s.activity_id, s.position_in_line]),
+    );
 
     if (data) {
       setActivities(
@@ -141,6 +146,7 @@ export default function HomeScreen() {
           attendeeCount: a.rsvps?.length ?? 0,
           maxAttendees: a.max_attendees ?? 10,
           rideSharing: a.ride_sharing ?? false,
+          waitlistPosition: positions.get(a.id) ?? null,
         }))
       );
     }
@@ -316,6 +322,7 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      waitlistPosition={activity.waitlistPosition}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}
                       onPress={() => router.push(`/activity/${activity.id}`)}

@@ -35,6 +35,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  status?: 'active' | 'expired';
 };
 
 function formatDate(dateStr: string | null): string | undefined {
@@ -109,8 +110,10 @@ export default function HomeScreen() {
 
     let query = supabase
       .from('activities')
-      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, rsvps(id)')
-      .order('date_time', { ascending: true });
+      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+      .eq('status', 'active')
+      .order('date_time', { ascending: true })
+      .limit(20);
 
     // Public activities are visible to everyone; private ones only to
     // followed hosts (and the host themselves).
@@ -141,6 +144,7 @@ export default function HomeScreen() {
           attendeeCount: a.rsvps?.length ?? 0,
           maxAttendees: a.max_attendees ?? 10,
           rideSharing: a.ride_sharing ?? false,
+          status: a.status ?? 'active',
         }))
       );
     }

@@ -155,7 +155,6 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
           initialName={profile.full_name ?? ''}
           initialUniversity={profile.university ?? ''}
           initialMajor={profile.major ?? ''}
-          initialAvatar={profile.profile_picture}
           onSaved={() => { void refreshProfile(); }}
         />
       )}

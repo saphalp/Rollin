@@ -55,11 +55,24 @@ export async function upsertDriverProfile({
   return data;
 }
 
-export async function getDriverProfile(userId: string) {
+export async function getDriverProfile() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("You must be signed in to view your driver profile.");
+  }
+
   const { data, error } = await supabase
     .from("driver_profiles")
     .select(DRIVER_PROFILE_COLUMNS)
-    .eq("profile_id", userId)
+    .eq("profile_id", user.id)
     .maybeSingle();
 
   if (error) {

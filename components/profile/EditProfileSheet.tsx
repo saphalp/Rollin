@@ -14,7 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BasicInfoCard, { BasicInfoValues } from '@/components/profile/BasicInfoCard';
 import DriverVehicleFields from '@/components/profile/DriverVehicleFields';
+import InfoCard from '@/components/profile/InfoCard';
+import StatusPill from '@/components/profile/StatusPill';
+import StepProgressBar from '@/components/profile/StepProgressBar';
+import VerifiedBadge from '@/components/profile/VerifiedBadge';
 import { AppText } from '@/components/text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getDriverProfile, upsertDriverProfile } from '@/lib/profile/driver-profile';
@@ -73,7 +78,7 @@ export function EditProfileSheet({
 
     let active = true;
 
-    getDriverProfile(userId)
+    getDriverProfile()
       .then((row) => {
         if (!active) return;
 
@@ -92,12 +97,28 @@ export function EditProfileSheet({
   }, [visible, userId, initialName, initialUniversity, initialMajor]);
 
   async function handleVerifyLicense() {
+    const driverValues = {
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      vehicleColor,
+      licensePlateNumber,
+    };
+
+    const driverError = validateDriverFields(driverValues);
+
+    if (driverError) {
+      Alert.alert('Missing info', driverError);
+      return;
+    }
+
     setVerifying(true);
     try {
+      await upsertDriverProfile(driverValues);
       await startLicenseVerification();
 
-      const row = await getDriverProfile(userId);
-      setVerificationStatus(row?.verification_status ?? null);
+      const row = await getDriverProfile();
+      setVerificationStatus(row?.verification_status ?? 'pending');
     } catch (err: any) {
       Alert.alert('Verification failed', err?.message ?? 'Please try again.');
     } finally {
@@ -121,6 +142,14 @@ export function EditProfileSheet({
 
       if (driverError) {
         Alert.alert('Missing info', driverError);
+        return;
+      }
+
+      if (!verificationStatus) {
+        Alert.alert(
+          'Verify your license',
+          'Please verify your license before finishing, or clear the vehicle fields to skip driver registration.'
+        );
         return;
       }
     }
@@ -155,12 +184,30 @@ export function EditProfileSheet({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
-          <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-            Edit Profile
-          </AppText>
+          {step === 2 ? (
+            <TouchableOpacity
+              onPress={() => setStep(1)}
+              disabled={saving || verifying}
+              hitSlop={10}
+            >
+              <IconSymbol name="chevron.left" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+              Edit Profile
+            </AppText>
+          )}
           <TouchableOpacity onPress={onClose} hitSlop={10}>
-            <AppText style={[styles.cancel, { color: colors.outline, fontFamily: Fonts?.sans }]}>Cancel</AppText>
+            <IconSymbol name="xmark.circle.fill" size={24} color={colors.outline} />
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.progressWrapper}>
+          <StepProgressBar
+            currentStep={step}
+            totalSteps={2}
+            stepLabels={['Personal Details', 'Driver & Vehicle']}
+          />
         </View>
 
         <KeyboardAvoidingView
@@ -173,57 +220,100 @@ export function EditProfileSheet({
             showsVerticalScrollIndicator={false}
           >
             {step === 1 && (
-              <BasicInfoCard
-                {...basicInfo}
-                title="Your Info"
-                subtitle="Update your name, university, and major."
-                onNext={(values) => {
-                  setBasicInfo(values);
-                  setStep(2);
-                }}
-              />
+              <View style={styles.stepContainer}>
+                <BasicInfoCard
+                  {...basicInfo}
+                  title="Your Info"
+                  subtitle="Update your name, university, and major."
+                  nextLabel="Next: Driver Registration"
+                  onNext={(values) => {
+                    setBasicInfo(values);
+                    setStep(2);
+                  }}
+                />
+              </View>
             )}
 
             {step === 2 && (
-              <View style={styles.driverStep}>
-                <View style={styles.driverHeading}>
-                  <AppText style={[styles.driverTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                    Register as Driver
-                  </AppText>
-                  <AppText style={[styles.driverSubtitle, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-                    Optional. Add your vehicle so you can offer rides.
-                    {verificationStatus ? ` Status: ${verificationStatus}.` : ''}
-                  </AppText>
-                </View>
+              <View style={styles.stepContainer}>
+                <AppText style={[styles.driverTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  Register as Driver
+                </AppText>
 
-                <DriverVehicleFields
-                  vehicleMake={vehicleMake}
-                  vehicleModel={vehicleModel}
-                  vehicleYear={vehicleYear}
-                  vehicleColor={vehicleColor}
-                  licensePlateNumber={licensePlateNumber}
-                  onChangeVehicleMake={setVehicleMake}
-                  onChangeVehicleModel={setVehicleModel}
-                  onChangeVehicleYear={setVehicleYear}
-                  onChangeVehicleColor={setVehicleColor}
-                  onChangeLicensePlateNumber={setLicensePlateNumber}
-                  disabled={saving}
+                <InfoCard
+                  icon="car.fill"
+                  accent="secondary"
+                  title="Offer Rides, Build Trust"
+                  text="Optional. Add your vehicle and verify your license so other students know they're riding with someone verified."
                 />
 
-                {verificationStatus && verificationStatus !== 'verified' && (
-                  <Button
-                    mode="outlined"
-                    onPress={handleVerifyLicense}
-                    loading={verifying}
-                    disabled={verifying || saving}
-                  >
-                    Verify License
-                  </Button>
-                )}
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
+                  ]}
+                >
+                  <View style={styles.cardHeading}>
+                    <AppText style={[styles.cardTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                      Vehicle Details
+                    </AppText>
+                    <AppText style={[styles.cardSubtitle, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                      Helps other students spot your car
+                    </AppText>
+                  </View>
 
-                <Button onPress={() => setStep(1)} disabled={saving || verifying} textColor={colors.icon}>
-                  Back
-                </Button>
+                  <DriverVehicleFields
+                    vehicleMake={vehicleMake}
+                    vehicleModel={vehicleModel}
+                    vehicleYear={vehicleYear}
+                    vehicleColor={vehicleColor}
+                    licensePlateNumber={licensePlateNumber}
+                    onChangeVehicleMake={setVehicleMake}
+                    onChangeVehicleModel={setVehicleModel}
+                    onChangeVehicleYear={setVehicleYear}
+                    onChangeVehicleColor={setVehicleColor}
+                    onChangeLicensePlateNumber={setLicensePlateNumber}
+                    disabled={saving || verifying}
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
+                  ]}
+                >
+                  <View style={styles.cardHeadingRow}>
+                    <AppText style={[styles.cardTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                      License &amp; Safety Check
+                    </AppText>
+                    <StatusPill
+                      label={verificationStatus === 'verified' ? 'Verified' : 'Action Required'}
+                      tone={verificationStatus === 'verified' ? 'success' : 'warning'}
+                    />
+                  </View>
+
+                  <AppText style={[styles.cardDescription, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                    We partner with Didit for instant credential verification. Your documents are
+                    only used to confirm your license and are never shown to other riders.
+                  </AppText>
+
+                  {verificationStatus === 'verified' ? (
+                    <VerifiedBadge />
+                  ) : (
+                    <Button
+                      mode="outlined"
+                      onPress={handleVerifyLicense}
+                      loading={verifying}
+                      disabled={saving || verifying}
+                      textColor={colors.tint}
+                      style={[styles.verifyButton, { borderColor: colors.tint }]}
+                      contentStyle={styles.finishButtonContent}
+                    >
+                      Verify License via Secure Portal
+                    </Button>
+                  )}
+                </View>
 
                 <Button
                   mode="contained"
@@ -236,7 +326,7 @@ export function EditProfileSheet({
                   style={styles.finishButton}
                   labelStyle={styles.finishButtonLabel}
                 >
-                  Finish
+                  Save &amp; Complete Profile
                 </Button>
               </View>
             )}
@@ -266,8 +356,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  cancel: {
-    fontSize: 15,
+  progressWrapper: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
 
   keyboardView: {
@@ -277,33 +368,54 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 24,
     paddingBottom: 40,
     gap: 24,
   },
 
-  driverStep: {
-    gap: 24,
-  },
-
-  driverHeading: {
-    alignItems: 'center',
-    gap: 8,
+  stepContainer: {
+    gap: 20,
   },
 
   driverTitle: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: '700',
     textAlign: 'center',
   },
 
-  driverSubtitle: {
-    maxWidth: 320,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-    alignSelf: 'center',
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+  },
+
+  cardHeading: {
+    gap: 2,
+  },
+
+  cardHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  cardSubtitle: {
+    fontSize: 12,
+  },
+
+  cardDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  verifyButton: {
+    borderRadius: 14,
   },
 
   finishButton: {

@@ -15,6 +15,7 @@ type BasicInfoCardProps = BasicInfoValues & {
   onNext: (values: BasicInfoValues) => void;
   title?: string;
   subtitle?: string;
+  nextLabel?: string;
 };
 
 export default function BasicInfoCard({
@@ -24,6 +25,7 @@ export default function BasicInfoCard({
   onNext,
   title = "Complete Your Profile",
   subtitle = "Tell us a little about yourself before you start rolling.",
+  nextLabel = "Next",
 }: BasicInfoCardProps) {
   const colors = Colors.light;
 
@@ -118,7 +120,7 @@ export default function BasicInfoCard({
         style={styles.nextButton}
         labelStyle={styles.nextButtonLabel}
       >
-        Next
+        {nextLabel}
       </Button>
     </View>
   );

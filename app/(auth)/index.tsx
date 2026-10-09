@@ -4,6 +4,7 @@ import ImageContainer from "@/components/auth/ImageContainer";
 import Login from "@/components/auth/login";
 import PasswordCard from "@/components/auth/PasswordCard";
 import TermsFooter from "@/components/auth/TermsFooter";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -14,7 +15,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
-  const [step, setStep] = useState(1);
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const [step, setStep] = useState(mode === "login" ? 0 : 1);
   const [email, setEmail] = useState("");
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -1,28 +1,31 @@
-import type { ImagePickerAsset } from 'expo-image-picker';
-import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import BasicInfoCard, { BasicInfoValues } from '@/components/profile/BasicInfoCard';
+import DriverVehicleFields from '@/components/profile/DriverVehicleFields';
+import InfoCard from '@/components/profile/InfoCard';
+import StatusPill from '@/components/profile/StatusPill';
+import StepProgressBar from '@/components/profile/StepProgressBar';
+import VerifiedBadge from '@/components/profile/VerifiedBadge';
 import { AppText } from '@/components/text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { FALLBACK_AVATAR, resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
-import { selectProfileImage } from '@/lib/profile/select-profile-image';
-import { uploadProfilePicture } from '@/lib/profile/upload-profile-picture';
+import { getDriverProfile, upsertDriverProfile } from '@/lib/profile/driver-profile';
+import { startLicenseVerification } from '@/lib/profile/driver-verification';
 import { supabase } from '@/lib/supabase';
+import { isDriverFieldsEmpty, validateDriverFields } from '@/lib/profile/validate-driver-fields';
 
 type Props = {
   visible: boolean;
@@ -31,7 +34,6 @@ type Props = {
   initialName: string;
   initialUniversity: string;
   initialMajor: string;
-  initialAvatar: string | null | undefined;
   onSaved: () => void;
 };
 
@@ -42,47 +44,132 @@ export function EditProfileSheet({
   initialName,
   initialUniversity,
   initialMajor,
-  initialAvatar,
   onSaved,
 }: Props) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
-  const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState(initialName);
-  const [university, setUniversity] = useState(initialUniversity);
-  const [major, setMajor] = useState(initialMajor);
-  const [selectedImage, setSelectedImage] = useState<ImagePickerAsset | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [basicInfo, setBasicInfo] = useState<BasicInfoValues>({
+    fullName: initialName,
+    university: initialUniversity,
+    major: initialMajor,
+  });
+
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleYear, setVehicleYear] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [licensePlateNumber, setLicensePlateNumber] = useState('');
+
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
-  const avatarUri = selectedImage?.uri ?? resolveAvatarUri(initialAvatar);
+  useEffect(() => {
+    if (!visible) return;
 
-  async function handlePickImage() {
-    const image = await selectProfileImage();
-    if (image) setSelectedImage(image);
-  }
+    setStep(1);
+    setBasicInfo({
+      fullName: initialName,
+      university: initialUniversity,
+      major: initialMajor,
+    });
 
-  async function handleSave() {
-    if (!name.trim()) {
-      Alert.alert('Missing info', 'Full name is required.');
+    let active = true;
+
+    getDriverProfile()
+      .then((row) => {
+        if (!active) return;
+
+        setVerificationStatus(row?.verification_status ?? null);
+        setVehicleMake(row?.vehicle_make ?? '');
+        setVehicleModel(row?.vehicle_model ?? '');
+        setVehicleYear(row ? String(row.vehicle_year) : '');
+        setVehicleColor(row?.vehicle_color ?? '');
+        setLicensePlateNumber(row?.license_plate_number ?? '');
+      })
+      .catch((err) => console.error('Unable to load driver profile:', err));
+
+    return () => {
+      active = false;
+    };
+  }, [visible, userId, initialName, initialUniversity, initialMajor]);
+
+  async function handleVerifyLicense() {
+    const driverValues = {
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      vehicleColor,
+      licensePlateNumber,
+    };
+
+    const driverError = validateDriverFields(driverValues);
+
+    if (driverError) {
+      Alert.alert('Missing info', driverError);
       return;
     }
-    setSaving(true);
+
+    setVerifying(true);
     try {
-      if (selectedImage) {
-        await uploadProfilePicture(selectedImage);
+      await upsertDriverProfile(driverValues);
+      await startLicenseVerification();
+
+      const row = await getDriverProfile();
+      setVerificationStatus(row?.verification_status ?? 'pending');
+    } catch (err: any) {
+      Alert.alert('Verification failed', err?.message ?? 'Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleFinish() {
+    const driverValues = {
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      vehicleColor,
+      licensePlateNumber,
+    };
+
+    const hasDriverInfo = !isDriverFieldsEmpty(driverValues);
+
+    if (hasDriverInfo) {
+      const driverError = validateDriverFields(driverValues);
+
+      if (driverError) {
+        Alert.alert('Missing info', driverError);
+        return;
       }
 
+      if (!verificationStatus) {
+        Alert.alert(
+          'Verify your license',
+          'Please verify your license before finishing, or clear the vehicle fields to skip driver registration.'
+        );
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: name.trim(),
-          university: university.trim(),
-          major: major.trim(),
+          full_name: basicInfo.fullName.trim(),
+          university: basicInfo.university.trim(),
+          major: basicInfo.major.trim(),
         })
         .eq('id', userId);
 
       if (error) throw error;
+
+      if (hasDriverInfo) {
+        await upsertDriverProfile(driverValues);
+      }
 
       onSaved();
       onClose();
@@ -94,172 +181,253 @@ export function EditProfileSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.sheetWrapper}
-      >
-        <View style={[styles.sheet, { backgroundColor: colors.cardBackground, paddingBottom: insets.bottom + 16 }]}>
-          <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
-
-          <View style={styles.header}>
-            <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]}>Edit Profile</AppText>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <AppText style={[styles.cancel, { color: colors.outline, fontFamily: Fonts?.sans }]}>Cancel</AppText>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Avatar */}
-            <TouchableOpacity style={styles.avatarRow} onPress={handlePickImage} activeOpacity={0.8}>
-              <Image
-                source={{ uri: avatarUri }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-              <View style={[styles.editBadge, { backgroundColor: colors.tint }]}>
-                <AppText style={[styles.editBadgeText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
-                  Change Photo
-                </AppText>
-              </View>
-            </TouchableOpacity>
-
-            {/* Fields */}
-            <View style={styles.fields}>
-              <AppText style={[styles.label, { color: colors.outline, fontFamily: Fonts?.sans }]}>Full Name</AppText>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, color: colors.text, borderColor: colors.outlineVariant, fontFamily: Fonts?.sans }]}
-                value={name}
-                onChangeText={setName}
-                placeholder="Full Name"
-                placeholderTextColor={colors.outline}
-              />
-
-              <AppText style={[styles.label, { color: colors.outline, fontFamily: Fonts?.sans }]}>University</AppText>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, color: colors.text, borderColor: colors.outlineVariant, fontFamily: Fonts?.sans }]}
-                value={university}
-                onChangeText={setUniversity}
-                placeholder="University"
-                placeholderTextColor={colors.outline}
-              />
-
-              <AppText style={[styles.label, { color: colors.outline, fontFamily: Fonts?.sans }]}>Major</AppText>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceContainerHigh, color: colors.text, borderColor: colors.outlineVariant, fontFamily: Fonts?.sans }]}
-                value={major}
-                onChangeText={setMajor}
-                placeholder="Major"
-                placeholderTextColor={colors.outline}
-              />
-            </View>
-
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          {step === 2 ? (
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.tint }, saving && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-              activeOpacity={0.85}
+              onPress={() => setStep(1)}
+              disabled={saving || verifying}
+              hitSlop={10}
             >
-              {saving ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <AppText style={[styles.saveText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>Save</AppText>
-              )}
+              <IconSymbol name="chevron.left" size={24} color={colors.text} />
             </TouchableOpacity>
-          </ScrollView>
+          ) : (
+            <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+              Edit Profile
+            </AppText>
+          )}
+          <TouchableOpacity onPress={onClose} hitSlop={10}>
+            <IconSymbol name="xmark.circle.fill" size={24} color={colors.outline} />
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+
+        <View style={styles.progressWrapper}>
+          <StepProgressBar
+            currentStep={step}
+            totalSteps={2}
+            stepLabels={['Personal Details', 'Driver & Vehicle']}
+          />
+        </View>
+
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {step === 1 && (
+              <View style={styles.stepContainer}>
+                <BasicInfoCard
+                  {...basicInfo}
+                  title="Your Info"
+                  subtitle="Update your name, university, and major."
+                  nextLabel="Next: Driver Registration"
+                  onNext={(values) => {
+                    setBasicInfo(values);
+                    setStep(2);
+                  }}
+                />
+              </View>
+            )}
+
+            {step === 2 && (
+              <View style={styles.stepContainer}>
+                <AppText style={[styles.driverTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  Register as Driver
+                </AppText>
+
+                <InfoCard
+                  icon="car.fill"
+                  accent="secondary"
+                  title="Offer Rides, Build Trust"
+                  text="Optional. Add your vehicle and verify your license so other students know they're riding with someone verified."
+                />
+
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
+                  ]}
+                >
+                  <View style={styles.cardHeading}>
+                    <AppText style={[styles.cardTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                      Vehicle Details
+                    </AppText>
+                    <AppText style={[styles.cardSubtitle, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                      Helps other students spot your car
+                    </AppText>
+                  </View>
+
+                  <DriverVehicleFields
+                    vehicleMake={vehicleMake}
+                    vehicleModel={vehicleModel}
+                    vehicleYear={vehicleYear}
+                    vehicleColor={vehicleColor}
+                    licensePlateNumber={licensePlateNumber}
+                    onChangeVehicleMake={setVehicleMake}
+                    onChangeVehicleModel={setVehicleModel}
+                    onChangeVehicleYear={setVehicleYear}
+                    onChangeVehicleColor={setVehicleColor}
+                    onChangeLicensePlateNumber={setLicensePlateNumber}
+                    disabled={saving || verifying}
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
+                  ]}
+                >
+                  <View style={styles.cardHeadingRow}>
+                    <AppText style={[styles.cardTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                      License &amp; Safety Check
+                    </AppText>
+                    <StatusPill
+                      label={verificationStatus === 'verified' ? 'Verified' : 'Action Required'}
+                      tone={verificationStatus === 'verified' ? 'success' : 'warning'}
+                    />
+                  </View>
+
+                  <AppText style={[styles.cardDescription, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                    We partner with Didit for instant credential verification. Your documents are
+                    only used to confirm your license and are never shown to other riders.
+                  </AppText>
+
+                  {verificationStatus === 'verified' ? (
+                    <VerifiedBadge />
+                  ) : (
+                    <Button
+                      mode="outlined"
+                      onPress={handleVerifyLicense}
+                      loading={verifying}
+                      disabled={saving || verifying}
+                      textColor={colors.tint}
+                      style={[styles.verifyButton, { borderColor: colors.tint }]}
+                      contentStyle={styles.finishButtonContent}
+                    >
+                      Verify License via Secure Portal
+                    </Button>
+                  )}
+                </View>
+
+                <Button
+                  mode="contained"
+                  onPress={handleFinish}
+                  loading={saving}
+                  disabled={saving || verifying}
+                  buttonColor={colors.tint}
+                  textColor={colors.onPrimary}
+                  contentStyle={styles.finishButtonContent}
+                  style={styles.finishButton}
+                  labelStyle={styles.finishButtonLabel}
+                >
+                  Save &amp; Complete Profile
+                </Button>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  sheetWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    maxHeight: '90%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
-  title: {
+
+  headerTitle: {
     fontSize: 18,
     fontWeight: '700',
   },
-  cancel: {
-    fontSize: 15,
+
+  progressWrapper: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  avatarRow: {
-    alignItems: 'center',
-    marginBottom: 28,
-    gap: 10,
+
+  keyboardView: {
+    flex: 1,
   },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    gap: 24,
   },
-  editBadge: {
+
+  stepContainer: {
+    gap: 20,
+  },
+
+  driverTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  card: {
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  editBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  fields: {
-    gap: 6,
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  input: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 16,
+    padding: 16,
+    gap: 14,
   },
-  saveButton: {
-    borderRadius: 14,
-    paddingVertical: 15,
+
+  cardHeading: {
+    gap: 2,
+  },
+
+  cardHeadingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
-  saveButtonDisabled: {
-    opacity: 0.6,
+
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
   },
-  saveText: {
+
+  cardSubtitle: {
+    fontSize: 12,
+  },
+
+  cardDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  verifyButton: {
+    borderRadius: 14,
+  },
+
+  finishButton: {
+    borderRadius: 14,
+    marginTop: 'auto',
+  },
+
+  finishButtonContent: {
+    height: 54,
+  },
+
+  finishButtonLabel: {
     fontSize: 16,
     fontWeight: '700',
   },

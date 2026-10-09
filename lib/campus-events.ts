@@ -1,42 +1,31 @@
-export type CampusEvent = {
-  id: string; campus: string; source_id: string; title: string;
-  description: string | null; official_url: string; category: string | null;
-  tags: string[]; location: string | null; room: string | null;
-  image_url: string | null; status: string; synced_at: string;
-  date_only: boolean; start_date: string | null; end_date: string | null;
-  starts_at: string | null; ends_at: string | null;
-};
-const zone = 'America/Chicago';
-export function campusDay(value: number | string): string {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value));
-  const part = (name: string) => parts.find(p => p.type === name)?.value ?? '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
+import { supabase } from '@/lib/supabase';
+import { getCurrentUniversity } from '@/lib/university';
+import { campusSortKey, type CampusEvent } from '@/lib/home-campus-events';
+import { isAcademicCalendar } from '@/lib/home-feed';
+
+// Call again after login/logout and when returning to the event screen.
+export async function canViewCampusEvents(): Promise<boolean> {
+  return !!(await getCurrentUniversity())?.calendar_enabled;
 }
-export function campusUpcoming(event: CampusEvent, now: number): boolean {
-  if (['CANCELLED', 'CANCELED'].includes(event.status.toUpperCase())) return false;
-  return event.date_only ? !!event.end_date && event.end_date >= campusDay(now)
-    : Date.parse(event.ends_at ?? '') > now;
-}
-export function campusDateLabel(event: CampusEvent): string {
-  if (event.date_only) return `${event.start_date}${event.end_date !== event.start_date ? ` – ${event.end_date}` : ''} · All day`;
-  const format = (value: string | null) => value ? new Date(value).toLocaleString('en-US', { timeZone: zone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-  return `${format(event.starts_at)} – ${format(event.ends_at)} · CT`;
-}
-export function campusSortKey(event: CampusEvent): string {
-  if (event.date_only) return `${event.start_date}T00:00:00`;
-  return `${campusDay(event.starts_at ?? '')}T${new Date(event.starts_at ?? '').toLocaleTimeString('en-GB', { timeZone: zone, hour12: false })}`;
-}
-export function uniqueCampusEvents(events: CampusEvent[]): CampusEvent[] {
-  const unique = new Map<string, CampusEvent>();
-  for (const event of events) {
-    const key = `${event.campus}:${event.source_id}`;
-    const previous = unique.get(key);
-    if (!previous || event.synced_at > previous.synced_at) unique.set(key, event);
+
+export async function loadCampusEvents(filters: {
+  past?: boolean; search?: string; category?: string; location?: string;
+} = {}) {
+  const university = await getCurrentUniversity();
+  if (!university?.calendar_enabled) return [];
+  let query = supabase.from(filters.past ? 'past_campus_events' : 'upcoming_campus_events')
+    .select('*').eq('campus', university.id);
+  if (filters.category) query = query.eq('category', filters.category);
+  const literal = (value: string) => value.replace(/[\\%_]/g, '\\$&');
+  if (filters.search?.trim()) query = query.ilike('title', `%${literal(filters.search.trim())}%`);
+  if (filters.location?.trim()) query = query.ilike('location', `%${literal(filters.location.trim())}%`);
+  // Return the complete current feed-backed set, not a silent 1000-row truncation.
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await query.order('id').range(offset, offset + 499);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < 500) break;
   }
-  return [...unique.values()];
-}
-export function plainDescription(value: string): string {
-  return value.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+  return rows.filter(event => !isAcademicCalendar(event)).sort((a: CampusEvent, b: CampusEvent) => campusSortKey(a).localeCompare(campusSortKey(b)));
 }

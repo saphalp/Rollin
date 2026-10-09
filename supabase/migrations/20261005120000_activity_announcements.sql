@@ -8,6 +8,9 @@ create table if not exists public.announcements (
   created_at timestamptz not null default now()
 );
 alter table public.announcements enable row level security;
+grant select, insert on public.announcements to authenticated;
+grant all on public.announcements to service_role;
+grant select on public.rsvps to service_role;
 
 
 drop policy if exists "Hosts can post announcements" on public.announcements;

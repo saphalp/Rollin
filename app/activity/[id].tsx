@@ -835,6 +835,21 @@ export default function ActivityDetailScreen() {
                       fontFamily: Fonts?.sans,
                     }}
                   />
+                  
+                  <Menu.Item
+                    leadingIcon="bullhorn-outline"
+                    title="Send Announcement"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push(
+                        `/activity/announce/${activity.id}`,
+                      );
+                    }}
+                    titleStyle={{
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
 
                   <Menu.Item
                     leadingIcon={

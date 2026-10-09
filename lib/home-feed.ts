@@ -18,7 +18,7 @@ export function isAcademicCalendar(event: {
     || /\b(?:final exams?|final examinations?|grades due|drop add period|add drop period)\b/.test(title);
 }
 
-export const HOME_CAMPUS_LIMIT = 2;
+export const HOME_CAMPUS_LIMIT = 5;
 
 // Rotate the preview through the sorted pool on successful refreshes. User
 // activities keep their order and are never removed to make room for RSS.

@@ -66,7 +66,7 @@ export default function HomeScreen() {
   const [campusRotation, setCampusRotation] = useState(0);
   const generation = useRef(0);
 
-  const fetchActivities = useCallback(async () => {
+  const fetchActivities = useCallback(async (rotateCampus = false) => {
     const request = ++generation.current;
     const current = () => request === generation.current;
     setLoading(true);
@@ -127,7 +127,8 @@ export default function HomeScreen() {
         }
         const events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
         setCampusEvents(events); setNow(Date.now());
-        setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
+        // Focus/attendance reloads preserve the preview; only user actions rotate it.
+        if (rotateCampus) setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
         try {
           const counts: Record<string, number> = {};
           for (let offset = 0; offset < events.length; offset += 200) {
@@ -184,7 +185,7 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await fetchActivities(); } finally { setRefreshing(false); }
+    try { await fetchActivities(true); } finally { setRefreshing(false); }
   }, [fetchActivities]);
 
   function openActivity(activity: Activity) {

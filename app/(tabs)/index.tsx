@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Linking, Modal, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ActivityCard } from '@/components/activity-card';
 import { StandaloneRidesSection } from '@/components/rides/standalone-rides-section';
@@ -11,6 +11,7 @@ import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { campusDateLabel, CampusEvent, campusSortKey, campusUpcoming, plainDescription, uniqueCampusEvents } from '@/lib/home-campus-events';
+import { balancedHomeFeed, HOME_CAMPUS_LIMIT, isAcademicCalendar } from '@/lib/home-feed';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = ['All', 'Campus', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
@@ -32,11 +33,13 @@ type Activity = {
   sortKey: string;
   campusEvent?: CampusEvent;
   date?: string;
+  location?: string;
   host?: string;
   imageUrl?: string;
   attendeeCount?: number;
   maxAttendees?: number;
   rideSharing?: boolean;
+  status?: 'active' | 'expired';
 };
 
 function formatDate(dateStr: string | null): string | undefined {
@@ -56,10 +59,11 @@ export default function HomeScreen() {
 
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [campusAccess, setCampusAccess] = useState(false);
+  const [attendance, setAttendance] = useState<Record<string, number>>({});
   const [feedError, setFeedError] = useState('');
   const [campusError, setCampusError] = useState('');
   const [now, setNow] = useState(Date.now());
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [campusRotation, setCampusRotation] = useState(0);
   const generation = useRef(0);
 
   const fetchActivities = useCallback(async () => {
@@ -85,28 +89,33 @@ export default function HomeScreen() {
         setSavedIds(new Set());
       }
       let query = supabase.from('activities')
-        .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, rsvps(id)')
-        .order('date_time', { ascending: true });
+        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+        .eq('status', 'active')
+        .order('date_time', { ascending: true })
+        .limit(20);
       query = visibleHostIds.length > 0
         ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
         : query.eq('event_type', 'public');
+      if (selectedCategory !== 'All' && selectedCategory !== 'Campus') {
+        query = query.eq('category', selectedCategory.toLowerCase());
+      }
       const { data, error } = await query;
       if (!current()) return;
       if (error) setFeedError('Unable to refresh activities. Pull down to retry.');
       else setActivities((data ?? []).map((a: any) => ({
         id: a.id, title: a.title, category: a.category ?? 'social',
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
-        date: formatDate(a.date_time), imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
+        date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
         attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
-        rideSharing: a.ride_sharing ?? false,
+        rideSharing: a.ride_sharing ?? false, status: a.status ?? 'active',
       })));
       try {
-        if (!user) { setCampusAccess(false); setCampusEvents([]); return; }
+        if (!user) { setCampusAccess(false); setCampusEvents([]); setAttendance({}); return; }
         const { data: allowed, error: accessError } = await supabase.rpc('can_view_latech_events');
         if (!current()) return;
         if (accessError) throw accessError;
         setCampusAccess(allowed === true);
-        if (allowed !== true) { setCampusEvents([]); setSelectedEventId(null); return; }
+        if (allowed !== true) { setCampusEvents([]); setAttendance({}); return; }
         const rows: CampusEvent[] = [];
         for (let offset = 0; ; offset += 500) {
           const result = await supabase.from('campus_events').select('*')
@@ -116,20 +125,36 @@ export default function HomeScreen() {
           rows.push(...(result.data ?? []) as CampusEvent[]);
           if ((result.data?.length ?? 0) < 500) break;
         }
-        setCampusEvents(uniqueCampusEvents(rows)); setNow(Date.now());
+        const events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
+        setCampusEvents(events); setNow(Date.now());
+        setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
+        try {
+          const counts: Record<string, number> = {};
+          for (let offset = 0; offset < events.length; offset += 200) {
+            const result = await supabase.rpc('campus_event_attendance', {
+              event_ids: events.slice(offset, offset + 200).map(e => e.id),
+            });
+            if (!current()) return;
+            if (result.error) throw result.error;
+            for (const item of result.data ?? []) counts[item.event_id] = Number(item.attendee_count);
+          }
+          setAttendance(counts);
+        } catch {
+          if (current()) { setAttendance({}); setCampusError('Campus attendance is temporarily unavailable. Pull down to refresh.'); }
+        }
       } catch {
         if (current()) {
-          setCampusAccess(false); setCampusEvents([]); setSelectedEventId(null);
+          setCampusAccess(false); setCampusEvents([]); setAttendance({});
           setCampusError('Unable to load campus events. Pull down to retry.');
         }
       }
     } catch {
       if (current()) {
-        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setCampusAccess(false);
-        setSelectedEventId(null); setFeedError('Unable to load Home. Pull down to retry.');
+        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setAttendance({}); setCampusAccess(false);
+        setFeedError('Unable to load Home. Pull down to retry.');
       }
     } finally { if (current()) setLoading(false); }
-  }, []);
+  }, [selectedCategory]);
 
   useFocusEffect(useCallback(() => { void fetchActivities(); }, [fetchActivities]));
   useEffect(() => {
@@ -140,8 +165,8 @@ export default function HomeScreen() {
       if (nextId === accountId) return;
       accountId = nextId;
       ++generation.current;
-      setActivities([]); setCampusEvents([]); setSavedIds(new Set());
-      setCampusAccess(false); setSelectedEventId(null);
+      setActivities([]); setCampusEvents([]); setAttendance({}); setSavedIds(new Set());
+      setCampusAccess(false);
       setTimeout(() => { if (active) void fetchActivities(); }, 0);
     });
     const foreground = AppState.addEventListener('change', state => {
@@ -163,10 +188,9 @@ export default function HomeScreen() {
   }, [fetchActivities]);
 
   function openActivity(activity: Activity) {
-    if (activity.campusEvent) setSelectedEventId(activity.campusEvent.id);
+    if (activity.campusEvent) router.push(`/campus-event/${activity.campusEvent.id}`);
     else router.push(`/activity/${activity.id}`);
   }
-  const selectedEvent = campusEvents.find(e => e.id === selectedEventId);
 
   async function toggleSave(activityId: string) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -195,12 +219,14 @@ export default function HomeScreen() {
   }
 
   const campusCards: Activity[] = campusAccess ? campusEvents
-    .filter(event => campusUpcoming(event, now)).map(event => ({
+    .filter(event => !isAcademicCalendar(event) && campusUpcoming(event, now)).map(event => ({
       id: `campus:${event.id}`, title: event.title,
       category: event.category || 'Campus', date: campusDateLabel(event),
+      location: [event.location, event.room].filter(Boolean).join(' · ') || 'Location not provided',
+      attendeeCount: attendance[event.id],
       imageUrl: event.image_url ?? undefined, sortKey: campusSortKey(event), campusEvent: event,
     })) : [];
-  const filtered = [...activities, ...campusCards].filter(activity => {
+  const matching = [...activities, ...campusCards].filter(activity => {
     const matchesCategory = selectedCategory === 'All' || (selectedCategory === 'Campus'
       ? !!activity.campusEvent
       : activity.category.toLowerCase() === selectedCategory.toLowerCase()
@@ -208,6 +234,10 @@ export default function HomeScreen() {
     const searchable = `${activity.title} ${activity.campusEvent?.location ?? ''} ${plainDescription(activity.campusEvent?.description ?? '')}`;
     return matchesCategory && searchable.toLowerCase().includes(searchQuery.trim().toLowerCase());
   }).sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id));
+
+  const filtered = selectedCategory === 'All'
+    ? balancedHomeFeed(matching, campusRotation)
+    : matching;
 
   const featured = filtered[0];
   const recommended = filtered.slice(1);
@@ -332,6 +362,14 @@ export default function HomeScreen() {
                       {featured.title}
                     </AppText>
                     {featured.date && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>{featured.date}</AppText>}
+                    {!!featured.location && <View style={styles.joinedRow}>
+                      <IconSymbol name="mappin" size={14} color={colors.onImageOverlay} />
+                      <AppText numberOfLines={1} style={{ color: colors.onImageOverlay, flexShrink: 1, fontSize: 12 }}>{featured.location}</AppText>
+                    </View>}
+                    {featured.campusEvent && featured.attendeeCount !== undefined && <View style={styles.joinedRow}>
+                      <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
+                      <AppText style={[styles.joinedText, { color: colors.onImageOverlay }]}>{featured.attendeeCount} joined</AppText>
+                    </View>}
                     {!featured.campusEvent && <View style={styles.joinedRow}>
                       <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
                       <AppText style={[styles.joinedText, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
@@ -357,6 +395,7 @@ export default function HomeScreen() {
                       title={activity.title}
                       category={activity.category}
                       date={activity.date}
+                      location={activity.location}
                       imageUrl={activity.imageUrl}
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
@@ -374,33 +413,11 @@ export default function HomeScreen() {
 
         <StandaloneRidesSection />
       </ScrollView>
-      <Modal visible={!!selectedEvent && campusAccess} transparent animationType="slide" onRequestClose={() => setSelectedEventId(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.background }]}>
-            <TouchableOpacity accessibilityRole="button" onPress={() => setSelectedEventId(null)}><AppText style={{ color: colors.tint }}>Close</AppText></TouchableOpacity>
-            {selectedEvent && <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-              <AppText style={{ color: colors.tint }}>LA Tech · Campus Event</AppText>
-              <AppText style={[styles.sectionHeading, { color: colors.text }]}>{selectedEvent.title}</AppText>
-              <AppText style={{ color: colors.text }}>{campusDateLabel(selectedEvent)}</AppText>
-              <AppText style={{ color: colors.text }}>{[selectedEvent.location, selectedEvent.room].filter(Boolean).join(' · ') || 'Location not provided'}</AppText>
-              <AppText style={{ color: colors.text }}>{plainDescription(selectedEvent.description ?? '') || 'Visit the official listing for details.'}</AppText>
-              <TouchableOpacity accessibilityRole="link" onPress={() => {
-                if (!/^https:\/\/www\.latech\.edu(?:\/|$)/i.test(selectedEvent.official_url)) {
-                  Alert.alert('Unavailable', 'The official event link is invalid.'); return;
-                }
-                void Linking.openURL(selectedEvent.official_url).catch(() => Alert.alert('Unable to open link', 'Please try again.'));
-              }}><AppText style={{ color: colors.tint }}>Open official event</AppText></TouchableOpacity>
-            </ScrollView>}
-          </View>
-        </View>
-      </Modal>
     </AppView>
   );
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalSheet: { maxHeight: '85%', padding: 24, paddingBottom: 36, gap: 16, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   container: { flex: 1 },
   content: {
     paddingBottom: 32,

@@ -1,0 +1,3 @@
+[functions.sync-campus-events]
+verify_jwt = false
+# Requests are authenticated with x-campus-sync-secret inside the function.

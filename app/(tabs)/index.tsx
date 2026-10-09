@@ -1,9 +1,7 @@
-import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
-import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ActivityCard } from '@/components/activity-card';
 import { StandaloneRidesSection } from '@/components/rides/standalone-rides-section';
@@ -12,9 +10,11 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { campusDateLabel, CampusEvent, campusSortKey, campusUpcoming, plainDescription, uniqueCampusEvents } from '@/lib/home-campus-events';
+import { balancedHomeFeed, HOME_CAMPUS_LIMIT, isAcademicCalendar } from '@/lib/home-feed';
 import { supabase } from '@/lib/supabase';
 
-const CATEGORIES = ['All', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
+const CATEGORIES = ['All', 'Campus', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
 
 const CATEGORY_IMAGES: Record<string, string> = {
   social: 'https://picsum.photos/seed/social/900/500',
@@ -29,12 +29,15 @@ const CATEGORY_IMAGES: Record<string, string> = {
 type Activity = {
   id: string;
   title: string;
-  category: 'social' | 'sports' | 'music' | 'study' | 'outdoor' | 'gaming' | 'grocery';
+  category: string;
+  sortKey: string;
+  campusEvent?: CampusEvent;
   date?: string;
+  location?: string;
   host?: string;
   imageUrl?: string;
-  attendeeCount: number;
-  maxAttendees: number;
+  attendeeCount?: number;
+  maxAttendees?: number;
   rideSharing?: boolean;
   status?: 'active' | 'expired';
 };
@@ -54,102 +57,140 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [selectedCategory]);
+  const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
+  const [campusAccess, setCampusAccess] = useState(false);
+  const [attendance, setAttendance] = useState<Record<string, number>>({});
+  const [feedError, setFeedError] = useState('');
+  const [campusError, setCampusError] = useState('');
+  const [now, setNow] = useState(Date.now());
+  const [campusRotation, setCampusRotation] = useState(0);
+  const generation = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshSavedIds();
-    }, [])
-  );
-
-  async function refreshSavedIds() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: saved } = await supabase
-      .from('saved_activities')
-      .select('activity_id')
-      .eq('user_id', user.id);
-    setSavedIds(new Set((saved ?? []).map((r: any) => r.activity_id)));
-  }
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchActivities().finally(() => setRefreshing(false));
-  }, [selectedCategory]);
-
-
-  async function fetchActivities() {
+  const fetchActivities = useCallback(async (rotateCampus = false) => {
+    const request = ++generation.current;
+    const current = () => request === generation.current;
     setLoading(true);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const currentUserId = user?.id;
-
-    if (currentUserId) {
-      const { data: saved } = await supabase
-        .from('saved_activities')
-        .select('activity_id')
-        .eq('user_id', currentUserId);
-      setSavedIds(new Set((saved ?? []).map((r: any) => r.activity_id)));
-    }
-
-    // A viewer can always see their own activities, plus anyone they follow.
-    const visibleHostIds = currentUserId ? [currentUserId] : [];
-
-    if (currentUserId) {
-      const { data: followedRows } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', currentUserId)
-        .eq('status', 'accepted');
-
-      if (followedRows) {
-        visibleHostIds.push(...followedRows.map((f) => f.following_id));
+    setFeedError(''); setCampusError('');
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!current()) return;
+      if (authError) throw authError;
+      const visibleHostIds = user ? [user.id] : [];
+      if (user) {
+        const [saved, followed] = await Promise.all([
+          supabase.from('saved_activities').select('activity_id').eq('user_id', user.id),
+          supabase.from('follows').select('following_id').eq('follower_id', user.id).eq('status', 'accepted'),
+        ]);
+        if (!current()) return;
+        if (followed.error) throw followed.error;
+        visibleHostIds.push(...(followed.data ?? []).map(f => f.following_id));
+        if (!saved.error) setSavedIds(new Set((saved.data ?? []).map(r => r.activity_id)));
+      } else {
+        setSavedIds(new Set());
       }
-    }
+      let query = supabase.from('activities')
+        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+        .eq('status', 'active')
+        .order('date_time', { ascending: true })
+        .limit(20);
+      query = visibleHostIds.length > 0
+        ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
+        : query.eq('event_type', 'public');
+      if (selectedCategory !== 'All' && selectedCategory !== 'Campus') {
+        query = query.eq('category', selectedCategory.toLowerCase());
+      }
+      const { data, error } = await query;
+      if (!current()) return;
+      if (error) setFeedError('Unable to refresh activities. Pull down to retry.');
+      else setActivities((data ?? []).map((a: any) => ({
+        id: a.id, title: a.title, category: a.category ?? 'social',
+        sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
+        date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
+        attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
+        rideSharing: a.ride_sharing ?? false, status: a.status ?? 'active',
+      })));
+      try {
+        if (!user) { setCampusAccess(false); setCampusEvents([]); setAttendance({}); return; }
+        const { data: allowed, error: accessError } = await supabase.rpc('can_view_latech_events');
+        if (!current()) return;
+        if (accessError) throw accessError;
+        setCampusAccess(allowed === true);
+        if (allowed !== true) { setCampusEvents([]); setAttendance({}); return; }
+        const rows: CampusEvent[] = [];
+        for (let offset = 0; ; offset += 500) {
+          const result = await supabase.from('campus_events').select('*')
+            .eq('campus', 'latech').order('id').range(offset, offset + 499);
+          if (!current()) return;
+          if (result.error) throw result.error;
+          rows.push(...(result.data ?? []) as CampusEvent[]);
+          if ((result.data?.length ?? 0) < 500) break;
+        }
+        const events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
+        setCampusEvents(events); setNow(Date.now());
+        // Focus/attendance reloads preserve the preview; only user actions rotate it.
+        if (rotateCampus) setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
+        try {
+          const counts: Record<string, number> = {};
+          for (let offset = 0; offset < events.length; offset += 200) {
+            const result = await supabase.rpc('campus_event_attendance', {
+              event_ids: events.slice(offset, offset + 200).map(e => e.id),
+            });
+            if (!current()) return;
+            if (result.error) throw result.error;
+            for (const item of result.data ?? []) counts[item.event_id] = Number(item.attendee_count);
+          }
+          setAttendance(counts);
+        } catch {
+          if (current()) { setAttendance({}); setCampusError('Campus attendance is temporarily unavailable. Pull down to refresh.'); }
+        }
+      } catch {
+        if (current()) {
+          setCampusAccess(false); setCampusEvents([]); setAttendance({});
+          setCampusError('Unable to load campus events. Pull down to retry.');
+        }
+      }
+    } catch {
+      if (current()) {
+        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setAttendance({}); setCampusAccess(false);
+        setFeedError('Unable to load Home. Pull down to retry.');
+      }
+    } finally { if (current()) setLoading(false); }
+  }, [selectedCategory]);
 
-    let query = supabase
-      .from('activities')
-      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
-      .eq('status', 'active')
-      .order('date_time', { ascending: true })
-      .limit(20);
+  useFocusEffect(useCallback(() => { void fetchActivities(); }, [fetchActivities]));
+  useEffect(() => {
+    let active = true;
+    let accountId: string | null | undefined;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextId = session?.user.id ?? null;
+      if (nextId === accountId) return;
+      accountId = nextId;
+      ++generation.current;
+      setActivities([]); setCampusEvents([]); setAttendance({}); setSavedIds(new Set());
+      setCampusAccess(false);
+      setTimeout(() => { if (active) void fetchActivities(); }, 0);
+    });
+    const foreground = AppState.addEventListener('change', state => {
+      if (state === 'active') void fetchActivities();
+    });
+    const refresh = setInterval(() => {
+      if (AppState.currentState === 'active') void fetchActivities();
+    }, 5 * 60_000);
+    const clock = setInterval(() => setNow(Date.now()), 30_000);
+    return () => {
+      active = false; ++generation.current; subscription.unsubscribe();
+      foreground.remove(); clearInterval(refresh); clearInterval(clock);
+    };
+  }, [fetchActivities]);
 
-    // Public activities are visible to everyone; private ones only to
-    // followed hosts (and the host themselves).
-    query = visibleHostIds.length > 0
-      ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
-      : query.eq('event_type', 'public');
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await fetchActivities(true); } finally { setRefreshing(false); }
+  }, [fetchActivities]);
 
-    if (selectedCategory !== 'All') {
-      query = query.eq('category', selectedCategory.toLowerCase());
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('fetchActivities error:', error);
-      setLoading(false);
-      return;
-    }
-
-    if (data) {
-      setActivities(
-        data.map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          category: a.category ?? 'social',
-          date: formatDate(a.date_time),
-          imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category as string] ?? undefined,
-          attendeeCount: a.rsvps?.length ?? 0,
-          maxAttendees: a.max_attendees ?? 10,
-          rideSharing: a.ride_sharing ?? false,
-          status: a.status ?? 'active',
-        }))
-      );
-    }
-    setLoading(false);
+  function openActivity(activity: Activity) {
+    if (activity.campusEvent) router.push(`/campus-event/${activity.campusEvent.id}`);
+    else router.push(`/activity/${activity.id}`);
   }
 
   async function toggleSave(activityId: string) {
@@ -178,9 +219,26 @@ export default function HomeScreen() {
     }
   }
 
-  const filtered = searchQuery.trim()
-    ? activities.filter((a) => a.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    : activities;
+  const campusCards: Activity[] = campusAccess ? campusEvents
+    .filter(event => !isAcademicCalendar(event) && campusUpcoming(event, now)).map(event => ({
+      id: `campus:${event.id}`, title: event.title,
+      category: event.category || 'Campus', date: campusDateLabel(event),
+      location: [event.location, event.room].filter(Boolean).join(' · ') || 'Location not provided',
+      attendeeCount: attendance[event.id],
+      imageUrl: event.image_url ?? undefined, sortKey: campusSortKey(event), campusEvent: event,
+    })) : [];
+  const matching = [...activities, ...campusCards].filter(activity => {
+    const matchesCategory = selectedCategory === 'All' || (selectedCategory === 'Campus'
+      ? !!activity.campusEvent
+      : activity.category.toLowerCase() === selectedCategory.toLowerCase()
+      || !!activity.campusEvent?.tags.some(tag => tag.toLowerCase() === selectedCategory.toLowerCase()));
+    const searchable = `${activity.title} ${activity.campusEvent?.location ?? ''} ${plainDescription(activity.campusEvent?.description ?? '')}`;
+    return matchesCategory && searchable.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  }).sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id));
+
+  const filtered = selectedCategory === 'All'
+    ? balancedHomeFeed(matching, campusRotation)
+    : matching;
 
   const featured = filtered[0];
   const recommended = filtered.slice(1);
@@ -243,7 +301,12 @@ export default function HomeScreen() {
           ))}
         </ScrollView></TourTarget>
 
-        {loading ? (
+        {!!feedError && <AppText accessibilityRole="alert" style={{ color: colors.text }}>{feedError}</AppText>}
+        {!!campusError && <AppText accessibilityRole="alert" style={{ color: colors.text }}>{campusError}</AppText>}
+        {selectedCategory === 'Campus' && !loading && !campusAccess && !campusError && (
+          <AppText style={{ color: colors.text }}>Sign in with a verified @latech.edu or @email.latech.edu account to view campus events.</AppText>
+        )}
+        {loading && filtered.length === 0 ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
         ) : filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -261,7 +324,7 @@ export default function HomeScreen() {
                 </AppText>
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => router.push(`/activity/${featured.id}`)}
+                  onPress={() => openActivity(featured)}
                   style={[styles.featuredCard, { backgroundColor: colors.primaryContainer }]}
                 >
                   {featured.imageUrl ? (
@@ -273,7 +336,12 @@ export default function HomeScreen() {
                     />
                   ) : null}
                   <View style={styles.featuredDim} />
-                  {featured.rideSharing && (
+                  {featured.campusEvent && (
+                    <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
+                      <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer }]}>Campus Event</AppText>
+                    </View>
+                  )}
+                  {!featured.campusEvent && featured.rideSharing && (
                     <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
                       <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
                       <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
@@ -282,7 +350,8 @@ export default function HomeScreen() {
                     </View>
                   )}
                   <View style={styles.featuredOverlay}>
-                    {featured.host && (
+                    {featured.campusEvent && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>LA Tech · Campus Event</AppText>}
+                    {featured.host && !featured.campusEvent && (
                       <View style={styles.hostRow}>
                         <View style={[styles.hostAvatar, { backgroundColor: colors.tint }]} />
                         <AppText style={[styles.hostedBy, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
@@ -290,15 +359,24 @@ export default function HomeScreen() {
                         </AppText>
                       </View>
                     )}
-                    <AppText style={[styles.featuredTitle, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
+                    <AppText numberOfLines={2} style={[styles.featuredTitle, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
                       {featured.title}
                     </AppText>
-                    <View style={styles.joinedRow}>
+                    {featured.date && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>{featured.date}</AppText>}
+                    {!!featured.location && <View style={styles.joinedRow}>
+                      <IconSymbol name="mappin" size={14} color={colors.onImageOverlay} />
+                      <AppText numberOfLines={1} style={{ color: colors.onImageOverlay, flexShrink: 1, fontSize: 12 }}>{featured.location}</AppText>
+                    </View>}
+                    {featured.campusEvent && featured.attendeeCount !== undefined && <View style={styles.joinedRow}>
+                      <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
+                      <AppText style={[styles.joinedText, { color: colors.onImageOverlay }]}>{featured.attendeeCount} joined</AppText>
+                    </View>}
+                    {!featured.campusEvent && <View style={styles.joinedRow}>
                       <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
                       <AppText style={[styles.joinedText, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
                         {featured.attendeeCount}/{featured.maxAttendees} joined
                       </AppText>
-                    </View>
+                    </View>}
                   </View>
                 </TouchableOpacity>
               </>
@@ -314,16 +392,18 @@ export default function HomeScreen() {
                   {recommended.map((activity) => (
                     <ActivityCard
                       key={activity.id}
+                      isCampusEvent={!!activity.campusEvent}
                       title={activity.title}
                       category={activity.category}
                       date={activity.date}
+                      location={activity.location}
                       imageUrl={activity.imageUrl}
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
                       saved={savedIds.has(activity.id)}
-                      onBookmarkPress={() => toggleSave(activity.id)}
-                      onPress={() => router.push(`/activity/${activity.id}`)}
+                      onBookmarkPress={activity.campusEvent ? undefined : () => toggleSave(activity.id)}
+                      onPress={() => openActivity(activity)}
                     />
                   ))}
                 </View>

@@ -1,11 +1,12 @@
+import { useGuidedTour } from '@/components/tutorial/guided-tour-provider';
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -60,8 +61,11 @@ export default function RidesScreen() {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] =
+  const { active, overview, promptsBlocked } = useGuidedTour();
+  const focused = useIsFocused();
+  const [selectedTab, setActiveTab] =
     useState<RideTab>('discover');
+  const activeTab = active && !overview ? 'discover' : selectedTab;
 
   const [region, setRegion] =
     useState<Region | null>(null);
@@ -91,8 +95,8 @@ export default function RidesScreen() {
   } = useRideDashboardData(historyFilter);
 
   useEffect(() => {
-    void loadCurrentLocation();
-  }, []);
+    if (!promptsBlocked && focused) void loadCurrentLocation();
+  }, [promptsBlocked, focused]);
 
   async function loadCurrentLocation() {
     setLoadingLocation(true);
@@ -474,7 +478,7 @@ export default function RidesScreen() {
         },
       ]}
     >
-      <ScrollView
+      <TourScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -518,14 +522,14 @@ export default function RidesScreen() {
               }
             />
 
-            <RideActionCards
+            <TourTarget id="ride-actions"><RideActionCards
               onFindRide={
                 handleFindRide
               }
               onOfferRide={
                 handleOfferRide
               }
-            />
+            /></TourTarget>
           </>
         )}
 
@@ -537,7 +541,7 @@ export default function RidesScreen() {
 
         {activeTab === 'history' &&
           renderHistoryTab()}
-      </ScrollView>
+      </TourScrollView>
 
       {rideIntent && (
         <AttendingActivityPickerSheet

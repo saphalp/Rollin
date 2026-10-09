@@ -1,3 +1,4 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
@@ -186,7 +187,7 @@ export default function HomeScreen() {
 
   return (
     <AppView style={styles.container}>
-      <ScrollView
+      <TourScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -203,7 +204,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Search row */}
-        <View style={styles.searchRow}>
+        <TourTarget id="home-search"><View style={styles.searchRow}>
           <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
             <IconSymbol name="magnifyingglass" size={18} color={colors.outline} />
             <TextInput
@@ -217,10 +218,10 @@ export default function HomeScreen() {
           <TouchableOpacity style={[styles.filterButton, { borderColor: colors.outlineVariant, backgroundColor: colors.cardBackground }]}>
             <IconSymbol name="line.3.horizontal.decrease" size={20} color={colors.text} />
           </TouchableOpacity>
-        </View>
+        </View></TourTarget>
 
         {/* Category pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
+        <TourTarget id="home-categories"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
               key={cat}
@@ -240,7 +241,7 @@ export default function HomeScreen() {
               </AppText>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </ScrollView></TourTarget>
 
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
@@ -332,7 +333,7 @@ export default function HomeScreen() {
         )}
 
         <StandaloneRidesSection />
-      </ScrollView>
+      </TourScrollView>
     </AppView>
   );
 }

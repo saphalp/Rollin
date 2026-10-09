@@ -1,8 +1,8 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -119,42 +119,45 @@ export default function CalendarScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={20} color={colors.text} />
         </TouchableOpacity>
-        <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Calendar</AppText>
+        <TourTarget id="calendar-heading"><AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Calendar</AppText></TourTarget>
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+      <TourScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {/* Calendar */}
-        <Calendar
-          markingType="multi-dot"
-          markedDates={markedDates}
-          onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
-          theme={{
-            backgroundColor: colors.background,
-            calendarBackground: colors.background,
-            textSectionTitleColor: colors.outline,
-            dayTextColor: colors.text,
-            todayTextColor: colors.tint,
-            selectedDayBackgroundColor: colors.tint,
-            selectedDayTextColor: '#fff',
-            monthTextColor: colors.text,
-            arrowColor: colors.tint,
-            dotColor: OTHER_COLOR,
-            selectedDotColor: '#fff',
-          }}
-        />
+        <TourTarget id="calendar-grid-and-legend">
+          <Calendar
+            markingType="multi-dot"
+            markedDates={markedDates}
+            onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
+            theme={{
+              backgroundColor: colors.background,
+              calendarBackground: colors.background,
+              textSectionTitleColor: colors.outline,
+              dayTextColor: colors.text,
+              todayTextColor: colors.tint,
+              selectedDayBackgroundColor: colors.tint,
+              selectedDayTextColor: '#fff',
+              monthTextColor: colors.text,
+              arrowColor: colors.tint,
+              dotColor: OTHER_COLOR,
+              selectedDotColor: '#fff',
+            }}
+          />
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: OWN_COLOR }]} />
-            <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Your events</AppText>
+          {/* Legend */}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: OWN_COLOR }]} />
+              <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Your events</AppText>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: OTHER_COLOR }]} />
+              <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Others&apos; events</AppText>
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: OTHER_COLOR }]} />
-            <AppText style={[styles.legendText, { color: colors.outline, fontFamily: Fonts?.sans }]}>Others&apos; events</AppText>
-          </View>
-        </View>
+
+        </TourTarget>
 
         {/* Day events */}
         {selectedDate && (
@@ -204,7 +207,7 @@ export default function CalendarScreen() {
         {loading && !selectedDate && (
           <ActivityIndicator color={colors.tint} style={{ marginTop: 8 }} />
         )}
-      </ScrollView>
+      </TourScrollView>
     </View>
   );
 }

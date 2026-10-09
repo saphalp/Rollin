@@ -1,343 +1,100 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import {
-  XMLParser,
-  XMLValidator,
-} from "npm:fast-xml-parser@4.5.3";
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { XMLParser, XMLValidator } from 'npm:fast-xml-parser@4.5.3';
+import { array, modernCampusItem, liveWhaleItem, uniqueRows, type EventRow, type SourceConfig, type UniversityConfig } from './adapters.ts';
 
-const FEED_URL =
-  "https://api.calendar.moderncampus.net/pubcalendar/" +
-  "9a424096-0a54-475e-a112-ec2fb41d5fa1/rss" +
-  "?url=https%3A%2F%2Fwww.latech.edu%2Fevents.php&hash=true";
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+const respond=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+function feedURL(value:string,source:SourceConfig):string {
+  const u=new URL(value);
+  if(u.protocol!=='https:' || u.username || u.password || (u.port && u.port!=='443')
+    || !source.allowed_feed_hosts.includes(u.hostname.toLowerCase())) throw new Error('Unapproved feed URL');
+  return u.href;
 }
-
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+async function fetchText(value:string,source:SourceConfig):Promise<string> {
+  let url=feedURL(value,source);
+  for(let redirects=0;redirects<4;redirects++) {
+    const response=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(20_000)});
+    if([301,302,303,307,308].includes(response.status)) {
+      const location=response.headers.get('location');if(!location)throw new Error('Missing redirect');
+      url=feedURL(new URL(location,url).href,source);continue;
+    }
+    if(!response.ok)throw new Error(`Feed HTTP ${response.status}`);
+    if(!response.body)throw new Error('Empty body');
+    const reader=response.body.getReader();const decoder=new TextDecoder();let text='',size=0;
+    try {
+      while(true) {const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;
+        if(size>5_000_000)throw new Error('Feed exceeds size limit');text+=decoder.decode(chunk.value,{stream:true});}
+      return text+decoder.decode();
+    } finally {await reader.cancel();}
+  }
+  throw new Error('Too many feed redirects');
 }
-
-function optionalText(value: unknown): string | null {
-  return text(value) || null;
+async function importSource(source:SourceConfig,campus:UniversityConfig):Promise<{rows:EventRow[];duplicates:number;skipped:number}> {
+  let raw:any[]=[];
+  if(source.provider==='moderncampus_rss') {
+    const xml=await fetchText(source.feed_url,source);
+    if(/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true)throw new Error('Invalid RSS XML');
+    const document=new XMLParser({parseTagValue:false,trimValues:true}).parse(xml);
+    const channel=document?.rss?.channel;
+    if(!channel || (source.expected_feed_title && channel.title!==source.expected_feed_title))throw new Error('Unexpected feed');
+    raw=array(channel.item);
+  } else if(source.provider==='livewhale_json') {
+    let url:string|null=source.feed_url;const seen=new Set<string>();let pages=0;
+    while(url) {
+      if(seen.has(url)||++pages>20)throw new Error('Invalid/excessive feed pagination');seen.add(url);
+      const payload=JSON.parse(await fetchText(url,source));
+      const items=Array.isArray(payload)?payload:payload.data ?? payload.results;
+      if(!Array.isArray(items))throw new Error('Unexpected LiveWhale response');
+      // v1's unpaginated limit is 1000; refuse a potentially truncated import.
+      if(Array.isArray(payload)&&items.length>=1000)throw new Error('LiveWhale feed reached 1000; configure pagination/date windows');
+      raw.push(...items);
+      url=Array.isArray(payload)?null:payload.links?.next ?? null;
+      if(raw.length>10_000)throw new Error('Too many events');
+    }
+  } else throw new Error('Unsupported provider');
+  if(!raw.length)throw new Error('Empty feed; existing records retained');
+  const rows:EventRow[]=[];let skipped=0;
+  for(const item of raw) {
+    try {rows.push(source.provider==='moderncampus_rss'?modernCampusItem(item,source,campus):liveWhaleItem(item,source,campus));}
+    catch(error) {skipped++;console.warn(`Source ${source.id} skipped an invalid event:`,error instanceof Error?error.message:'Invalid event');}
+  }
+  if(!rows.length)throw new Error('No valid events; existing records retained');
+  return {...uniqueRows(rows),skipped};
 }
-
-function toArray(value: unknown): unknown[] {
-  if (value === null || value === undefined) return [];
-  return Array.isArray(value) ? value : [value];
-}
-
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
-
-function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-
-  const milliseconds = Date.parse(value);
-
-  return (
-    !Number.isNaN(milliseconds) &&
-    new Date(milliseconds).toISOString().slice(0, 10) === value
-  );
-}
-
-function isValidTimestamp(value: string): boolean {
-  return (
-    /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
-    !Number.isNaN(Date.parse(value))
-  );
-}
-
-function httpsUrl(value: unknown): string | null {
-  const input = text(value);
-  if (!input) return null;
-
+Deno.serve(async(req)=>{
+  if(req.method!=='POST')return respond({error:'POST required'},405);
+  const secret=Deno.env.get('CAMPUS_SYNC_SECRET');
+  if(!secret)return respond({error:'Sync secret is not configured'},500);
+  if(req.headers.get('x-campus-sync-secret')!==secret)return respond({error:'Unauthorized'},401);
   try {
-    const url = new URL(input);
-    return url.protocol === "https:" ? url.href : null;
-  } catch {
-    return null;
-  }
-}
-
-type CampusEvent = {
-  campus: string;
-  source_id: string;
-  title: string;
-  description: string | null;
-  official_url: string;
-  category: string | null;
-  tags: string[];
-  location: string | null;
-  room: string | null;
-  organizer: string | null;
-  image_url: string | null;
-  status: string;
-  featured: boolean;
-  date_only: boolean;
-  start_date: string | null;
-  end_date: string | null;
-  starts_at: string | null;
-  ends_at: string | null;
-  synced_at: string;
-};
-
-Deno.serve(async (request: Request) => {
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "POST required" }, 405);
-  }
-
-  const syncSecret = Deno.env.get("CAMPUS_SYNC_SECRET");
-
-  if (!syncSecret) {
-    return jsonResponse(
-      { error: "CAMPUS_SYNC_SECRET is not configured" },
-      500,
-    );
-  }
-
-  if (
-    request.headers.get("x-campus-sync-secret") !== syncSecret
-  ) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
-
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get(
-      "SUPABASE_SERVICE_ROLE_KEY",
-    );
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error("Missing backend configuration");
-    }
-
-    const feedResponse = await fetch(FEED_URL, {
-      signal: AbortSignal.timeout(20_000),
-    });
-
-    if (!feedResponse.ok) {
-      throw new Error(`Feed HTTP ${feedResponse.status}`);
-    }
-
-    const xml = await feedResponse.text();
-
-    if (xml.length > 5_000_000) {
-      throw new Error("Feed exceeds size limit");
-    }
-
-    if (/<!DOCTYPE|<!ENTITY/i.test(xml)) {
-      throw new Error("Unsupported XML declarations");
-    }
-
-    if (XMLValidator.validate(xml) !== true) {
-      throw new Error("Invalid RSS XML");
-    }
-
-    const parser = new XMLParser({
-      parseTagValue: false,
-      trimValues: true,
-    });
-
-    const document = parser.parse(xml);
-    const channel = document?.rss?.channel;
-
-    if (
-      !channel ||
-      text(channel.title) !== "Louisiana Tech University"
-    ) {
-      throw new Error("Unexpected feed");
-    }
-
-    const items = toArray(channel.item);
-
-    if (items.length === 0) {
-      throw new Error("Empty feed; existing events retained");
-    }
-
-    const rowsById = new Map<string, CampusEvent>();
-    const syncedAt = new Date().toISOString();
-
-    let skipped = 0;
-    let duplicates = 0;
-
-    for (const rawItem of items) {
-      if (!isRecord(rawItem)) {
-        skipped++;
-        console.warn("Skipping malformed event entry");
-        continue;
+    const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if(!url||!key)throw new Error('Missing backend configuration');
+    const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+    const [sourceResult,campusResult]=await Promise.all([
+      db.from('university_event_sources').select('*').eq('enabled',true),
+      db.from('universities').select('id,time_zone,official_hosts').eq('enabled',true),
+    ]);
+    if(sourceResult.error)throw sourceResult.error;if(campusResult.error)throw campusResult.error;
+    const results:any[]=[];
+    for(const source of (sourceResult.data??[]) as SourceConfig[]) {
+      const campus=(campusResult.data as UniversityConfig[]).find(u=>u.id===source.university_id);if(!campus)continue;
+      try {
+        const result=await importSource(source,campus);
+        const {error}=await db.from('campus_events').upsert(result.rows,{onConflict:'campus,source_id'});
+        if(error)throw error;
+        const health=await db.from('university_event_sources').update({last_synced_at:new Date().toISOString(),last_error:null}).eq('id',source.id);
+        if(health.error)throw health.error;
+        results.push({source:source.id,campus:campus.id,success:true,imported:result.rows.length,duplicates:result.duplicates,skipped:result.skipped});
+      } catch(error) {
+        const message=error instanceof Error?error.message:String((error as any)?.message??'Sync failed');
+        console.error(`Source ${source.id} failed:`,message);
+        await db.from('university_event_sources').update({last_error:message}).eq('id',source.id);
+        results.push({source:source.id,campus:campus.id,success:false,error:message});
       }
-
-      const sourceId = text(rawItem["cal:guid"]);
-      const title = text(rawItem.title);
-
-      // An incomplete event should not stop other imports.
-      if (!sourceId || !title) {
-        skipped++;
-        console.warn("Skipping incomplete event", {
-          sourceId: sourceId || null,
-          title: title || null,
-        });
-        continue;
-      }
-
-      const start = text(rawItem["cal:start"]);
-      const end = text(rawItem["cal:end"]);
-      const dateOnly = isValidDate(start);
-
-      const validRange = dateOnly
-        ? isValidDate(end) && end >= start
-        : (
-          isValidTimestamp(start) &&
-          isValidTimestamp(end) &&
-          Date.parse(end) >= Date.parse(start)
-        );
-
-      if (!validRange) {
-        skipped++;
-        console.warn("Skipping event with invalid dates", {
-          sourceId,
-          start,
-          end,
-        });
-        continue;
-      }
-
-      const officialUrl = httpsUrl(rawItem.link);
-
-      if (
-        !officialUrl ||
-        new URL(officialUrl).hostname !== "www.latech.edu"
-      ) {
-        skipped++;
-        console.warn("Skipping event with invalid URL", {
-          sourceId,
-        });
-        continue;
-      }
-
-      // Deduplicate only after validating the entry.
-      // Similar titles with different IDs remain separate.
-      if (rowsById.has(sourceId)) {
-        duplicates++;
-        console.warn("Skipping repeated event ID:", sourceId);
-        continue;
-      }
-
-      const tagContainer = rawItem["cal:tags"];
-      const tags = isRecord(tagContainer)
-        ? toArray(tagContainer["cal:tag"])
-          .map(text)
-          .filter(Boolean)
-        : [];
-
-      rowsById.set(sourceId, {
-        campus: "latech",
-        source_id: sourceId,
-        title,
-        description: optionalText(rawItem.description),
-        official_url: officialUrl,
-
-        category: optionalText(rawItem["cal:calendar"]),
-        tags: [...new Set(tags)],
-        location: optionalText(rawItem["cal:location"]),
-        room: optionalText(rawItem["cal:locationRoom"]),
-        organizer: optionalText(rawItem["cal:organizer"]),
-        image_url: httpsUrl(rawItem["cal:image"]),
-
-        status:
-          text(rawItem["cal:status"]).toUpperCase() ||
-          "CONFIRMED",
-
-        featured:
-          text(rawItem["cal:featured"]).toLowerCase() ===
-          "true",
-
-        date_only: dateOnly,
-        start_date: dateOnly ? start : null,
-        end_date: dateOnly ? end : null,
-
-        starts_at: dateOnly
-          ? null
-          : new Date(start).toISOString(),
-
-        ends_at: dateOnly
-          ? null
-          : new Date(end).toISOString(),
-
-        synced_at: syncedAt,
-      });
     }
-
-    const rows = [...rowsById.values()];
-
-    if (rows.length === 0) {
-      throw new Error(
-        "No valid events found; inspect skipped-event logs",
-      );
-    }
-
-    const supabase = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      },
-    );
-
-    // Update existing official IDs or insert new ones.
-    // Events absent from this feed are not deleted.
-    const { error } = await supabase
-      .from("campus_events")
-      .upsert(rows, {
-        onConflict: "campus,source_id",
-      });
-
-    if (error) {
-      throw new Error(`Database upsert failed: ${error.message}`);
-    }
-
-    console.log("Campus sync completed", {
-      received: items.length,
-      imported: rows.length,
-      skipped,
-      duplicates,
-    });
-
-    return jsonResponse({
-      success: true,
-      received: items.length,
-      imported: rows.length,
-      skipped,
-      duplicates,
-      synced_at: syncedAt,
-    });
-  } catch (error) {
-    console.error(
-      "Campus sync failed:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-
-    return jsonResponse(
-      {
-        error:
-          "Sync failed; inspect function logs. Existing events retained.",
-      },
-      500,
-    );
+    if(!results.length)throw new Error('No enabled sources');
+    return respond({success:results.every(r=>r.success),results},results.every(r=>r.success)?200:207);
+  } catch(error) {
+    console.error('Campus sync failed:',error);
+    return respond({error:'Sync failed; inspect function logs. Existing events retained.'},500);
   }
 });

@@ -5,17 +5,14 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { CampusEvent } from '@/lib/home-campus-events';
 import { campusDateLabel, campusUpcoming, plainDescription } from '@/lib/home-campus-events';
+import { isAcademicCalendar } from '@/lib/home-feed';
 import { supabase } from '@/lib/supabase';
+import { getCurrentUniversity, officialUniversityLink, type University } from '@/lib/university';
 import { Image } from 'expo-image';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Linking, RefreshControl, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// The sync function stores official LA Tech URLs. Never open an arbitrary scheme.
-function officialLink(value: string): string | null {
-  return /^https:\/\/www\.latech\.edu(?:\/|$)/i.test(value) ? value : null;
-}
 
 export default function CampusEventDetailScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
@@ -23,6 +20,7 @@ export default function CampusEventDetailScreen() {
   const colors = Colors[useColorScheme() ?? 'light'];
   const insets = useSafeAreaInsets();
   const [event, setEvent] = useState<CampusEvent | null>(null);
+  const [university, setUniversity] = useState<University | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [now, setNow] = useState(Date.now());
@@ -47,19 +45,22 @@ export default function CampusEventDetailScreen() {
       if (!current()) return;
       if (authError) throw authError;
       setCurrentUserId(user?.id ?? null);
-      if (!user) { setEvent(null); setMessage('Sign in with a verified LA Tech email to view this event.'); return; }
-      const { data: allowed, error: accessError } = await supabase.rpc('can_view_latech_events');
+      if (!user) { setEvent(null); setMessage('Sign in with a verified university email to view this event.'); return; }
+      const campus = await getCurrentUniversity();
       if (!current()) return;
-      if (accessError) throw accessError;
-      if (allowed !== true) {
-        setEvent(null); setMessage('A verified @latech.edu or @email.latech.edu account is required.'); return;
+      setUniversity(campus);
+      if (!campus?.calendar_enabled) {
+        setEvent(null); setMessage('Verify your email from a supported university to view its campus events.'); return;
       }
       const { data, error } = await supabase.from('campus_events').select('*')
-        .eq('campus', 'latech').eq('id', id).maybeSingle();
+        .eq('campus', campus.id).eq('id', id).maybeSingle();
       if (!current()) return;
       if (error) throw error;
       if (!data) { setEvent(null); setMessage('This campus event is no longer available.'); return; }
       const next = data as CampusEvent;
+      if (isAcademicCalendar(next)) {
+        setEvent(null); setMessage('Academic calendar entries are not shown in Rollin.'); return;
+      }
       if (loadedImage.current !== next.image_url) {
         loadedImage.current = next.image_url; setImageFailed(false);
       }
@@ -67,8 +68,15 @@ export default function CampusEventDetailScreen() {
       const stats = await supabase.rpc('campus_event_attendance', { event_ids: [next.id] });
       if (!current()) return;
       if (stats.error || !stats.data?.length) {
-        setAttendeeCount(null); setGoing(false);
-        setAttendanceError('Attendance is temporarily unavailable. Pull down to refresh.');
+        console.error('campus_event_attendance detail failed:', stats.error ?? { message: 'No attendance row returned', event_id: next.id });
+        setAttendeeCount(null);
+        // A failed aggregate must not prevent joining or hide the viewer's RSVP.
+        const ownRsvp = await supabase.from('campus_event_rsvps').select('event_id')
+          .eq('event_id', next.id).eq('user_id', user.id).maybeSingle();
+        if (!current()) return;
+        setGoing(!!ownRsvp.data);
+        if (ownRsvp.error) console.error('campus RSVP lookup failed:', ownRsvp.error);
+        setAttendanceError('The joined count is temporarily unavailable. Pull down to retry.');
       } else {
         setAttendeeCount(Number(stats.data[0].attendee_count));
         setGoing(stats.data[0].going === true);
@@ -89,7 +97,7 @@ export default function CampusEventDetailScreen() {
       if (nextId === accountId && authEvent !== 'USER_UPDATED') return;
       accountId = nextId;
       ++generation.current; setEvent(null); setLoading(true); setMessage('');
-      setCurrentUserId(null); setGoing(false); setAttendeeCount(null); setAttendanceError(''); setAttendanceError('');
+      setUniversity(null); setCurrentUserId(null); setGoing(false); setAttendeeCount(null); setAttendanceError('');
       setTimeout(() => { if (active) void load(); }, 0);
     });
     const foreground = AppState.addEventListener('change', state => {
@@ -106,7 +114,7 @@ export default function CampusEventDetailScreen() {
   }, [load]);
 
   async function toggleJoin() {
-    if (!event || !currentUserId || attendeeCount === null || mutationBusy.current) return;
+    if (!event || !currentUserId || mutationBusy.current) return;
     if (!going && !campusUpcoming(event, Date.now())) return;
     const joined = going;
     const eventId = event.id;
@@ -124,6 +132,7 @@ export default function CampusEventDetailScreen() {
       if (result.error && !(result.error.code === '23505' && !joined)) throw result.error;
       if (request === generation.current) await load();
     } catch (error) {
+      console.error('campus RSVP write failed:', error);
       if (request === generation.current) Alert.alert(joined ? 'Could not leave activity' : 'Could not join activity',
         error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Please refresh and try again.');
     } finally { mutationBusy.current = false; setJoinBusy(false); }
@@ -137,14 +146,14 @@ export default function CampusEventDetailScreen() {
   }
 
   const openOfficial = async () => {
-    const url = event && officialLink(event.official_url);
+    const url = event && officialUniversityLink(event.official_url, university);
     if (!url) { Alert.alert('Unavailable', 'The official event link is invalid.'); return; }
     try { await Linking.openURL(url); }
     catch { Alert.alert('Unable to open link', 'Please try again.'); }
   };
   const shareEvent = async () => {
     if (!event) return;
-    const url = officialLink(event.official_url);
+    const url = officialUniversityLink(event.official_url, university);
     if (!url) { Alert.alert('Unavailable', 'The official event link is invalid.'); return; }
     try { await Share.share({ title: event.title, message: `${event.title}\n${campusDateLabel(event)}\n${url}` }); }
     catch { Alert.alert('Unable to share', 'Please try again.'); }
@@ -173,7 +182,7 @@ export default function CampusEventDetailScreen() {
         <View style={[styles.heroContainer, { backgroundColor: colors.primaryContainer }]}>
           {event.image_url && !imageFailed ? <Image source={{ uri: event.image_url }} style={styles.hero}
             contentFit="cover" cachePolicy="memory-disk" onError={() => setImageFailed(true)} />
-            : <View style={styles.heroFallback}><AppText style={{ color: colors.text, fontSize: 24, fontWeight: '700' }}>LA Tech</AppText>
+            : <View style={styles.heroFallback}><AppText style={{ color: colors.text, fontSize: 24, fontWeight: '700' }}>{university?.short_name ?? 'University'}</AppText>
               <AppText style={{ color: colors.text }}>Campus Event</AppText></View>}
           <View style={[styles.heroOverlay, { paddingTop: insets.top + 8 }]}>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={back}
@@ -199,14 +208,14 @@ export default function CampusEventDetailScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <AppText style={{ color: colors.outline, fontSize: 12 }}>Official campus calendar</AppText>
-              <AppText style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: 2 }}>LA Tech · Campus Event</AppText>
+              <AppText style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: 2 }}>{university?.short_name ?? 'University'} · Campus Event</AppText>
             </View>
           </View>
           {(cancelled || past) && <AppText style={{ color: colors.text }}>{cancelled ? 'This event has been cancelled.' : 'This event has ended.'}</AppText>}
           <View style={[styles.metaCard, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
             <View style={styles.metaRow}>
               <IconSymbol name="calendar" size={20} color={colors.tint} />
-              <AppText style={[styles.metaText, { color: colors.text }]}>{campusDateLabel(event)}{event.date_only ? ' · Central Time' : ''}</AppText>
+              <AppText style={[styles.metaText, { color: colors.text }]}>{campusDateLabel(event)}{event.date_only ? ' · ' + (event.time_zone ?? university?.time_zone ?? 'America/Chicago') : ''}</AppText>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
             <View style={styles.metaRow}>
@@ -234,11 +243,11 @@ export default function CampusEventDetailScreen() {
       </ScrollView>
       <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom + 8 }]}>
         {(!past && !cancelled || going) && <TouchableOpacity accessibilityRole="button" onPress={handleJoin}
-          disabled={joinBusy || loading || attendeeCount === null}
+          disabled={joinBusy || loading || !currentUserId}
           style={[styles.officialButton, {
             backgroundColor: going ? colors.surfaceContainerHigh : colors.tint,
             borderColor: going ? colors.outline : colors.tint, borderWidth: 1,
-            opacity: joinBusy || loading || attendeeCount === null ? 0.6 : 1
+            opacity: joinBusy || loading || !currentUserId ? 0.6 : 1
           }]}>
           {going && <IconSymbol name="checkmark" size={18} color={colors.text} />}
           <AppText style={{ color: going ? colors.text : colors.onPrimary, fontSize: 15, fontWeight: '700' }}>{joinBusy ? 'Saving…' : going ? 'Going' : 'Join Activity'}</AppText>

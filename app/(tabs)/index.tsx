@@ -13,6 +13,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { campusDateLabel, CampusEvent, campusSortKey, campusUpcoming, plainDescription, uniqueCampusEvents } from '@/lib/home-campus-events';
 import { balancedHomeFeed, HOME_CAMPUS_LIMIT, isAcademicCalendar } from '@/lib/home-feed';
 import { supabase } from '@/lib/supabase';
+import { getCurrentUniversity, type University } from '@/lib/university';
 
 const CATEGORIES = ['All', 'Campus', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
 
@@ -59,12 +60,15 @@ export default function HomeScreen() {
 
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [campusAccess, setCampusAccess] = useState(false);
+  const [university, setUniversity] = useState<University | null>(null);
   const [attendance, setAttendance] = useState<Record<string, number>>({});
   const [feedError, setFeedError] = useState('');
   const [campusError, setCampusError] = useState('');
   const [now, setNow] = useState(Date.now());
   const [campusRotation, setCampusRotation] = useState(0);
   const generation = useRef(0);
+
+  const campusCache = useRef<{ campus: string; events: CampusEvent[] } | null>(null);
 
   const fetchActivities = useCallback(async (rotateCampus = false) => {
     const request = ++generation.current;
@@ -110,22 +114,26 @@ export default function HomeScreen() {
         rideSharing: a.ride_sharing ?? false, status: a.status ?? 'active',
       })));
       try {
-        if (!user) { setCampusAccess(false); setCampusEvents([]); setAttendance({}); return; }
-        const { data: allowed, error: accessError } = await supabase.rpc('can_view_latech_events');
+        if (!user) { setCampusAccess(false); setUniversity(null); setCampusEvents([]); setAttendance({}); return; }
+        const campus = await getCurrentUniversity();
         if (!current()) return;
-        if (accessError) throw accessError;
-        setCampusAccess(allowed === true);
-        if (allowed !== true) { setCampusEvents([]); setAttendance({}); return; }
-        const rows: CampusEvent[] = [];
-        for (let offset = 0; ; offset += 500) {
-          const result = await supabase.from('campus_events').select('*')
-            .eq('campus', 'latech').order('id').range(offset, offset + 499);
-          if (!current()) return;
-          if (result.error) throw result.error;
-          rows.push(...(result.data ?? []) as CampusEvent[]);
-          if ((result.data?.length ?? 0) < 500) break;
+        setUniversity(campus);
+        setCampusAccess(!!campus?.calendar_enabled);
+        if (!campus?.calendar_enabled) { setCampusEvents([]); setAttendance({}); return; }
+        let events = campusCache.current?.campus === campus.id ? campusCache.current.events : null;
+        if (rotateCampus || !events) {
+          const rows: CampusEvent[] = [];
+          for (let offset = 0; ; offset += 500) {
+            const result = await supabase.from('campus_events').select('*')
+              .eq('campus', campus.id).order('id').range(offset, offset + 499);
+            if (!current()) return;
+            if (result.error) throw result.error;
+            rows.push(...(result.data ?? []) as CampusEvent[]);
+            if ((result.data?.length ?? 0) < 500) break;
+          }
+          events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
+          campusCache.current = { campus: campus.id, events };
         }
-        const events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
         setCampusEvents(events); setNow(Date.now());
         // Focus/attendance reloads preserve the preview; only user actions rotate it.
         if (rotateCampus) setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
@@ -145,13 +153,13 @@ export default function HomeScreen() {
         }
       } catch {
         if (current()) {
-          setCampusAccess(false); setCampusEvents([]); setAttendance({});
+          setCampusAccess(false); setUniversity(null); setCampusEvents([]); setAttendance({});
           setCampusError('Unable to load campus events. Pull down to retry.');
         }
       }
     } catch {
       if (current()) {
-        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setAttendance({}); setCampusAccess(false);
+        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setAttendance({}); setCampusAccess(false); setUniversity(null);
         setFeedError('Unable to load Home. Pull down to retry.');
       }
     } finally { if (current()) setLoading(false); }
@@ -160,14 +168,15 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => { void fetchActivities(); }, [fetchActivities]));
   useEffect(() => {
     let active = true;
-    let accountId: string | null | undefined;
+    let accountKey: string | undefined;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextId = session?.user.id ?? null;
-      if (nextId === accountId) return;
-      accountId = nextId;
+      const nextKey = `${session?.user.id ?? ''}:${session?.user.email ?? ''}:${session?.user.email_confirmed_at ?? ''}`;
+      if (nextKey === accountKey) return;
+      accountKey = nextKey;
+      campusCache.current = null; setCampusRotation(0);
       ++generation.current;
       setActivities([]); setCampusEvents([]); setAttendance({}); setSavedIds(new Set());
-      setCampusAccess(false);
+      setCampusAccess(false); setUniversity(null);
       setTimeout(() => { if (active) void fetchActivities(); }, 0);
     });
     const foreground = AppState.addEventListener('change', state => {
@@ -304,7 +313,7 @@ export default function HomeScreen() {
         {!!feedError && <AppText accessibilityRole="alert" style={{ color: colors.text }}>{feedError}</AppText>}
         {!!campusError && <AppText accessibilityRole="alert" style={{ color: colors.text }}>{campusError}</AppText>}
         {selectedCategory === 'Campus' && !loading && !campusAccess && !campusError && (
-          <AppText style={{ color: colors.text }}>Sign in with a verified @latech.edu or @email.latech.edu account to view campus events.</AppText>
+          <AppText style={{ color: colors.text }}>{university ? `Calendar integration is not available for ${university.short_name} yet.` : 'Verify your email from a supported university to view its campus events.'}</AppText>
         )}
         {loading && filtered.length === 0 ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
@@ -350,7 +359,7 @@ export default function HomeScreen() {
                     </View>
                   )}
                   <View style={styles.featuredOverlay}>
-                    {featured.campusEvent && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>LA Tech · Campus Event</AppText>}
+                    {featured.campusEvent && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>{university?.short_name ?? 'University'} · Campus Event</AppText>}
                     {featured.host && !featured.campusEvent && (
                       <View style={styles.hostRow}>
                         <View style={[styles.hostAvatar, { backgroundColor: colors.tint }]} />

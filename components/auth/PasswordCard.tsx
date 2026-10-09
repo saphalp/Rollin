@@ -21,6 +21,7 @@ export default function PasswordCard({
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const passwordsMatch = password.length > 0 && password === confirmPassword;
@@ -28,6 +29,7 @@ export default function PasswordCard({
   const hasNumber = /\d/.test(password);
 
   const handleSignUp = async () => {
+    if (isSigningUp) return;
     if (!hasMinimumLength) {
       Alert.alert("Invalid Password", "Password must be at least 8 characters.");
       return;
@@ -43,9 +45,11 @@ export default function PasswordCard({
       return;
     }
 
+    setIsSigningUp(true);
+    const normalizedEmail = email.trim().toLowerCase();
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
       });
       if (error) {
@@ -55,11 +59,18 @@ export default function PasswordCard({
       }
       if (data.user) {
         onSignUpSuccess?.();
-        router.replace("/EmailConfirmation");
+        if (!data.session) {
+          router.replace({
+            pathname: "/(auth)/EmailConfirmation",
+            params: { email: normalizedEmail },
+          });
+        }
       }
     } catch (e: any) {
       console.log(e.message);
       Alert.alert("Sign Up Error", e.message || "An unexpected error occurred.");
+    } finally {
+      setIsSigningUp(false);
     }
   };
   return (
@@ -132,6 +143,8 @@ export default function PasswordCard({
       <Button
         mode="contained"
         onPress={handleSignUp}
+        loading={isSigningUp}
+        disabled={isSigningUp}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}

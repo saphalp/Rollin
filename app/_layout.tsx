@@ -1,3 +1,4 @@
+import { GuidedTourProvider } from '@/components/tutorial/guided-tour-provider';
 import { SplashScreenController } from "@/components/splash";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -53,6 +54,7 @@ export function RootNavigator() {
         <Stack.Screen name="profile/[id]" />
         <Stack.Screen name="saved-activities" />
         <Stack.Screen name="my-activities" />
+        <Stack.Screen name="tutorial" />
       </Stack.Protected>
 
       <Stack.Protected
@@ -76,7 +78,7 @@ export default function RootLayout() {
       <PaperProvider theme={appTheme}>
         <AuthProvider>
           <SplashScreenController />
-          <RootNavigator />
+          <GuidedTourProvider><RootNavigator /></GuidedTourProvider>
         </AuthProvider>
       </PaperProvider>
     </GestureHandlerRootView>

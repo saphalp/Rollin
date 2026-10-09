@@ -6,6 +6,7 @@ import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Te
 import { ActivityCard } from '@/components/activity-card';
 import { StandaloneRidesSection } from '@/components/rides/standalone-rides-section';
 import { AppText } from '@/components/text';
+import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
@@ -93,27 +94,96 @@ export default function HomeScreen() {
       } else {
         setSavedIds(new Set());
       }
-    }
 
-    let query = supabase
-      .from('activities')
-      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, status, is_recurring, rsvps(id)')
-      .eq('status', 'active')
-      .is('recurrence_parent_id', null)
-      .order('date_time', { ascending: true })
-      .limit(20);
+      let query = supabase
+        .from('activities')
+        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, is_recurring, rsvps(id)')
+        .eq('status', 'active')
+        .is('recurrence_parent_id', null)
+        .order('date_time', { ascending: true })
+        .limit(20);
 
-    // Public activities are visible to everyone; private ones only to
-    // followed hosts (and the host themselves).
-    query = visibleHostIds.length > 0
-      ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
-      : query.eq('event_type', 'public');
+      // Public activities are visible to everyone; private ones only to
+      // followed hosts (and the host themselves).
+      query = visibleHostIds.length > 0
+        ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
+        : query.eq('event_type', 'public');
 
-    if (selectedCategory !== 'All') {
-      query = query.eq('category', selectedCategory.toLowerCase());
-    }
+      if (selectedCategory !== 'All' && selectedCategory !== 'Campus') {
+        query = query.eq('category', selectedCategory.toLowerCase());
+      }
 
-    const { data, error } = await query;
+      const { data, error } = await query;
+      if (!current()) return;
+      if (error) setFeedError('Unable to refresh activities. Pull down to retry.');
+      else setActivities((data ?? []).map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        category: a.category ?? 'social',
+        sortKey: a.date_time
+          ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}`
+          : '9999',
+        date: formatDate(a.date_time),
+        location: a.location ?? undefined,
+        imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category as string] ?? undefined,
+        attendeeCount: a.rsvps?.length ?? 0,
+        maxAttendees: a.max_attendees ?? 10,
+        rideSharing: a.ride_sharing ?? false,
+        recurring: a.is_recurring ?? false,
+        status: a.status ?? 'active',
+      })));
+
+      try {
+        if (!user) { setCampusAccess(false); setUniversity(null); setCampusEvents([]); setAttendance({}); return; }
+        const campus = await getCurrentUniversity();
+        if (!current()) return;
+        setUniversity(campus);
+        setCampusAccess(!!campus?.calendar_enabled);
+        if (!campus?.calendar_enabled) { setCampusEvents([]); setAttendance({}); return; }
+        let events = campusCache.current?.campus === campus.id ? campusCache.current.events : null;
+        if (rotateCampus || !events) {
+          const rows: CampusEvent[] = [];
+          for (let offset = 0; ; offset += 500) {
+            const result = await supabase.from('campus_events').select('*')
+              .eq('campus', campus.id).order('id').range(offset, offset + 499);
+            if (!current()) return;
+            if (result.error) throw result.error;
+            rows.push(...(result.data ?? []) as CampusEvent[]);
+            if ((result.data?.length ?? 0) < 500) break;
+          }
+          events = uniqueCampusEvents(rows).filter(event => !isAcademicCalendar(event));
+          campusCache.current = { campus: campus.id, events };
+        }
+        setCampusEvents(events); setNow(Date.now());
+        // Focus/attendance reloads preserve the preview; only user actions rotate it.
+        if (rotateCampus) setCampusRotation(previous => previous + HOME_CAMPUS_LIMIT);
+        try {
+          const counts: Record<string, number> = {};
+          for (let offset = 0; offset < events.length; offset += 200) {
+            const result = await supabase.rpc('campus_event_attendance', {
+              event_ids: events.slice(offset, offset + 200).map(e => e.id),
+            });
+            if (!current()) return;
+            if (result.error) throw result.error;
+            for (const item of result.data ?? []) counts[item.event_id] = Number(item.attendee_count);
+          }
+          setAttendance(counts);
+        } catch {
+          if (current()) { setAttendance({}); setCampusError('Campus attendance is temporarily unavailable. Pull down to refresh.'); }
+        }
+      } catch {
+        if (current()) {
+          setCampusAccess(false); setUniversity(null); setCampusEvents([]); setAttendance({});
+          setCampusError('Unable to load campus events. Pull down to retry.');
+        }
+      }
+    } catch {
+      if (current()) {
+        setActivities([]); setSavedIds(new Set()); setCampusEvents([]); setAttendance({}); setCampusAccess(false); setUniversity(null);
+        setFeedError('Unable to load Home. Pull down to retry.');
+      }
+    } finally { if (current()) setLoading(false); }
+  }, [selectedCategory]);
 
   useFocusEffect(useCallback(() => { void fetchActivities(); }, [fetchActivities]));
   useEffect(() => {
@@ -147,23 +217,9 @@ export default function HomeScreen() {
     try { await fetchActivities(true); } finally { setRefreshing(false); }
   }, [fetchActivities]);
 
-    if (data) {
-      setActivities(
-        data.map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          category: a.category ?? 'social',
-          date: formatDate(a.date_time),
-          imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category as string] ?? undefined,
-          attendeeCount: a.rsvps?.length ?? 0,
-          maxAttendees: a.max_attendees ?? 10,
-          rideSharing: a.ride_sharing ?? false,
-          recurring: a.is_recurring ?? false,
-          status: a.status ?? 'active',
-        }))
-      );
-    }
-    setLoading(false);
+  function openActivity(activity: Activity) {
+    if (activity.campusEvent) router.push(`/campus-event/${activity.campusEvent.id}`);
+    else router.push(`/activity/${activity.id}`);
   }
 
   async function toggleSave(activityId: string) {

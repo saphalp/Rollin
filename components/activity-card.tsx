@@ -95,7 +95,7 @@ export function ActivityCard({
                 color="#ffffff"
               />
             </TouchableOpacity>
-          </View>}
+          </View>
         </View>
       </View>
 

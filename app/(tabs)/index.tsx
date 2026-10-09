@@ -35,6 +35,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  recurring?: boolean;
   status?: 'active' | 'expired';
 };
 
@@ -110,8 +111,9 @@ export default function HomeScreen() {
 
     let query = supabase
       .from('activities')
-      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+      .select('id, title, category, date_time, max_attendees, ride_sharing, event_type, image_url, status, is_recurring, rsvps(id)')
       .eq('status', 'active')
+      .is('recurrence_parent_id', null)
       .order('date_time', { ascending: true })
       .limit(20);
 
@@ -144,6 +146,7 @@ export default function HomeScreen() {
           attendeeCount: a.rsvps?.length ?? 0,
           maxAttendees: a.max_attendees ?? 10,
           rideSharing: a.ride_sharing ?? false,
+          recurring: a.is_recurring ?? false,
           status: a.status ?? 'active',
         }))
       );
@@ -272,14 +275,23 @@ export default function HomeScreen() {
                     />
                   ) : null}
                   <View style={styles.featuredDim} />
-                  {featured.rideSharing && (
-                    <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
-                      <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
-                      <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-                        Ride sharing available
-                      </AppText>
-                    </View>
-                  )}
+                  <View style={styles.featuredBadgeRow}>
+                    {featured.rideSharing && (
+                      <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
+                        <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
+                        <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
+                          Ride sharing available
+                        </AppText>
+                      </View>
+                    )}
+                    {featured.recurring && (
+                      <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+                        <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
+                          🔁 Recurring
+                        </AppText>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.featuredOverlay}>
                     {featured.host && (
                       <View style={styles.hostRow}>
@@ -320,6 +332,7 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      recurring={activity.recurring}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}
                       onPress={() => router.push(`/activity/${activity.id}`)}
@@ -386,9 +399,13 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  rideBadge: {
+  featuredBadgeRow: {
     flexDirection: 'row',
     alignSelf: 'flex-end',
+    gap: 6,
+  },
+  rideBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     borderRadius: 20,

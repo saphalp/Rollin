@@ -1,9 +1,9 @@
-import { router } from 'expo-router';
-import { Tutorial } from '@/components/tutorial/tutorial';
+import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { useGuidedTour } from '@/components/tutorial/guided-tour-provider';
 
 export default function TutorialScreen() {
-  return <Tutorial onFinish={async () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)');
-  }} />;
+  const { start } = useGuidedTour();
+  useEffect(() => { start(); }, [start]);
+  return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel="Opening tutorial" /></View>;
 }

@@ -1,0 +1,4 @@
+# Merge this section into your existing supabase/config.toml.
+# The handler authenticates scheduled calls with CAMPUS_SYNC_SECRET.
+[functions.sync-campus-events]
+verify_jwt = false

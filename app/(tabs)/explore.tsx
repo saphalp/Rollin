@@ -1,3 +1,4 @@
+import { TourTarget } from '@/components/tutorial/tour-target';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
@@ -168,6 +169,7 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <TourTarget id="explore-heading"><AppText accessibilityRole="header" style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>Explore</AppText></TourTarget>
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator />

@@ -1,3 +1,4 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -287,7 +288,7 @@ export default function PostScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
-        <ScrollView
+        <TourScrollView
           contentContainerStyle={[
             styles.content,
             {
@@ -341,12 +342,12 @@ export default function PostScreen() {
               Activity Details
             </AppText>
 
-            <PostField
+            <TourTarget id="post-title"><PostField
               label="Activity Title"
               value={title}
               onChangeText={setTitle}
               placeholder="Board game night, pickleball, grocery run..."
-            />
+            /></TourTarget>
 
             <View style={styles.categorySection}>
               <AppText
@@ -615,7 +616,7 @@ export default function PostScreen() {
               {saving ? "Creating..." : "Create Activity"}
             </AppText>
           </TouchableOpacity>
-        </ScrollView>
+        </TourScrollView>
       </KeyboardAvoidingView>
     </AppView>
   );

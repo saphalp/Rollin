@@ -1,3 +1,4 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
@@ -8,7 +9,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
   useColorScheme,
   View,
@@ -300,7 +300,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
   return (
     <>
-      <ScrollView
+      <TourScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -352,18 +352,20 @@ export default function UserProfile({ userId }: UserProfileProps) {
         </View>
 
         <View>
-          <SectionHeader
-            header={isOwnProfile ? "My Activities" : "Recent Activities"}
-          />
+          <TourTarget id="profile-activities">
+            <SectionHeader
+              header={isOwnProfile ? "My Activities" : "Recent Activities"}
+            />
 
-          {isOwnProfile && (
-            <View style={styles.activityFilter}>
-              <ActivitySegmentedControl
-                value={activityView}
-                onChange={setActivityView}
-              />
-            </View>
-          )}
+            {isOwnProfile && (
+              <View style={styles.activityFilter}>
+                <ActivitySegmentedControl
+                  value={activityView}
+                  onChange={setActivityView}
+                />
+              </View>
+            )}
+          </TourTarget>
 
           <View style={styles.activitiesList}>
             {activitiesLoading ? (
@@ -408,7 +410,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
           </View>
         </View>
 
-      </ScrollView>
+      </TourScrollView>
 
       {isOwnProfile && (
         <InterestPickerSheet

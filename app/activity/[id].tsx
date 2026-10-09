@@ -7,8 +7,8 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -176,11 +176,28 @@ export default function ActivityDetailScreen() {
   const [boosted, setBoosted] =
     useState(false);
 
+  const [announcements, setAnnouncements] =
+    useState<{ id: string; body: string; created_at: string }[]>([]);
+
   useEffect(() => {
     if (id) {
       void load();
     }
   }, [id]);
+
+    useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      supabase
+        .from("announcements")
+        .select("id, body, created_at")
+        .eq("activity_id", id)
+        .order("created_at", { ascending: false })
+        .limit(5)
+        .then(({ data }) => setAnnouncements(data ?? []));
+    }, [id]),
+  );
+
 
   async function load() {
     setLoading(true);
@@ -837,6 +854,21 @@ export default function ActivityDetailScreen() {
                       fontFamily: Fonts?.sans,
                     }}
                   />
+                  
+                  <Menu.Item
+                    leadingIcon="bullhorn-outline"
+                    title="Send Announcement"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push(
+                        `/activity/announce/${activity.id}`,
+                      );
+                    }}
+                    titleStyle={{
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
 
                   <Menu.Item
                     leadingIcon={
@@ -1207,6 +1239,37 @@ export default function ActivityDetailScreen() {
             )}
           </View>
 
+        {/* Announcements */}
+
+          {announcements.length > 0 && (
+            <View style={styles.descSection}>
+              <AppText
+                style={[
+                  styles.sectionHeading,
+                  { color: colors.text, fontFamily: Fonts?.sans },
+                ]}
+              >
+                Announcements
+              </AppText>
+
+              {announcements.map((a) => (
+                <View key={a.id} style={{ marginTop: 8 }}>
+                  <AppText
+                    style={[
+                      styles.description,
+                      { color: colors.text, fontFamily: Fonts?.sans },
+                    ]}
+                  >
+                    {a.body}
+                  </AppText>
+                  <AppText style={{ color: colors.outline, fontSize: 12 }}>
+                    {new Date(a.created_at).toLocaleString()}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          )}
+         
           {/* Description */}
 
           {activity.description && (

@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RatingReminder } from '@/components/rides/rating-reminder';
+import { FirstLoginTutorial } from '@/components/tutorial/first-login-tutorial';
 import Header from "@/components/Header";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -12,7 +13,7 @@ import { Colors } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-export default function TabLayout() {
+function MainTabs() {
   const colorScheme = useColorScheme() ?? "light";
   const insets = useSafeAreaInsets();
 
@@ -138,6 +139,17 @@ export default function TabLayout() {
         />
       </Tabs>
     </View>
+  );
+}
+
+export default function TabLayout() {
+  const { claims, isLoggedIn, isLoading } = useAuthContext();
+  if (isLoading) return null;
+  if (!isLoggedIn || !claims?.sub) return <Redirect href="/(auth)" />;
+  return (
+    <FirstLoginTutorial key={claims.sub} userId={claims.sub}>
+      <MainTabs />
+    </FirstLoginTutorial>
   );
 }
 

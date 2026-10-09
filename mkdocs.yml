@@ -23,6 +23,7 @@ nav:
   - Features:
       - Authentication: features/authentication.md
       - Password Reset: features/password-reset.md
+      - First-login Tutorial: features/first-login-tutorial.md
       - User Profiles and Connections: features/user-profiles-and-connections.md
       - Activity Creation and Discovery: features/activity-creation-and-discovery.md
       - Messaging and Notifications: features/messaging-and-notifications.md

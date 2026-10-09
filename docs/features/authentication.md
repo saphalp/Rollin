@@ -17,14 +17,14 @@
 ## Decisions
 
 - **Supabase for auth.** It gives us email/password and Google OAuth out of the box, plus a place to run server-side logic (edge functions).
-- **Email confirmation before normal sign-in.** Supabase sends the confirmation email and verifies that the user owns the address used to create the account.
+- **Email confirmation before normal sign-in.** Supabase sends a numeric signup code. The user enters it in Rollin to verify ownership and start an authenticated session.
 - **Educational verification should run server-side.** The mobile client reads the resulting `is_educational_email` value from the profile instead of deciding whether a user is verified. The server-side implementation is configured outside this repository and must also be configured when the backend is recreated.
 - **Hipolabs for educational-domain lookup.** The verification design uses the free Hipolabs Universities API to compare an email domain with known university domains without placing that decision in the client application.
 
 ## Technical Hurdles
 
 - **Subdomains in student emails.** Some schools issue addresses like `student@cs.usc.edu`, but Hipolabs only stores the root domain (`usc.edu`). We strip the subdomain down to the root before matching, or the lookup fails for legitimate users.
-- **Email-confirmation redirection.** Testing a redirect back into the application requires a development or production build with the app's route registered. Expo Go cannot represent the final redirect behavior by itself.
+- **Signup email template.** Supabase's Confirm sign up template must contain `{{ .Token }}` instead of a confirmation link. Keep Confirm email enabled. The code is entered in the app, so signup confirmation needs no email redirect. Existing Resend SMTP and DNS settings can be reused.
 - **Google OAuth redirection.** The redirect URL must agree across the application, Google OAuth configuration, and Supabase authentication settings before the user can return to Rollin successfully.
 
 ## Feature Workflow
@@ -32,10 +32,12 @@
 ### Email and password
 
 1. The user enters an email address and password.
-2. Supabase creates the account and sends an email-confirmation message.
-3. The user confirms ownership of the email address.
-4. After the user signs in, the authentication provider restores the Supabase session and loads the associated profile.
+2. Supabase creates the account and sends an email-confirmation code.
+3. The app passes the signup email to the confirmation screen. The user enters the code, and `verifyOtp` with type `email` confirms ownership and creates a session.
+4. The authentication provider loads the associated profile from that session.
 5. The application routes the user to profile completion or the main tabs based on the current profile state.
+
+Users who try to log in before confirmation return to the code-entry screen. Resend code calls `auth.resend` with type `signup`, with a 60-second cooldown after a successful request or rate-limit response. Invalid/expired codes and request failures are shown inline. Regular login continues to use email and password.
 
 ### Google OAuth
 
@@ -61,7 +63,7 @@ Password field; creates the account on submit.
 The sign-in screen links to the separate [Password Reset](password-reset.md) workflow.
  
 ### Email confirmation
-Solid blue background (not theme-aware), envelope illustration, "Check your inbox" message, Resend link, Back to Login button.
+Solid blue background (not theme-aware), envelope illustration, destination email, numeric verification-code input, Verify code and Resend code buttons, inline feedback, and Back to login button. The screen scrolls when the keyboard is open.
 
 ### Hipolabs Universities API
 

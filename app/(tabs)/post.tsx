@@ -25,6 +25,11 @@ import {
   type PlaceSelection,
 } from "@/components/post/location-autocomplete-field";
 import { PostField } from "@/components/post/post-field";
+import {
+  RecurrenceField,
+  type RecurrenceRule,
+} from "@/components/post/recurrence-field";
+import { generateRecurringDates } from "@/lib/recurrence";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
@@ -114,6 +119,7 @@ export default function PostScreen() {
   const [maxAttendees, setMaxAttendees] = useState("");
   const [eventType, setEventType] = useState<EventType>("public");
   const [ridesAvailable, setRidesAvailable] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceRule>({ type: 'none', endCondition: 'end_of_month' });
   const [imageAsset, setImageAsset] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
@@ -207,7 +213,12 @@ export default function PostScreen() {
 
     const imageUrl = await uploadImage(user.id);
 
-    const { error } = await supabase.from("activities").insert({
+    const isRecurring = recurrence.type !== 'none';
+    const dates = activityDateTime && isRecurring
+      ? generateRecurringDates(activityDateTime, recurrence)
+      : [activityDateTime];
+
+    const baseActivity = {
       host_id: user.id,
       title: title.trim(),
       category: category.toLowerCase(),
@@ -218,18 +229,42 @@ export default function PostScreen() {
       longitude: activityCoordinate.longitude,
       place_id: selectedPlace?.placeId ?? null,
       formatted_address: selectedPlace?.formattedAddress ?? null,
-      date_time: activityDateTime ? activityDateTime.toISOString() : null,
       max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
       event_type: eventType,
       ride_sharing: ridesAvailable,
-    });
+      is_recurring: isRecurring,
+      recurrence_rule: isRecurring ? recurrence : null,
+    };
 
-    setSaving(false);
+    // Insert parent activity first
+    const { data: parentData, error: parentError } = await supabase
+      .from("activities")
+      .insert({ ...baseActivity, date_time: dates[0] ? dates[0].toISOString() : null })
+      .select('id')
+      .single();
 
-    if (error) {
-      Alert.alert("Error", error.message);
+    if (parentError) {
+      Alert.alert("Error", parentError.message);
+      setSaving(false);
       return;
     }
+
+    // Insert remaining recurring instances
+    if (isRecurring && dates.length > 1 && parentData) {
+      const instances = dates.slice(1).map((d) => ({
+        ...baseActivity,
+        date_time: d.toISOString(),
+        recurrence_parent_id: parentData.id,
+      }));
+      const { error: instancesError } = await supabase.from("activities").insert(instances);
+      if (instancesError) {
+        console.error('Failed to create recurring instances:', instancesError);
+      }
+    }
+
+    const error = null;
+
+    setSaving(false);
 
     setTitle("");
     setCategory("Social");
@@ -240,6 +275,7 @@ export default function PostScreen() {
     setMaxAttendees("");
     setEventType("public");
     setRidesAvailable(false);
+    setRecurrence({ type: 'none', endCondition: 'end_of_month' });
     setImageAsset(null);
 
     router.replace("/(tabs)");
@@ -442,6 +478,12 @@ export default function PostScreen() {
                 />
               </View>
             </View>
+
+            <RecurrenceField
+              value={recurrence}
+              onChange={setRecurrence}
+              baseDate={activityDateTime}
+            />
 
             <PostField
               label="Max Attendees"

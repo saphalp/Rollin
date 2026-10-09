@@ -42,6 +42,8 @@ type ActivityDetail = {
   ride_sharing: boolean;
   event_type: "public" | "private";
   host_id: string;
+  is_recurring: boolean;
+  recurrence_rule: { type: string; endCondition: string; endDate?: string; occurrences?: number } | null;
   rsvps: {
     id: string;
     user_id: string;
@@ -78,6 +80,21 @@ function formatTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatRecurrenceLabel(
+  rule: { type: string; endCondition: string; endDate?: string; occurrences?: number },
+  dateTime: string | null,
+): string {
+  const base = rule.type === 'weekly' ? 'Every week' : 'Every month';
+  if (rule.endCondition === 'specific_date' && rule.endDate) {
+    const end = new Date(rule.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${base} · Until ${end}`;
+  }
+  if (rule.endCondition === 'end_of_month') return `${base} · Until end of month`;
+  if (rule.endCondition === 'end_of_quarter') return `${base} · Until end of quarter`;
+  if (rule.endCondition === 'occurrences') return `${base} · ${rule.occurrences ?? 4} occurrences`;
+  return base;
 }
 
 /*
@@ -208,6 +225,8 @@ export default function ActivityDetailScreen() {
           ride_sharing,
           event_type,
           host_id,
+          is_recurring,
+          recurrence_rule,
           rsvps(id, user_id)
           `,
         )
@@ -1127,6 +1146,26 @@ export default function ActivityDetailScreen() {
                     styles.metaDivider
                   }
                 />
+              </>
+            )}
+
+            {activity.is_recurring && activity.recurrence_rule && (
+              <>
+                <View style={styles.metaRow}>
+                  <AppText style={{ fontSize: 16 }}>🔁</AppText>
+                  <AppText
+                    style={[
+                      styles.metaText,
+                      {
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {formatRecurrenceLabel(activity.recurrence_rule, activity.date_time)}
+                  </AppText>
+                </View>
+                <View style={styles.metaDivider} />
               </>
             )}
 

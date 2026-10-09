@@ -138,13 +138,14 @@ export default function UserProfile({ userId }: UserProfileProps) {
         .from("activities")
         .select("id, title, date_time, image_url, category")
         .eq("host_id", userId)
+        .is("recurrence_parent_id", null)
         .order("date_time", { ascending: false });
 
       const joinedRequest = isOwnProfile
         ? supabase
           .from("rsvps")
           .select(
-            "activity:activities(id, title, date_time, image_url, category)",
+            "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
           )
           .eq("user_id", userId)
         : Promise.resolve({ data: [], error: null });
@@ -170,7 +171,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
       const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
       const joined = joinedRows.flatMap((row) => {
         if (!row.activity) return [];
-        return Array.isArray(row.activity) ? row.activity : [row.activity];
+        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+        return activities.filter((a: any) => !a.recurrence_parent_id);
       });
 
       setJoinedActivities(

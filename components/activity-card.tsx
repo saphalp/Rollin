@@ -17,6 +17,7 @@ type ActivityCardProps = {
   attendeeCount?: number;
   maxAttendees?: number;
   rideSharing?: boolean;
+  recurring?: boolean;
   saved?: boolean;
   onBookmarkPress?: () => void;
   onPress?: () => void;
@@ -32,6 +33,7 @@ export function ActivityCard({
   attendeeCount,
   maxAttendees,
   rideSharing,
+  recurring = false,
   saved = false,
   onBookmarkPress,
   onPress,
@@ -78,7 +80,14 @@ export function ActivityCard({
               </AppText>
             </View>
           )}
-          {!isCampusEvent && <View onStartShouldSetResponder={() => true}>
+          {recurring && (
+            <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+              <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
+                🔁 Recurring
+              </AppText>
+            </View>
+          )}
+          <View onStartShouldSetResponder={() => true}>
             <TouchableOpacity hitSlop={8} onPress={() => onBookmarkPress?.()}>
               <IconSymbol
                 name={saved ? 'bookmark.fill' : 'bookmark'}

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export const TUTORIAL_METADATA_KEY = 'rollin_tutorial_v1';
+export const TUTORIAL_METADATA_KEY = 'rollin_tutorial_v2';
 export type TutorialOutcome = 'completed' | 'skipped';
 
 async function currentUser(userId: string) {

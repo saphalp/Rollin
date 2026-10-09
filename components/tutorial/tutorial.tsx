@@ -1,111 +1,128 @@
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TourButton } from './tour-button';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import type { TutorialOutcome } from '@/lib/tutorial';
-import { TUTORIAL_STEPS } from './tutorial-steps';
+import { overviewLayout, spotlightLayout, TUTORIAL_STEPS, type TourRect } from './tutorial-steps';
 
+type Target = { measure: (done: (rect: TourRect) => void) => void; reveal: () => void };
 type Props = {
-  onFinish: (outcome: TutorialOutcome) => Promise<void>;
-  onContinueWithoutSaving?: () => void;
+  step: number; readyRoute: boolean; getTarget: () => Target | undefined;
+  saving: boolean; error: boolean; onBack: () => void; onNext: () => void;
+  onReturnToPage: () => void; onSkip: () => void; onContinueWithoutSaving: () => void;
 };
 
-export function Tutorial({ onFinish, onContinueWithoutSaving }: Props) {
+export function Tutorial({ step, readyRoute, getTarget, saving, error, onBack, onNext, onReturnToPage, onSkip, onContinueWithoutSaving }: Props) {
   const colors = Colors[useColorScheme() ?? 'light'];
-  const [step, setStep] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(false);
-  const pending = useRef(false);
-  const scroll = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const { fontScale } = window;
+  const root = useRef<View>(null);
+  const [size, setSize] = useState({ width: window.width, height: window.height });
+  const [rect, setRect] = useState<TourRect | null>(null);
+  const [cardHeight, setCardHeight] = useState(0);
   const current = TUTORIAL_STEPS[step];
-  const last = step === TUTORIAL_STEPS.length - 1;
+  const overview = !current.target;
+  const interaction = !!current.destination;
+  const stackButtons = fontScale > 1.3 || size.width < 380;
+  const page = TUTORIAL_STEPS.slice(0, step + 1).filter(item => !item.target).length;
+  const pages = TUTORIAL_STEPS.filter(item => !item.target).length;
 
-  function move(next: number) {
-    setStep(next);
-    scroll.current?.scrollTo({ y: 0, animated: false });
-  }
-
-  async function finish(outcome: TutorialOutcome) {
-    if (pending.current) return;
-    pending.current = true;
-    setSaving(true);
-    setError(false);
-    try {
-      await onFinish(outcome);
-    } catch {
-      setError(true);
-    } finally {
-      pending.current = false;
-      setSaving(false);
+  useLayoutEffect(() => {
+    let alive = true;
+    let frame = 0;
+    let revealed: Target | undefined;
+    function measure() {
+      if (!alive) return;
+      if (readyRoute) {
+        const target = getTarget();
+        if (target) {
+          if (revealed !== target) { revealed = target; if (!overview) target.reveal(); }
+          root.current?.measureInWindow((rootX, rootY) => {
+            target.measure(value => {
+              if (!alive || value.width <= 0 || value.height <= 0) return;
+              const next = { ...value, x: value.x - rootX, y: value.y - rootY };
+              if (next.y >= size.height || next.y + next.height <= 0) return;
+              setRect(old => old && Object.keys(next).every(key => Math.abs(old[key as keyof TourRect] - next[key as keyof TourRect]) < 1) ? old : next);
+            });
+          });
+        }
+      }
+      frame = requestAnimationFrame(measure);
     }
-  }
+    measure();
+    return () => { alive = false; cancelAnimationFrame(frame); };
+  }, [overview, readyRoute, getTarget, size.height, size.width]);
 
+  const { hole, cardTop } = spotlightLayout(interaction && !current.target?.startsWith('tab-') && rect ? { x: rect.x - 6, y: rect.y - 6, width: rect.width + 12, height: rect.height + 12 } : rect, size.width, size.height, insets.top, insets.bottom);
+  const note = overviewLayout(rect, size.width, size.height, insets.top, insets.bottom, current.placement);
+  const width = size.width - 32;
+  const safeTop = insets.top + 12;
+  const safeBottom = size.height - insets.bottom - 12;
+  const preferredTop = overview ? ('bottom' in note.card ? size.height - note.card.bottom - cardHeight : note.card.top) : cardTop;
+  const top = Math.max(safeTop, Math.min(preferredTop, safeBottom - cardHeight));
+  const overlapsTarget = !!hole && top < hole.y + hole.height && top + cardHeight > hole.y;
+  // Preserve tappable navigation targets if a note needs more room than the default placement.
+  const finalTop = overview && current.placement === 'below' && rect
+    ? rect.y + rect.height + 16
+    : interaction && hole && overlapsTarget
+    ? (hole.y > size.height / 2 ? Math.max(safeTop, hole.y - cardHeight - 12) : hole.y + hole.height + 12)
+    : top;
+  const path = `M0 0H${size.width}V${size.height}H0Z` + (hole ? `M${hole.x} ${hole.y}h${hole.width}v${hole.height}h-${hole.width}Z` : '');
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={styles.top}>
-        <Text style={[styles.brand, { color: colors.tint }]}>Rollin&apos; / Quick start</Text>
-        <Button textColor={colors.tint} disabled={saving} onPress={() => void finish('skipped')}>Skip</Button>
-      </View>
-      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
-        <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
-          <View style={[styles.icon, { backgroundColor: colors.surfaceContainerHigh }]}>
-            <IconSymbol name={current.icon} size={48} color={colors.tint} />
-          </View>
-          <Text style={[styles.label, { color: colors.tint }]}>{current.label}</Text>
-          <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={[styles.title, { color: colors.text }]}>{current.title}</Text>
-          <Text style={[styles.description, { color: colors.icon }]}>{current.description}</Text>
-          {current.tips.map((tip, index) => (
-            <View key={tip} style={styles.tip}>
-              <Text style={[styles.number, { color: colors.tint }]}>{index + 1}.</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>{tip}</Text>
+    <View ref={root} collapsable={false} style={styles.overlay} pointerEvents={overview || interaction ? 'box-none' : 'auto'} accessibilityViewIsModal={!overview && !interaction} onLayout={event => setSize(event.nativeEvent.layout)}>
+      {!overview && !interaction && <Pressable style={StyleSheet.absoluteFill} accessible={false} onPress={() => {}} />}
+      {interaction && hole && <>
+        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: 0, left: 0, right: 0, height: hole.y }]} />
+        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y + hole.height, left: 0, right: 0, bottom: 0 }]} />
+        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y, left: 0, width: hole.x, height: hole.height }]} />
+        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y, left: hole.x + hole.width, right: 0, height: hole.height }]} />
+      </>}
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        {!overview && <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Path d={path} fill="rgba(0,0,0,0.72)" fillRule="evenodd" />
+        </Svg>}
+        {!overview && hole && <View pointerEvents="none" style={[styles.highlight, { left: hole.x, top: hole.y, width: hole.width, height: hole.height, borderColor: colors.tint }]} />}
+        {overview && rect && cardHeight > 0 && <View pointerEvents="none" style={[styles.arrow, { left: note.arrowX - 8, top: (note.above ? finalTop + cardHeight : finalTop - 16), borderTopColor: note.above ? colors.cardBackground : 'transparent', borderBottomColor: note.above ? 'transparent' : colors.cardBackground }]} />}
+        <View onLayout={event => setCardHeight(event.nativeEvent.layout.height)} style={[styles.card, { top: finalTop, left: 16, width, backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+          <View style={styles.content}>
+            <View style={styles.heading}>
+              <Text style={{ color: colors.icon, flexShrink: 1 }}>Page {page} of {pages} - {overview ? 'Overview' : 'Details'}</Text>
+              <TourButton disabled={saving} onPress={onSkip}>Skip</TourButton>
             </View>
-          ))}
-        </View>
-      </ScrollView>
-      <View style={styles.footer}>
-        <Text style={[styles.progress, { color: colors.icon }]}>Step {step + 1} of {TUTORIAL_STEPS.length}</Text>
-        {error && (
-          <View style={styles.error}>
-            <Text accessibilityRole="alert" style={{ color: colors.error }}>
-              We couldn&apos;t save your tutorial preference. Check your connection and try again.
-            </Text>
-            {onContinueWithoutSaving && (
-              <Button disabled={saving} onPress={onContinueWithoutSaving} textColor={colors.tint}>Continue without saving</Button>
-            )}
+            <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={[styles.title, { color: colors.text }]}>{current.title}</Text>
+            <Text style={[styles.description, { color: colors.text }]}>{current.description}</Text>
+            {overview && !readyRoute && <TourButton onPress={onReturnToPage}>Return to this page</TourButton>}
+            {error && <>
+              <Text accessibilityRole="alert" style={{ color: colors.error }}>Could not save. Try again or continue without saving.</Text>
+              <TourButton onPress={onContinueWithoutSaving} disabled={saving}>Continue without saving</TourButton>
+            </>}
+            {saving && <Text accessibilityLiveRegion="polite" style={{ color: colors.icon }}>Saving...</Text>}
+            <View style={[styles.actions, stackButtons && styles.stacked]}>
+              <View style={[styles.action, stackButtons && styles.stackedAction]}><TourButton disabled={step === 0 || saving} onPress={onBack}>Back</TourButton></View>
+              {!interaction && <View style={[styles.action, stackButtons && styles.stackedAction]}><TourButton primary disabled={saving} onPress={onNext}>{step === TUTORIAL_STEPS.length - 1 ? 'Finish' : 'Next'}</TourButton></View>}
+            </View>
           </View>
-        )}
-        <View style={styles.actions}>
-          <Button mode="outlined" disabled={step === 0 || saving} onPress={() => move(step - 1)} textColor={colors.tint} style={styles.back}>Back</Button>
-          <Button mode="contained" loading={saving} disabled={saving} onPress={() => last ? void finish('completed') : move(step + 1)} buttonColor={colors.tint} textColor={colors.onPrimary} style={styles.next} contentStyle={styles.button}>
-            {last ? 'Start exploring' : 'Next'}
-          </Button>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
-
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8 },
-  brand: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
-  content: { flexGrow: 1, padding: 20, justifyContent: 'center', alignItems: 'center' },
-  card: { width: '100%', maxWidth: 560, borderWidth: 1, borderRadius: 24, padding: 24, gap: 18 },
-  icon: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 14, fontWeight: '700' },
-  title: { fontSize: 30, lineHeight: 38, fontWeight: '700' },
-  description: { fontSize: 17, lineHeight: 26 },
-  tip: { flexDirection: 'row', gap: 10 },
-  number: { fontSize: 16, fontWeight: '700', lineHeight: 24 },
-  tipText: { flex: 1, fontSize: 16, lineHeight: 24 },
-  footer: { width: '100%', maxWidth: 600, alignSelf: 'center', padding: 20, gap: 12 },
-  progress: { textAlign: 'center', fontSize: 14 },
-  actions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  back: { flex: 1 },
-  next: { flex: 2 },
-  button: { minHeight: 48 },
-  error: { gap: 8 },
+  overlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 1000, elevation: 1000 },
+  highlight: { position: 'absolute', borderWidth: 2, borderRadius: 8 },
+  arrow: { position: 'absolute', width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 8, borderBottomWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
+  card: { position: 'absolute', borderWidth: 1, borderRadius: 18, elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  content: { padding: 16, gap: 8 },
+  blocker: { position: 'absolute' },
+  heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  actions: { flexDirection: 'row', gap: 12 },
+  stacked: { flexDirection: 'column' },
+  action: { flex: 1, minWidth: 0 },
+  stackedAction: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
+  title: { fontSize: 20, fontWeight: '700' },
+  description: { fontSize: 16, lineHeight: 23 },
 });

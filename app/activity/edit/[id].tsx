@@ -19,6 +19,7 @@ import {
   type PlaceSelection,
 } from '@/components/post/location-autocomplete-field';
 import { PostField } from '@/components/post/post-field';
+import { RecurrenceField, type RecurrenceRule } from '@/components/post/recurrence-field';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
@@ -58,12 +59,15 @@ export default function EditActivityScreen() {
   const [rideSharing, setRideSharing] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newAsset, setNewAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceParentId, setRecurrenceParentId] = useState<string | null>(null);
+  const [recurrence, setRecurrence] = useState<RecurrenceRule>({ type: 'none', endCondition: 'end_of_month' });
 
   async function loadActivity() {
     const { data, error } = await supabase
       .from('activities')
       .select(
-        'title, category, description, location, date_time, max_attendees, ride_sharing, image_url, host_id'
+        'title, category, description, location, date_time, max_attendees, ride_sharing, image_url, host_id, is_recurring, recurrence_parent_id, recurrence_rule'
       )
       .eq('id', id)
       .single();
@@ -101,6 +105,11 @@ export default function EditActivityScreen() {
 
     setMaxAttendees(data.max_attendees ? String(data.max_attendees) : '');
     setRideSharing(Boolean(data.ride_sharing));
+    setIsRecurring(Boolean(data.is_recurring));
+    setRecurrenceParentId(data.recurrence_parent_id ?? null);
+    if (data.recurrence_rule) {
+      setRecurrence(data.recurrence_rule as RecurrenceRule);
+    }
 
     setLoading(false);
   }
@@ -153,6 +162,23 @@ export default function EditActivityScreen() {
       return;
     }
 
+    if (isRecurring) {
+      Alert.alert(
+        'Edit recurring activity',
+        'Do you want to edit just this activity or all future activities in this series?',
+        [
+          { text: 'Just this one', onPress: () => performSave(false) },
+          { text: 'All future', onPress: () => performSave(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+      return;
+    }
+
+    performSave(false);
+  }
+
+  async function performSave(allFuture: boolean) {
     setSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -170,23 +196,36 @@ export default function EditActivityScreen() {
       if (!isNaN(parsed.getTime())) dateTime = parsed.toISOString();
     }
 
+    const isNowRecurring = recurrence.type !== 'none';
+    const updatePayload = {
+      title: title.trim(),
+      category: category.toLowerCase(),
+      description: description.trim() || null,
+      image_url: imageUrl,
+      location: location.trim() || null,
+      place_id: selectedPlace?.placeId ?? null,
+      formatted_address: selectedPlace?.formattedAddress ?? null,
+      ...(selectedPlace ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude } : {}),
+      max_attendees: maxAttendees ? parseInt(maxAttendees) : 10,
+      ride_sharing: rideSharing,
+      is_recurring: isNowRecurring,
+      recurrence_rule: isNowRecurring ? recurrence : null,
+    };
+
+    // Update all future instances if requested
+    if (allFuture && (recurrenceParentId || isRecurring)) {
+      const parentId = recurrenceParentId ?? id;
+      const currentDateTime = dateTime;
+      await supabase
+        .from('activities')
+        .update(updatePayload)
+        .or(`id.eq.${parentId},recurrence_parent_id.eq.${parentId}`)
+        .gte('date_time', currentDateTime ?? new Date().toISOString());
+    }
+
     const { data: updatedActivity, error } = await supabase
       .from('activities')
-      .update({
-        title: title.trim(),
-        category: category.toLowerCase(),
-        description: description.trim() || null,
-        image_url: imageUrl,
-        location: location.trim() || null,
-        place_id: selectedPlace?.placeId ?? null,
-        formatted_address: selectedPlace?.formattedAddress ?? null,
-        ...(selectedPlace ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude } : {}),
-        date_time: dateTime,
-        max_attendees: maxAttendees
-          ? parseInt(maxAttendees)
-          : 10,
-        ride_sharing: rideSharing,
-      })
+      .update({ ...updatePayload, date_time: dateTime })
       .eq('id', id)
       .select()
       .maybeSingle();
@@ -431,6 +470,11 @@ export default function EditActivityScreen() {
                 </View>
               </View>
               <PostField label="Max Attendees" value={maxAttendees} onChangeText={setMaxAttendees} placeholder="10" keyboardType="numeric" />
+              <RecurrenceField
+                value={recurrence}
+                onChange={(rule) => { setRecurrence(rule); setIsRecurring(rule.type !== 'none'); }}
+                baseDate={date.trim() && time.trim() ? new Date(`${date.trim()} ${time.trim()}`) : null}
+              />
             </View>
 
             {/* Ride sharing */}

@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RatingReminder } from '@/components/rides/rating-reminder';
+import { useGuidedTour } from '@/components/tutorial/guided-tour-provider';
 import Header from "@/components/Header";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -12,16 +13,17 @@ import { Colors } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-export default function TabLayout() {
+function MainTabs() {
   const colorScheme = useColorScheme() ?? "light";
   const insets = useSafeAreaInsets();
+  const { promptsBlocked } = useGuidedTour();
 
   const { isLoggedIn, isLoading } = useAuthContext();
   useEffect(() => {
-    if (!isLoading && isLoggedIn) {
+    if (!isLoading && isLoggedIn && !promptsBlocked) {
       registerPushToken();
     }
-  }, [isLoading, isLoggedIn]);
+  }, [isLoading, isLoggedIn, promptsBlocked]);
   if (!isLoading && !isLoggedIn) return <Redirect href="/(auth)" />;
 
   return (
@@ -43,7 +45,7 @@ export default function TabLayout() {
       >
         <Header />
       </View>
-      <RatingReminder />
+      {!promptsBlocked && <RatingReminder />}
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: Colors[colorScheme].tint,
@@ -72,8 +74,9 @@ export default function TabLayout() {
           name="index"
           options={{
             title: "Home",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-home" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="house.fill" color={color} />
+              <IconSymbol size={24} name="house.fill" color={color} style={styles.tourGlyph} />
             ),
           }}
         />
@@ -81,8 +84,9 @@ export default function TabLayout() {
           name="explore"
           options={{
             title: "Explore",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-explore" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="safari" color={color} />
+              <IconSymbol size={24} name="safari" color={color} style={styles.tourGlyph} />
             ),
           }}
         />
@@ -90,8 +94,9 @@ export default function TabLayout() {
           name="post"
           options={{
             title: "Post",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-post" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="plus.circle" color={color} />
+              <IconSymbol size={24} name="plus.circle" color={color} style={styles.tourGlyph} />
             ),
           }}
         />
@@ -99,8 +104,9 @@ export default function TabLayout() {
           name="rides"
           options={{
             title: "Rides",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-rides" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="car.fill" color={color} />
+              <IconSymbol size={24} name="car.fill" color={color} style={styles.tourGlyph} />
             ),
           }}
         />
@@ -108,8 +114,9 @@ export default function TabLayout() {
           name="chats"
           options={{
             title: "Chats",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-chats" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="bubble.left.fill" color={color} />
+              <IconSymbol size={24} name="bubble.left.fill" color={color} style={styles.tourGlyph} />
             ),
           }}
         />
@@ -117,8 +124,9 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: "Profile",
+            tabBarButton: props => <HapticTab {...props} tourId="tab-profile" />,
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={24} name="person.fill" color={color} />
+              <IconSymbol size={24} name="person.fill" color={color} style={styles.tourGlyph} />
             ),
             sceneStyle: [
               styles.noScenePadding,
@@ -141,7 +149,15 @@ export default function TabLayout() {
   );
 }
 
+export default function TabLayout() {
+  const { claims, isLoggedIn, isLoading } = useAuthContext();
+  if (isLoading) return null;
+  if (!isLoggedIn || !claims?.sub) return <Redirect href="/(auth)" />;
+  return <MainTabs />;
+}
+
 const styles = StyleSheet.create({
+  tourGlyph: { lineHeight: 24, includeFontPadding: false },
   root: {
     flex: 1,
   },

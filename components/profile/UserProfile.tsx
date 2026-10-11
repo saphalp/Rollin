@@ -1,3 +1,4 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
@@ -8,7 +9,6 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
   useColorScheme,
   View,
@@ -138,13 +138,14 @@ export default function UserProfile({ userId }: UserProfileProps) {
         .from("activities")
         .select("id, title, date_time, image_url, category")
         .eq("host_id", userId)
+        .is("recurrence_parent_id", null)
         .order("date_time", { ascending: false });
 
       const joinedRequest = isOwnProfile
         ? supabase
           .from("rsvps")
           .select(
-            "activity:activities(id, title, date_time, image_url, category)",
+            "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
           )
           .eq("user_id", userId)
         : Promise.resolve({ data: [], error: null });
@@ -170,7 +171,8 @@ export default function UserProfile({ userId }: UserProfileProps) {
       const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
       const joined = joinedRows.flatMap((row) => {
         if (!row.activity) return [];
-        return Array.isArray(row.activity) ? row.activity : [row.activity];
+        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+        return activities.filter((a: any) => !a.recurrence_parent_id);
       });
 
       setJoinedActivities(
@@ -298,7 +300,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
 
   return (
     <>
-      <ScrollView
+      <TourScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -350,18 +352,20 @@ export default function UserProfile({ userId }: UserProfileProps) {
         </View>
 
         <View>
-          <SectionHeader
-            header={isOwnProfile ? "My Activities" : "Recent Activities"}
-          />
+          <TourTarget id="profile-activities">
+            <SectionHeader
+              header={isOwnProfile ? "My Activities" : "Recent Activities"}
+            />
 
-          {isOwnProfile && (
-            <View style={styles.activityFilter}>
-              <ActivitySegmentedControl
-                value={activityView}
-                onChange={setActivityView}
-              />
-            </View>
-          )}
+            {isOwnProfile && (
+              <View style={styles.activityFilter}>
+                <ActivitySegmentedControl
+                  value={activityView}
+                  onChange={setActivityView}
+                />
+              </View>
+            )}
+          </TourTarget>
 
           <View style={styles.activitiesList}>
             {activitiesLoading ? (
@@ -406,7 +410,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
           </View>
         </View>
 
-      </ScrollView>
+      </TourScrollView>
 
       {isOwnProfile && (
         <InterestPickerSheet

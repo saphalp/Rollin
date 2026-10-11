@@ -7,8 +7,8 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -42,6 +42,8 @@ type ActivityDetail = {
   ride_sharing: boolean;
   event_type: "public" | "private";
   host_id: string;
+  is_recurring: boolean;
+  recurrence_rule: { type: string; endCondition: string; endDate?: string; occurrences?: number } | null;
   rsvps: {
     id: string;
     user_id: string;
@@ -78,6 +80,21 @@ function formatTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatRecurrenceLabel(
+  rule: { type: string; endCondition: string; endDate?: string; occurrences?: number },
+  dateTime: string | null,
+): string {
+  const base = rule.type === 'weekly' ? 'Every week' : 'Every month';
+  if (rule.endCondition === 'specific_date' && rule.endDate) {
+    const end = new Date(rule.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${base} · Until ${end}`;
+  }
+  if (rule.endCondition === 'end_of_month') return `${base} · Until end of month`;
+  if (rule.endCondition === 'end_of_quarter') return `${base} · Until end of quarter`;
+  if (rule.endCondition === 'occurrences') return `${base} · ${rule.occurrences ?? 4} occurrences`;
+  return base;
 }
 
 /*
@@ -165,11 +182,28 @@ export default function ActivityDetailScreen() {
   const [waitlistLoading, setWaitlistLoading] =
     useState(false);
 
+  const [announcements, setAnnouncements] =
+    useState<{ id: string; body: string; created_at: string }[]>([]);
+
   useEffect(() => {
     if (id) {
       void load();
     }
   }, [id]);
+
+    useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      supabase
+        .from("announcements")
+        .select("id, body, created_at")
+        .eq("activity_id", id)
+        .order("created_at", { ascending: false })
+        .limit(5)
+        .then(({ data }) => setAnnouncements(data ?? []));
+    }, [id]),
+  );
+
 
   async function load() {
     setLoading(true);
@@ -197,6 +231,8 @@ export default function ActivityDetailScreen() {
           ride_sharing,
           event_type,
           host_id,
+          is_recurring,
+          recurrence_rule,
           rsvps(id, user_id)
           `,
         )
@@ -866,6 +902,21 @@ export default function ActivityDetailScreen() {
                       fontFamily: Fonts?.sans,
                     }}
                   />
+                  
+                  <Menu.Item
+                    leadingIcon="bullhorn-outline"
+                    title="Send Announcement"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push(
+                        `/activity/announce/${activity.id}`,
+                      );
+                    }}
+                    titleStyle={{
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
 
                   <Menu.Item
                     leadingIcon={
@@ -1146,6 +1197,26 @@ export default function ActivityDetailScreen() {
               </>
             )}
 
+            {activity.is_recurring && activity.recurrence_rule && (
+              <>
+                <View style={styles.metaRow}>
+                  <AppText style={{ fontSize: 16 }}>🔁</AppText>
+                  <AppText
+                    style={[
+                      styles.metaText,
+                      {
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                  >
+                    {formatRecurrenceLabel(activity.recurrence_rule, activity.date_time)}
+                  </AppText>
+                </View>
+                <View style={styles.metaDivider} />
+              </>
+            )}
+
             <View
               style={
                 styles.metaRow
@@ -1216,6 +1287,37 @@ export default function ActivityDetailScreen() {
             )}
           </View>
 
+        {/* Announcements */}
+
+          {announcements.length > 0 && (
+            <View style={styles.descSection}>
+              <AppText
+                style={[
+                  styles.sectionHeading,
+                  { color: colors.text, fontFamily: Fonts?.sans },
+                ]}
+              >
+                Announcements
+              </AppText>
+
+              {announcements.map((a) => (
+                <View key={a.id} style={{ marginTop: 8 }}>
+                  <AppText
+                    style={[
+                      styles.description,
+                      { color: colors.text, fontFamily: Fonts?.sans },
+                    ]}
+                  >
+                    {a.body}
+                  </AppText>
+                  <AppText style={{ color: colors.outline, fontSize: 12 }}>
+                    {new Date(a.created_at).toLocaleString()}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          )}
+         
           {/* Description */}
 
           {activity.description && (

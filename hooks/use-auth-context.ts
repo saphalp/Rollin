@@ -10,6 +10,7 @@ export type Profile = {
   is_educational_email: boolean | null;
   educational_domain_checked_at: string | null;
   profile_completed: boolean;
+  is_driver: boolean;
   created_at: string;
 };
 

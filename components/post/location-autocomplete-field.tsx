@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -230,13 +229,10 @@ export function LocationAutocompleteField({
                 No results
               </AppText>
             ) : (
-              <FlatList
-                data={suggestions}
-                keyExtractor={(item) => item.placeId}
-                keyboardShouldPersistTaps="handled"
-                scrollEnabled={false}
-                renderItem={({ item, index }) => (
+              <View>
+                {suggestions.map((item, index) => (
                   <TouchableOpacity
+                    key={item.placeId}
                     style={[
                       styles.row,
                       index < suggestions.length - 1 && {
@@ -262,8 +258,8 @@ export function LocationAutocompleteField({
                       </AppText>
                     )}
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </View>
             )}
           </View>
         )}
@@ -301,6 +297,7 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
+    maxHeight: 220,
     borderWidth: 1,
     borderRadius: 14,
     marginTop: 4,

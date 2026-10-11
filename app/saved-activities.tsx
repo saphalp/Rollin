@@ -25,6 +25,7 @@ type SavedActivity = {
   imageUrl?: string;
   attendeeCount: number;
   maxAttendees: number;
+  status: 'active' | 'expired';
 };
 
 function formatDate(dateStr: string | null): string | undefined {
@@ -110,12 +111,19 @@ function SwipeableRow({ item, onRemove, colors }: SwipeableRowProps) {
           cachePolicy="memory-disk"
         />
         <View style={styles.cardBody}>
-          <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
-            <AppText style={[styles.categoryText, { color: categoryColor, fontFamily: Fonts?.sans }]}>
-              {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-            </AppText>
+          <View style={styles.badgeRow}>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
+              <AppText style={[styles.categoryText, { color: categoryColor, fontFamily: Fonts?.sans }]}>
+                {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+              </AppText>
+            </View>
+            {item.status === 'expired' && (
+              <View style={styles.expiredBadge}>
+                <AppText style={[styles.expiredText, { fontFamily: Fonts?.sans }]}>Expired</AppText>
+              </View>
+            )}
           </View>
-          <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]} numberOfLines={2}>
+          <AppText style={[styles.title, { color: item.status === 'expired' ? colors.outline : colors.text, fontFamily: Fonts?.sans }]} numberOfLines={2}>
             {item.title}
           </AppText>
           <View style={styles.metaRow}>
@@ -156,7 +164,7 @@ export default function SavedActivitiesScreen() {
 
     const { data, error } = await supabase
       .from('saved_activities')
-      .select('activity_id, activities(id, title, category, date_time, max_attendees, image_url, rsvps(id))')
+      .select('activity_id, activities(id, title, category, date_time, max_attendees, image_url, status, rsvps(id))')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -174,6 +182,7 @@ export default function SavedActivitiesScreen() {
           imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category] ?? undefined,
           attendeeCount: a.rsvps?.length ?? 0,
           maxAttendees: a.max_attendees ?? 10,
+          status: a.status ?? 'active',
         };
       }).filter(Boolean) as SavedActivity[]
     );
@@ -270,6 +279,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 5,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   categoryBadge: {
     alignSelf: 'flex-start',
     borderRadius: 6,
@@ -279,6 +294,17 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  expiredBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#EF444420',
+  },
+  expiredText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EF4444',
   },
   title: {
     fontSize: 15,

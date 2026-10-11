@@ -1,3 +1,4 @@
+import { TourTarget } from '@/components/tutorial/tour-target';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
@@ -209,6 +210,9 @@ export default function NotificationsScreen() {
 
   return (
     <AppView style={styles.container}>
+      <TourTarget id="notification-heading" style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+        <AppText accessibilityRole="header" style={{ fontSize: 24, fontWeight: '700' }}>Notifications</AppText>
+      </TourTarget>
       {loading ? (
         <ActivityIndicator style={styles.loader} color={colors.tint} />
       ) : notifications.length === 0 ? (

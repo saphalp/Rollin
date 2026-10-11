@@ -1,7 +1,7 @@
+import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import {
   ActivityIndicator,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   useColorScheme,
   View,
@@ -29,13 +29,13 @@ export default function ChatsScreen() {
 
   return (
     <AppView style={styles.container}>
-      <ScrollView
+      <TourScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.titleRow}>
+        <TourTarget id="chat-heading"><View style={styles.titleRow}>
           <Text
             style={[
               styles.title,
@@ -44,7 +44,7 @@ export default function ChatsScreen() {
           >
             Messages
           </Text>
-        </View>
+        </View></TourTarget>
 
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
@@ -92,7 +92,7 @@ export default function ChatsScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+      </TourScrollView>
     </AppView>
   );
 }

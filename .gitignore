@@ -53,3 +53,5 @@ app-example
 # MkDocs documentation
 .venv-docs/
 site/
+
+supabase/

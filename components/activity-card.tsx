@@ -10,12 +10,14 @@ type ActivityCardProps = {
   title: string;
   category: string;
   date?: string;
+  location?: string;
+  isCampusEvent?: boolean;
   host?: string;
   imageUrl?: string;
-  attendeeCount: number;
-  maxAttendees: number;
+  attendeeCount?: number;
+  maxAttendees?: number;
   rideSharing?: boolean;
-  waitlistPosition?: number | null;
+  recurring?: boolean;
   saved?: boolean;
   onBookmarkPress?: () => void;
   onPress?: () => void;
@@ -25,11 +27,13 @@ export function ActivityCard({
   title,
   category,
   date,
+  location,
+  isCampusEvent = false,
   imageUrl,
   attendeeCount,
   maxAttendees,
   rideSharing,
-  waitlistPosition,
+  recurring = false,
   saved = false,
   onBookmarkPress,
   onPress,
@@ -58,16 +62,28 @@ export function ActivityCard({
       {/* top row: category badge + ride badge + bookmark */}
       <View style={styles.topRow}>
         <View style={[styles.categoryBadge, { backgroundColor: colors.tint }]}>
-          <AppText style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+          <AppText numberOfLines={1} style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </AppText>
         </View>
         <View style={styles.topRight}>
-          {rideSharing && (
+          {isCampusEvent && (
+            <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
+              <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>Campus Event</AppText>
+            </View>
+          )}
+          {!isCampusEvent && rideSharing && (
             <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
               <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
               <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
                 Ride sharing
+              </AppText>
+            </View>
+          )}
+          {recurring && (
+            <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+              <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
+                🔁 Recurring
               </AppText>
             </View>
           )}
@@ -92,26 +108,22 @@ export function ActivityCard({
           {date ? (
             <View style={styles.metaItem}>
               <IconSymbol name="calendar" size={12} color={colors.onImageOverlay} />
-              <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              <AppText numberOfLines={1} style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
                 {date}
               </AppText>
             </View>
           ) : null}
-          <View style={styles.metaItem}>
+          {attendeeCount !== undefined && <View style={styles.metaItem}>
             <IconSymbol name="person.2.fill" size={12} color={colors.onImageOverlay} />
-            <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-              {attendeeCount}/{maxAttendees}
+            <AppText numberOfLines={1} style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              {isCampusEvent ? `${attendeeCount} joined` : `${attendeeCount}/${maxAttendees}`}
             </AppText>
-          </View>
-             {waitlistPosition ? (
-            <View style={styles.metaItem}>
-              <IconSymbol name="clock" size={12} color={colors.onImageOverlay} />
-              <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-                Waitlist #{waitlistPosition}
-              </AppText>
-            </View>
-          ) : null}
+          </View>}
         </View>
+        {!!location && <View style={styles.metaItem}>
+          <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
+          <AppText numberOfLines={1} style={[styles.metaText, { flex: 1, color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>{location}</AppText>
+        </View>}
       </View>
     </TouchableOpacity>
   );

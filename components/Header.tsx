@@ -1,3 +1,4 @@
+import { TourTarget } from '@/components/tutorial/tour-target';
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -27,7 +28,7 @@ export default function Header() {
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity
+      <TourTarget id="header-profile"><TouchableOpacity
         hitSlop={8}
         onPress={() => setSidebarVisible(true)}
       >
@@ -44,7 +45,7 @@ export default function Header() {
             ]}
           />
         )}
-      </TouchableOpacity>
+      </TouchableOpacity></TourTarget>
       <ProfileSidebar
         visible={sidebarVisible}
         onClose={() => setSidebarVisible(false)}
@@ -60,18 +61,20 @@ export default function Header() {
         Rollin&apos;
       </AppText>
       <View style={styles.rightIcons}>
-        <TouchableOpacity hitSlop={8} onPress={() => router.push('/calendar')}>
-          <IconSymbol name="calendar" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
-          <IconSymbol name="bell.fill" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <TourTarget id="header-calendar"><TouchableOpacity style={styles.tourIcon} hitSlop={8} onPress={() => router.push('/calendar')}>
+          <IconSymbol name="calendar" size={24} color={colors.text} style={styles.tourGlyph} />
+        </TouchableOpacity></TourTarget>
+        <TourTarget id="header-notifications"><TouchableOpacity style={styles.tourIcon} hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
+          <IconSymbol name="bell.fill" size={24} color={colors.text} style={styles.tourGlyph} />
+        </TouchableOpacity></TourTarget>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tourIcon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  tourGlyph: { lineHeight: 24, includeFontPadding: false },
   container: {
     flex: 1,
   },

@@ -13,6 +13,12 @@ create index if not exists waitlist_activity_joined_idx
 
 alter table public.waitlist enable row level security;
 
+grant select, insert, delete on public.waitlist to authenticated;
+grant all on public.waitlist to service_role;
+grant select on public.activities to service_role;
+grant insert on public.notifications to service_role;
+grant insert on public.rsvps to service_role;
+
 drop policy if exists "Users can join waitlists" on public.waitlist;
 create policy "Users can join waitlists" on public.waitlist
 for insert to authenticated

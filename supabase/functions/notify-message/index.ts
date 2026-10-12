@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
     const offIds = new Set((settings ?? []).filter((s) => !s.chat_messages).map((s) => s.user_id));
 
     recipients = recipients.filter((id) => !mutedIds.has(id) && !offIds.has(id));
-    if (recipients.length === 0) return reply({ ok: true, sent: 0 });
+    if (recipients.length === 0) return reply({ ok: true, sent: 0, skippedMuted: mutedIds.size, skippedOff: offIds.size });
 
     // 5. Send the push.
     const { data: sender } = await admin
@@ -102,6 +102,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    console.log('notify-message', { sent: messages.length, skippedMuted: mutedIds.size, skippedOff: offIds.size });
     return reply({ ok: true, sent: messages.length, skipped: mutedIds.size + offIds.size });
   } catch (error) {
     console.error('notify-message failed', error);

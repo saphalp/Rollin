@@ -506,6 +506,7 @@ export default function ActivityDetailScreen() {
        */
       void load();
     } catch (error: any) {
+      void load();
       Alert.alert(
         hasRsvp
           ? "Could not leave activity"

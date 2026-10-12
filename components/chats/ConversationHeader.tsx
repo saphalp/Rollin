@@ -15,12 +15,16 @@ interface ConversationHeaderProps {
   name: string;
   avatar: ImageSourcePropType;
   subtitle?: string;
+  muted?: boolean;
+  onToggleMute?: () => void;
 }
 
 export default function ConversationHeader({
   name,
   avatar,
   subtitle,
+  muted = false,
+  onToggleMute,
 }: ConversationHeaderProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -69,6 +73,19 @@ export default function ConversationHeader({
           </Text>
         )}
       </View>
+      {onToggleMute && (
+        <Pressable
+          onPress={onToggleMute}
+          hitSlop={12}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <IconSymbol
+            name={muted ? "bell.slash.fill" : "bell.fill"}
+            size={22}
+            color={muted ? colors.icon : colors.text}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }

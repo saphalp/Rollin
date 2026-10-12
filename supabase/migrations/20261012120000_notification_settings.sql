@@ -23,6 +23,9 @@ grant select, insert, update on public.notification_settings to authenticated;
 grant select, insert, delete on public.muted_conversations to authenticated;
 grant select on public.notification_settings to service_role;
 grant select on public.muted_conversations to service_role;
+grant select on public.messages to service_role;
+grant select on public.conversation_participants to service_role;
+grant select on public.profiles to service_role;
 
 drop policy if exists "Users manage their own notification settings" on public.notification_settings;
 create policy "Users manage their own notification settings" on public.notification_settings

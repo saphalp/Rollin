@@ -308,15 +308,24 @@ export default function ChatConversationScreen() {
 
     setInput("");
 
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: id,
-      sender_id: currentUserId,
-      content: trimmed,
-    });
+    const { data: sent, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: id,
+        sender_id: currentUserId,
+        content: trimmed,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       console.error("[chat] send failed:", error);
+      return;
     }
+
+    void supabase.functions.invoke("notify-message", {
+      body: { messageId: sent.id },
+    });
   }
 
   return (

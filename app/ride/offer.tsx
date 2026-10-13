@@ -6,15 +6,19 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  View,
 } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
 import { OfferRideHeader } from '@/components/rides/offer/offer-ride-header';
 import { OfferRideIntroCard } from '@/components/rides/offer/offer-ride-intro-card';
+import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getDriverProfile } from '@/lib/profile/driver-profile';
 import { supabase } from '@/lib/supabase';
 import { geocodeAddress } from '@/services/geocoding-service';
 import { fulfillWantedRequest } from '@/services/ride-wanted-requests-service';
@@ -51,6 +55,26 @@ export default function OfferRideScreen() {
   const [saving, setSaving] = useState(false);
   const [selectedPickupPlace, setSelectedPickupPlace] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedDestinationPlace, setSelectedDestinationPlace] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const [verificationStatus, setVerificationStatus] = useState<string | null | 'loading'>('loading');
+
+  useEffect(() => {
+    let active = true;
+
+    getDriverProfile()
+      .then((row) => {
+        if (!active) return;
+        setVerificationStatus(row?.verification_status ?? null);
+      })
+      .catch((err) => {
+        console.error('Unable to load driver verification status:', err);
+        if (active) setVerificationStatus(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!activityId) {
@@ -263,29 +287,60 @@ export default function OfferRideScreen() {
             },
           ]}
         >
-          <OfferRideIntroCard
-            linkedActivityTitle={linkedActivity?.title}
-          />
+          {verificationStatus === 'verified' ? (
+            <>
+              <OfferRideIntroCard
+                linkedActivityTitle={linkedActivity?.title}
+              />
 
-          <OfferRideForm
-            individualPickup={individualPickup}
-            onIndividualPickupChange={setIndividualPickup}
-            pickupLocation={pickupLocation}
-            onPickupLocationChange={(text) => { setPickupLocation(text); setSelectedPickupPlace(null); }}
-            onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); setSelectedPickupPlace(place); }}
-            destination={destination}
-            onDestinationChange={(text) => { setDestination(text); setSelectedDestinationPlace(null); }}
-            onDestinationPlaceSelect={(place) => { setDestination(place.displayText); setSelectedDestinationPlace(place); }}
-            destinationLocked={Boolean(activityId)}
-            rideDateTime={rideDateTime}
-            onRideDateTimeChange={setRideDateTime}
-            availableSeats={availableSeats}
-            onAvailableSeatsChange={setAvailableSeats}
-            notes={notes}
-            onNotesChange={setNotes}
-            saving={saving}
-            onSubmit={handleSubmit}
-          />
+              <OfferRideForm
+                individualPickup={individualPickup}
+                onIndividualPickupChange={setIndividualPickup}
+                pickupLocation={pickupLocation}
+                onPickupLocationChange={(text) => { setPickupLocation(text); setSelectedPickupPlace(null); }}
+                onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); setSelectedPickupPlace(place); }}
+                destination={destination}
+                onDestinationChange={(text) => { setDestination(text); setSelectedDestinationPlace(null); }}
+                onDestinationPlaceSelect={(place) => { setDestination(place.displayText); setSelectedDestinationPlace(place); }}
+                destinationLocked={Boolean(activityId)}
+                rideDateTime={rideDateTime}
+                onRideDateTimeChange={setRideDateTime}
+                availableSeats={availableSeats}
+                onAvailableSeatsChange={setAvailableSeats}
+                notes={notes}
+                onNotesChange={setNotes}
+                saving={saving}
+                onSubmit={handleSubmit}
+              />
+            </>
+          ) : verificationStatus !== 'loading' ? (
+            <View
+              style={[
+                styles.gateCard,
+                { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
+              ]}
+            >
+              <AppText style={[styles.gateTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                🔒 Verify your license to offer rides
+              </AppText>
+
+              <AppText style={[styles.gateBody, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                Only verified drivers can offer rides. Finish registering as a driver and
+                verifying your license in Edit Profile first.
+              </AppText>
+
+              <Button
+                mode="contained"
+                onPress={() => router.push('/(tabs)/profile')}
+                buttonColor={colors.tint}
+                textColor={colors.onPrimary}
+                style={styles.gateButton}
+                contentStyle={styles.gateButtonContent}
+              >
+                Go to Edit Profile
+              </Button>
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </AppView>
@@ -302,5 +357,26 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     gap: 18,
+  },
+  gateCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+  },
+  gateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  gateBody: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  gateButton: {
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  gateButtonContent: {
+    height: 50,
   },
 });

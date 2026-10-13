@@ -295,6 +295,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const name = profile.full_name || "Complete your profile";
   const avatarUri = resolveAvatarUri(profile.profile_picture);
   const verified = !!profile.is_educational_email;
+  const isVerifiedDriver = !!profile.is_verified_driver;
   const university = profile.university || "";
   const major = profile.major || "";
 
@@ -311,7 +312,12 @@ export default function UserProfile({ userId }: UserProfileProps) {
           <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
         )}
 
-        <ProfileInfo name={name} university={university} major={major} />
+        <ProfileInfo
+          name={name}
+          university={university}
+          major={major}
+          isVerifiedDriver={isVerifiedDriver}
+        />
 
         <ProfileActionBar
           isOwnProfile={isOwnProfile}

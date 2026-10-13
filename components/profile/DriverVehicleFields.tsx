@@ -1,6 +1,6 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { StyleSheet, View } from "react-native";
-import { TextInput } from "react-native-paper";
+import { Text, TextInput } from "react-native-paper";
 
 type DriverVehicleFieldsProps = {
   vehicleMake: string;
@@ -38,52 +38,76 @@ export default function DriverVehicleFields({
     outlineColor: colors.outlineVariant,
     activeOutlineColor: colors.tint,
     textColor: colors.text,
-    style: [
-      styles.input,
-      { backgroundColor: colors.surfaceContainerHigh },
-    ],
+    placeholderTextColor: colors.icon,
+    theme: { roundness: 15 },
+    style: [styles.input, { backgroundColor: colors.surface }],
   };
 
   return (
     <View style={styles.form}>
-      <TextInput
-        {...inputProps}
-        label="Vehicle Make"
-        value={vehicleMake}
-        onChangeText={onChangeVehicleMake}
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          Vehicle Make
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. Honda"
+          value={vehicleMake}
+          onChangeText={onChangeVehicleMake}
+        />
+      </View>
 
-      <TextInput
-        {...inputProps}
-        label="Vehicle Model"
-        value={vehicleModel}
-        onChangeText={onChangeVehicleModel}
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          Vehicle Model
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. Civic"
+          value={vehicleModel}
+          onChangeText={onChangeVehicleModel}
+        />
+      </View>
 
-      <TextInput
-        {...inputProps}
-        label="Vehicle Year"
-        value={vehicleYear}
-        onChangeText={onChangeVehicleYear}
-        autoCapitalize="none"
-        keyboardType="number-pad"
-        maxLength={4}
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          Vehicle Year
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. 2021"
+          value={vehicleYear}
+          onChangeText={onChangeVehicleYear}
+          autoCapitalize="none"
+          keyboardType="number-pad"
+          maxLength={4}
+        />
+      </View>
 
-      <TextInput
-        {...inputProps}
-        label="Vehicle Color"
-        value={vehicleColor}
-        onChangeText={onChangeVehicleColor}
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          Vehicle Color
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. Blue"
+          value={vehicleColor}
+          onChangeText={onChangeVehicleColor}
+        />
+      </View>
 
-      <TextInput
-        {...inputProps}
-        label="License Plate Number"
-        value={licensePlateNumber}
-        onChangeText={(value) => onChangeLicensePlateNumber(value.toUpperCase())}
-        autoCapitalize="characters"
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          License Plate Number
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. ABC-1234"
+          value={licensePlateNumber}
+          onChangeText={(value) => onChangeLicensePlateNumber(value.toUpperCase())}
+          autoCapitalize="characters"
+        />
+      </View>
     </View>
   );
 }
@@ -91,6 +115,17 @@ export default function DriverVehicleFields({
 const styles = StyleSheet.create({
   form: {
     gap: 16,
+  },
+
+  fieldGroup: {
+    gap: 6,
+  },
+
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   input: {

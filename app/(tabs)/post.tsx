@@ -253,7 +253,8 @@ export default function PostScreen() {
     if (isRecurring && dates.length > 1 && parentData) {
       const instances = dates.slice(1).map((d) => ({
         ...baseActivity,
-        date_time: d.toISOString(),
+        // isRecurring is true here, so dates came from generateRecurringDates(), never null.
+        date_time: d!.toISOString(),
         recurrence_parent_id: parentData.id,
       }));
       const { error: instancesError } = await supabase.from("activities").insert(instances);

@@ -23,7 +23,7 @@ export default function CampusEventDetailScreen() {
   const [university, setUniversity] = useState<University | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [imageFailed, setImageFailed] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [going, setGoing] = useState(false);

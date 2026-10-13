@@ -66,7 +66,7 @@ export default function HomeScreen() {
   const [attendance, setAttendance] = useState<Record<string, number>>({});
   const [feedError, setFeedError] = useState('');
   const [campusError, setCampusError] = useState('');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [campusRotation, setCampusRotation] = useState(0);
   const generation = useRef(0);
 

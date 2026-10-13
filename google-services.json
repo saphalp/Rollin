@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:877283227026:android:fbcf39f8cda2e996bdbd4b",
+        "mobilesdk_app_id": "1:877283227026:android:3921d2eb5af8bffdbdbd4b",
         "android_client_info": {
-          "package_name": "com.anonymous.Rollin"
+          "package_name": "com.rollin.app"
         }
       },
       "oauth_client": [],

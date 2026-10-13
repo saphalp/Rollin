@@ -33,6 +33,7 @@ nav:
       - Development Workflow: development-workflow.md
   - Project Reference:
       - Design System: design-system.md
+      - Privacy Policy: privacy-policy.md
 
 markdown_extensions:
   - toc:

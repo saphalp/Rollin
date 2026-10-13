@@ -34,9 +34,6 @@ export function RootNavigator() {
         <Stack.Screen name="my-activities" />
         <Stack.Screen name="tutorial" />
         <Stack.Screen name="shared-profile/[id]" />
-      </Stack.Protected>
-
-      <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen name="account-center" />
       </Stack.Protected>
 

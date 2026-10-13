@@ -42,6 +42,7 @@ type Activity = {
   maxAttendees?: number;
   rideSharing?: boolean;
   recurring?: boolean;
+  waitlistPosition?: number | null;
   status?: 'active' | 'expired';
 };
 
@@ -113,6 +114,11 @@ export default function HomeScreen() {
         query = query.eq('category', selectedCategory.toLowerCase());
       }
 
+      const { data: spots } = await supabase.rpc('my_waitlist_positions');
+      const positions = new Map<string, number>(
+           (spots ?? []).map((s: any) => [s.activity_id, s.position_in_line]),
+         );
+
       const { data, error } = await query;
       if (!current()) return;
       if (error) setFeedError('Unable to refresh activities. Pull down to retry.');
@@ -130,6 +136,7 @@ export default function HomeScreen() {
         maxAttendees: a.max_attendees ?? 10,
         rideSharing: a.ride_sharing ?? false,
         recurring: a.is_recurring ?? false,
+        waitlistPosition: positions.get(a.id) ?? null,
         status: a.status ?? 'active',
       })));
 
@@ -435,6 +442,7 @@ export default function HomeScreen() {
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
                       recurring={activity.recurring}
+                      waitlistPosition={activity.waitlistPosition}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={activity.campusEvent ? undefined : () => toggleSave(activity.id)}
                       onPress={() => openActivity(activity)}

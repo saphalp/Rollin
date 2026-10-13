@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ScrollView } from 'react-native';
 
@@ -70,12 +70,7 @@ export default function MyActivitiesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!userId) return;
-    fetchActivities();
-  }, [userId]);
-
-  async function fetchActivities() {
+  const fetchActivities = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -96,7 +91,12 @@ export default function MyActivitiesScreen() {
     });
     setJoined(sortByDate(joinedRows.map(toRow)));
     setLoading(false);
-  }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchActivities();
+  }, [userId, fetchActivities]);
 
   const displayed = view === 'created' ? created : joined;
 

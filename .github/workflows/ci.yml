@@ -23,17 +23,13 @@ jobs:
         run: npm ci
 
       - name: Lint
-        # Non-blocking for now: ~15 pre-existing react-hooks/refs + react-hooks/purity
-        # errors predate this workflow. Output still shows in the logs; remove
-        # continue-on-error once that backlog is cleared so this becomes a real gate.
         run: npm run lint
-        continue-on-error: true
 
       - name: Type-check
         run: npx tsc --noEmit
 
       - name: Unit tests
-        run: node --test scripts/test-rating-reminder.cjs scripts/test-ride-navigation.cjs scripts/test-ride-notifications.cjs scripts/test-ride-route.cjs scripts/test-ride-tracking.cjs scripts/test-router-initial-link.cjs scripts/test-signup-verification.cjs scripts/test-tutorial.cjs
+        run: node --test scripts/test-rating-reminder.cjs scripts/test-ride-navigation.cjs scripts/test-ride-notifications.cjs scripts/test-ride-route.cjs scripts/test-ride-tracking.cjs scripts/test-router-initial-link.cjs scripts/test-signup-verification.cjs scripts/test-tutorial.cjs scripts/test-validate-driver-fields.cjs scripts/test-didit-webhook.cjs
 
       - name: Verify the app bundles (catches Metro/syntax errors)
         run: npx expo export --platform android

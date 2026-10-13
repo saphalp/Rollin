@@ -24,8 +24,10 @@ export default function AuthProvider({
   const isProfileComplete =
     profile?.profile_completed === true;
 
+  const claimsSub = claims?.sub;
+
   const refreshProfile = useCallback(async () => {
-    if (!claims?.sub) {
+    if (!claimsSub) {
       setProfile(null);
       return;
     }
@@ -33,7 +35,7 @@ export default function AuthProvider({
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", claims.sub)
+      .eq("id", claimsSub)
       .single();
 
     if (error) {
@@ -43,7 +45,7 @@ export default function AuthProvider({
     }
 
     setProfile(data);
-  }, [claims?.sub]);
+  }, [claimsSub]);
 
   useEffect(() => {
     const fetchClaims = async () => {

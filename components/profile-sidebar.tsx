@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Animated, Image, Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,7 +24,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
   const { profile, refreshProfile } = useAuthContext();
-  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const slideAnim = useMemo(() => new Animated.Value(-SIDEBAR_WIDTH), []);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
 

@@ -190,6 +190,11 @@ export default function PostScreen() {
       return;
     }
 
+    if (!activityDateTime || !Number.isFinite(activityDateTime.getTime())) {
+      Alert.alert("Missing date and time", "Please select when this activity starts.");
+      return;
+    }
+
     setSaving(true);
 
     const {
@@ -214,7 +219,7 @@ export default function PostScreen() {
     const imageUrl = await uploadImage(user.id);
 
     const isRecurring = recurrence.type !== 'none';
-    const dates = activityDateTime && isRecurring
+    const dates = isRecurring
       ? generateRecurringDates(activityDateTime, recurrence)
       : [activityDateTime];
 
@@ -239,7 +244,7 @@ export default function PostScreen() {
     // Insert parent activity first
     const { data: parentData, error: parentError } = await supabase
       .from("activities")
-      .insert({ ...baseActivity, date_time: dates[0] ? dates[0].toISOString() : null })
+      .insert({ ...baseActivity, date_time: dates[0].toISOString() })
       .select('id')
       .single();
 

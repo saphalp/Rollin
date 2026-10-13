@@ -29,8 +29,9 @@ export function RideRatingSummary({ userId, isOwnProfile, onAverage }: {
     })().catch(() => { if (active) setError('Ratings are unavailable.'); });
     return () => { active = false; };
   }, [userId, isOwnProfile, onAverage]));
+  if (!error && count === 0 && comments.length === 0) return null;
   return <View style={{ gap: 8 }}>
-    <AppText>{error || (count === null ? 'Loading ratings…' : count ? `${count} ride rating${count === 1 ? '' : 's'}` : 'No ratings yet')}</AppText>
+    {(error || count === null || count > 0) && <AppText>{error || (count === null ? 'Loading ratings…' : `${count} ride rating${count === 1 ? '' : 's'}`)}</AppText>}
     {comments.length > 0 && <AppText style={{ fontWeight: '700' }}>Feedback from your rides (only visible to you)</AppText>}
     {comments.map(c => <AppText key={`${c.ride_id}-${c.author_id}`}>{c.stars} ★ · {c.comment}</AppText>)}
   </View>;

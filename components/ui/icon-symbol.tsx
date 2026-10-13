@@ -23,6 +23,7 @@ const MAPPING = {
   'person.fill': 'person',
   // Home screen icons
   'bell.fill': 'notifications',
+  'bell.slash.fill': 'notifications-off',
   'magnifyingglass': 'search',
   'line.3.horizontal.decrease': 'filter-list',
   // Activity card icons

@@ -76,6 +76,35 @@ export default function ChatConversationScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (!id || !currentUserId) return;
+    supabase
+      .from("muted_conversations")
+      .select("conversation_id")
+      .eq("conversation_id", id)
+      .eq("user_id", currentUserId)
+      .maybeSingle()
+      .then(({ data }) => setMuted(!!data));
+  }, [id, currentUserId]);
+
+  async function toggleMute() {
+    if (!id || !currentUserId) return;
+    const next = !muted;
+    setMuted(next);
+    const { error } = next
+      ? await supabase
+          .from("muted_conversations")
+          .insert({ conversation_id: id, user_id: currentUserId })
+      : await supabase
+          .from("muted_conversations")
+          .delete()
+          .eq("conversation_id", id)
+          .eq("user_id", currentUserId);
+    if (error) setMuted(!next);
+  }
+
   const scrollRef = useRef<ScrollView>(null);
 
   async function load() {
@@ -279,20 +308,34 @@ export default function ChatConversationScreen() {
 
     setInput("");
 
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: id,
-      sender_id: currentUserId,
-      content: trimmed,
-    });
+    const { data: sent, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: id,
+        sender_id: currentUserId,
+        content: trimmed,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       console.error("[chat] send failed:", error);
+      return;
     }
+
+    void supabase.functions.invoke("notify-message", {
+      body: { messageId: sent.id },
+    });
   }
 
   return (
     <AppView style={styles.container}>
-      <ConversationHeader name={name ?? "Chat"} avatar={{ uri: avatar ?? "" }} />
+     <ConversationHeader
+        name={name ?? "Chat"}
+        avatar={{ uri: avatar ?? "" }}
+        muted={muted}
+        onToggleMute={toggleMute}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}

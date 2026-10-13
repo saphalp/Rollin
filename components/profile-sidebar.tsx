@@ -119,6 +119,11 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Saved Activities</AppText>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/notification-settings')}>
+              <IconSymbol name="bell.fill" size={20} color={colors.icon} />
+              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Notifications</AppText>
+            </TouchableOpacity>
+
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
 
             <TouchableOpacity style={styles.menuItem} onPress={handleEditPress}>

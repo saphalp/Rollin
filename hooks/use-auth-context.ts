@@ -11,6 +11,7 @@ export type Profile = {
   educational_domain_checked_at: string | null;
   profile_completed: boolean;
   is_driver: boolean;
+  is_verified_driver: boolean;
   created_at: string;
 };
 

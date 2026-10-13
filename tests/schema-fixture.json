@@ -1,0 +1,2764 @@
+{
+  "columns": [
+    {
+      "data_type": "uuid",
+      "table_name": "activities",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activities",
+      "column_name": "host_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activities",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "category",
+      "is_nullable": "YES",
+      "column_default": "'social'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activities",
+      "column_name": "date_time",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "activities",
+      "column_name": "max_attendees",
+      "is_nullable": "YES",
+      "column_default": "10"
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "location",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "activities",
+      "column_name": "latitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "activities",
+      "column_name": "longitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "activities",
+      "column_name": "ride_sharing",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "USER-DEFINED",
+      "table_name": "activities",
+      "column_name": "event_type",
+      "is_nullable": "NO",
+      "column_default": "'public'::event_type"
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "place_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "formatted_address",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activities",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'active'::text"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "activities",
+      "column_name": "is_recurring",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "activities",
+      "column_name": "recurrence_rule",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activities",
+      "column_name": "recurrence_parent_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_boosts",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_boosts",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_boosts",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activity_boosts",
+      "column_name": "boosted_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_join_requests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_join_requests",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_join_requests",
+      "column_name": "requester_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activity_join_requests",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'pending'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activity_join_requests",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activity_join_requests",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photo_images",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photo_images",
+      "column_name": "post_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activity_photo_images",
+      "column_name": "image_path",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "activity_photo_images",
+      "column_name": "position",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activity_photo_images",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photo_images",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photos",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photos",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "activity_photos",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activity_photos",
+      "column_name": "image_path",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "activity_photos",
+      "column_name": "caption",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "activity_photos",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "announcements",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "announcements",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "announcements",
+      "column_name": "author_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "announcements",
+      "column_name": "body",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "announcements",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "campus_event_rsvps",
+      "column_name": "event_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "campus_event_rsvps",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "campus_event_rsvps",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "campus_events",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "campus",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "source_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "title",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "official_url",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "category",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "ARRAY",
+      "table_name": "campus_events",
+      "column_name": "tags",
+      "is_nullable": "NO",
+      "column_default": "'{}'::text[]"
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "location",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "room",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "organizer",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'CONFIRMED'::text"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "campus_events",
+      "column_name": "featured",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "campus_events",
+      "column_name": "starts_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "campus_events",
+      "column_name": "ends_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "campus_events",
+      "column_name": "start_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "campus_events",
+      "column_name": "end_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "campus_events",
+      "column_name": "date_only",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "campus_events",
+      "column_name": "synced_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "time_zone",
+      "is_nullable": "NO",
+      "column_default": "'America/Chicago'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "campus_events",
+      "column_name": "source_config_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversation_participants",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversation_participants",
+      "column_name": "conversation_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversation_participants",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "conversation_participants",
+      "column_name": "role",
+      "is_nullable": "NO",
+      "column_default": "'member'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "conversation_participants",
+      "column_name": "joined_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "conversations",
+      "column_name": "type",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "conversations",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "conversations",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "driver_profiles",
+      "column_name": "profile_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "vehicle_make",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "vehicle_model",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "driver_profiles",
+      "column_name": "vehicle_year",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "vehicle_color",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "license_plate_number",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "verification_status",
+      "is_nullable": "NO",
+      "column_default": "'unverified'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "driver_profiles",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "driver_profiles",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "driver_profiles",
+      "column_name": "verification_session_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "follows",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "follows",
+      "column_name": "follower_id",
+      "is_nullable": "NO",
+      "column_default": "auth.uid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "follows",
+      "column_name": "following_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "USER-DEFINED",
+      "table_name": "follows",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'pending'::follow_status"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "follows",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "follows",
+      "column_name": "updated_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "interests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "interests",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "interests",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "conversation_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "sender_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "messages",
+      "column_name": "content",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "messages",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "messages",
+      "column_name": "type",
+      "is_nullable": "NO",
+      "column_default": "'text'::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "shared_activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "messages",
+      "column_name": "shared_post_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "muted_conversations",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "muted_conversations",
+      "column_name": "conversation_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "muted_conversations",
+      "column_name": "muted_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "notification_settings",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "notification_settings",
+      "column_name": "chat_messages",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "notification_settings",
+      "column_name": "activity_updates",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "notification_settings",
+      "column_name": "ride_updates",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "notification_settings",
+      "column_name": "follow_requests",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "notification_settings",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "notifications",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "notifications",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "notifications",
+      "column_name": "message",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "notifications",
+      "column_name": "is_read",
+      "is_nullable": "YES",
+      "column_default": "false"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "notifications",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "notifications",
+      "column_name": "type",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "notifications",
+      "column_name": "actor_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "notifications",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "past_campus_events",
+      "column_name": "id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "campus",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "source_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "title",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "official_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "category",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "ARRAY",
+      "table_name": "past_campus_events",
+      "column_name": "tags",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "location",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "room",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "organizer",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "status",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "past_campus_events",
+      "column_name": "featured",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "past_campus_events",
+      "column_name": "starts_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "past_campus_events",
+      "column_name": "ends_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "past_campus_events",
+      "column_name": "start_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "past_campus_events",
+      "column_name": "end_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "past_campus_events",
+      "column_name": "date_only",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "past_campus_events",
+      "column_name": "synced_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "time_zone",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "past_campus_events",
+      "column_name": "source_config_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "post_likes",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "post_likes",
+      "column_name": "post_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "post_likes",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "post_likes",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "profile_interests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "profile_interests",
+      "column_name": "profile_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "profile_interests",
+      "column_name": "interest_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "profile_interests",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "profiles",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "profiles",
+      "column_name": "email",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "profiles",
+      "column_name": "is_educational_email",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "profiles",
+      "column_name": "educational_domain_checked_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "profiles",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "profiles",
+      "column_name": "university",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "profiles",
+      "column_name": "profile_picture",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "profiles",
+      "column_name": "profile_completed",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "data_type": "text",
+      "table_name": "profiles",
+      "column_name": "full_name",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "profiles",
+      "column_name": "major",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "profiles",
+      "column_name": "is_private",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "profiles",
+      "column_name": "is_driver",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "push_tokens",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "push_tokens",
+      "column_name": "profile_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "push_tokens",
+      "column_name": "expo_push_token",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "push_tokens",
+      "column_name": "platform",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "push_tokens",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "push_tokens",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_locations",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_locations",
+      "column_name": "ride_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_locations",
+      "column_name": "driver_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_locations",
+      "column_name": "latitude",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_locations",
+      "column_name": "longitude",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_locations",
+      "column_name": "heading",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_locations",
+      "column_name": "speed_mps",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "ride_locations",
+      "column_name": "is_active",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_locations",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_ratings",
+      "column_name": "ride_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_ratings",
+      "column_name": "author_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_ratings",
+      "column_name": "recipient_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "ride_ratings",
+      "column_name": "stars",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_ratings",
+      "column_name": "comment",
+      "is_nullable": "NO",
+      "column_default": "''::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_ratings",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_requests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_requests",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_requests",
+      "column_name": "requester_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_requests",
+      "column_name": "status",
+      "is_nullable": "YES",
+      "column_default": "'pending'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_requests",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_requests",
+      "column_name": "ride_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_requests",
+      "column_name": "driver_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_requests",
+      "column_name": "updated_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_requests",
+      "column_name": "pickup_address",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_requests",
+      "column_name": "pickup_latitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "ride_requests",
+      "column_name": "pickup_longitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_requests",
+      "column_name": "picked_up_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "ride_requests",
+      "column_name": "pickup_order",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_routes",
+      "column_name": "ride_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "ride_routes",
+      "column_name": "route",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_routes",
+      "column_name": "updated_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_wanted_requests",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_wanted_requests",
+      "column_name": "requester_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ride_wanted_requests",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_wanted_requests",
+      "column_name": "pickup_location",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_wanted_requests",
+      "column_name": "destination",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_wanted_requests",
+      "column_name": "date_time",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_wanted_requests",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "ride_wanted_requests",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'open'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ride_wanted_requests",
+      "column_name": "created_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rides_offered",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rides_offered",
+      "column_name": "driver_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rides_offered",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "rides_offered",
+      "column_name": "pickup_location",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "rides_offered",
+      "column_name": "destination",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "rides_offered",
+      "column_name": "date_time",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "integer",
+      "table_name": "rides_offered",
+      "column_name": "available_seats",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "data_type": "text",
+      "table_name": "rides_offered",
+      "column_name": "notes",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "rides_offered",
+      "column_name": "status",
+      "is_nullable": "NO",
+      "column_default": "'open'::text"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "rides_offered",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "rides_offered",
+      "column_name": "pickup_latitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "rides_offered",
+      "column_name": "pickup_longitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "rides_offered",
+      "column_name": "destination_latitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "double precision",
+      "table_name": "rides_offered",
+      "column_name": "destination_longitude",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "rides_offered",
+      "column_name": "pickup_mode",
+      "is_nullable": "NO",
+      "column_default": "'fixed'::text"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rsvps",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rsvps",
+      "column_name": "activity_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "rsvps",
+      "column_name": "user_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "rsvps",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "saved_activities",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "saved_activities",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "saved_activities",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "saved_activities",
+      "column_name": "created_at",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "data_type": "text",
+      "table_name": "universities",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "universities",
+      "column_name": "name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "universities",
+      "column_name": "short_name",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "universities",
+      "column_name": "time_zone",
+      "is_nullable": "NO",
+      "column_default": "'America/Chicago'::text"
+    },
+    {
+      "data_type": "text",
+      "table_name": "universities",
+      "column_name": "calendar_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "ARRAY",
+      "table_name": "universities",
+      "column_name": "official_hosts",
+      "is_nullable": "NO",
+      "column_default": "'{}'::text[]"
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "universities",
+      "column_name": "enabled",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_email_domains",
+      "column_name": "domain",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_email_domains",
+      "column_name": "university_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "university_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "provider",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "feed_url",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "ARRAY",
+      "table_name": "university_event_sources",
+      "column_name": "allowed_feed_hosts",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "expected_feed_title",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "university_event_sources",
+      "column_name": "enabled",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "university_event_sources",
+      "column_name": "last_synced_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "university_event_sources",
+      "column_name": "last_error",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "upcoming_campus_events",
+      "column_name": "id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "campus",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "source_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "title",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "description",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "official_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "category",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "ARRAY",
+      "table_name": "upcoming_campus_events",
+      "column_name": "tags",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "location",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "room",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "organizer",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "image_url",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "status",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "upcoming_campus_events",
+      "column_name": "featured",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "upcoming_campus_events",
+      "column_name": "starts_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "upcoming_campus_events",
+      "column_name": "ends_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "upcoming_campus_events",
+      "column_name": "start_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "date",
+      "table_name": "upcoming_campus_events",
+      "column_name": "end_date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "upcoming_campus_events",
+      "column_name": "date_only",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "upcoming_campus_events",
+      "column_name": "synced_at",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "time_zone",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "text",
+      "table_name": "upcoming_campus_events",
+      "column_name": "source_config_id",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "waitlist",
+      "column_name": "id",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "waitlist",
+      "column_name": "activity_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "waitlist",
+      "column_name": "user_id",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "waitlist",
+      "column_name": "joined_at",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "activities_host_id_fkey",
+      "definition": "FOREIGN KEY (host_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "activities_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "activities_profiles_fkey",
+      "definition": "FOREIGN KEY (host_id) REFERENCES profiles(id) ON DELETE SET NULL",
+      "table_name": "activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "activities_recurrence_parent_id_fkey",
+      "definition": "FOREIGN KEY (recurrence_parent_id) REFERENCES activities(id) ON DELETE SET NULL",
+      "table_name": "activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "activities_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'expired'::text])))",
+      "table_name": "activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_boosts_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "activity_boosts",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_boosts_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "activity_boosts",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_boosts_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "activity_boosts",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_join_requests_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "activity_join_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_join_requests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "activity_join_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_join_requests_requester_id_fkey",
+      "definition": "FOREIGN KEY (requester_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "activity_join_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_join_requests_unique",
+      "definition": "UNIQUE (activity_id, requester_id)",
+      "table_name": "activity_join_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photo_images_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "activity_photo_images",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photo_images_post_id_fkey",
+      "definition": "FOREIGN KEY (post_id) REFERENCES activity_photos(id) ON DELETE CASCADE",
+      "table_name": "activity_photo_images",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photo_images_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "activity_photo_images",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photos_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "activity_photos",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photos_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "activity_photos",
+      "schema_name": "public"
+    },
+    {
+      "name": "activity_photos_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "activity_photos",
+      "schema_name": "public"
+    },
+    {
+      "name": "announcements_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "announcements",
+      "schema_name": "public"
+    },
+    {
+      "name": "announcements_author_id_fkey",
+      "definition": "FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "announcements",
+      "schema_name": "public"
+    },
+    {
+      "name": "announcements_body_check",
+      "definition": "CHECK (((length(TRIM(BOTH FROM body)) >= 1) AND (length(TRIM(BOTH FROM body)) <= 1000)))",
+      "table_name": "announcements",
+      "schema_name": "public"
+    },
+    {
+      "name": "announcements_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "announcements",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_event_rsvps_event_id_fkey",
+      "definition": "FOREIGN KEY (event_id) REFERENCES campus_events(id) ON DELETE CASCADE",
+      "table_name": "campus_event_rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_event_rsvps_pkey",
+      "definition": "PRIMARY KEY (event_id, user_id)",
+      "table_name": "campus_event_rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_event_rsvps_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "campus_event_rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_events_campus_source_id_key",
+      "definition": "UNIQUE (campus, source_id)",
+      "table_name": "campus_events",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_events_check",
+      "definition": "CHECK (((date_only AND (start_date IS NOT NULL) AND (end_date IS NOT NULL) AND (end_date >= start_date) AND (starts_at IS NULL) AND (ends_at IS NULL)) OR ((NOT date_only) AND (starts_at IS NOT NULL) AND (ends_at IS NOT NULL) AND (ends_at >= starts_at) AND (start_date IS NULL) AND (end_date IS NULL))))",
+      "table_name": "campus_events",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_events_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "campus_events",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_events_source_config_id_fkey",
+      "definition": "FOREIGN KEY (source_config_id) REFERENCES university_event_sources(id)",
+      "table_name": "campus_events",
+      "schema_name": "public"
+    },
+    {
+      "name": "campus_events_university_fk",
+      "definition": "FOREIGN KEY (campus) REFERENCES universities(id)",
+      "table_name": "campus_events",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversation_participants_conversation_id_fkey",
+      "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE",
+      "table_name": "conversation_participants",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversation_participants_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "conversation_participants",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversation_participants_role_check",
+      "definition": "CHECK ((role = ANY (ARRAY['admin'::text, 'member'::text])))",
+      "table_name": "conversation_participants",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversation_participants_unique",
+      "definition": "UNIQUE (conversation_id, user_id)",
+      "table_name": "conversation_participants",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversation_participants_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "conversation_participants",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversations_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversations_activity_id_unique",
+      "definition": "UNIQUE (activity_id)",
+      "table_name": "conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversations_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "conversations_type_check",
+      "definition": "CHECK ((type = ANY (ARRAY['direct'::text, 'group'::text])))",
+      "table_name": "conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_license_plate_number_check",
+      "definition": "CHECK (((char_length(btrim(license_plate_number)) >= 1) AND (char_length(btrim(license_plate_number)) <= 15)))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_pkey",
+      "definition": "PRIMARY KEY (profile_id)",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_profile_id_fkey",
+      "definition": "FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_vehicle_color_check",
+      "definition": "CHECK (((char_length(btrim(vehicle_color)) >= 1) AND (char_length(btrim(vehicle_color)) <= 40)))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_vehicle_make_check",
+      "definition": "CHECK (((char_length(btrim(vehicle_make)) >= 1) AND (char_length(btrim(vehicle_make)) <= 60)))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_vehicle_model_check",
+      "definition": "CHECK (((char_length(btrim(vehicle_model)) >= 1) AND (char_length(btrim(vehicle_model)) <= 60)))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_vehicle_year_check",
+      "definition": "CHECK (((vehicle_year >= 1900) AND (vehicle_year <= ((EXTRACT(year FROM now()))::integer + 1))))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "driver_profiles_verification_status_check",
+      "definition": "CHECK ((verification_status = ANY (ARRAY['unverified'::text, 'pending'::text, 'verified'::text, 'rejected'::text])))",
+      "table_name": "driver_profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_check",
+      "definition": "CHECK ((follower_id <> following_id))",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_follower_id_fkey",
+      "definition": "FOREIGN KEY (follower_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_follower_id_following_id_key",
+      "definition": "UNIQUE (follower_id, following_id)",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_following_id_fkey",
+      "definition": "FOREIGN KEY (following_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "follows_unique_pair",
+      "definition": "UNIQUE (follower_id, following_id)",
+      "table_name": "follows",
+      "schema_name": "public"
+    },
+    {
+      "name": "interests_name_unique",
+      "definition": "UNIQUE (name)",
+      "table_name": "interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "interests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_conversation_id_fkey",
+      "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_sender_id_fkey",
+      "definition": "FOREIGN KEY (sender_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_shared_activity_id_fkey",
+      "definition": "FOREIGN KEY (shared_activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_shared_post_id_fkey",
+      "definition": "FOREIGN KEY (shared_post_id) REFERENCES activity_photos(id) ON DELETE CASCADE",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "messages_type_check",
+      "definition": "CHECK ((type = ANY (ARRAY['text'::text, 'activity'::text, 'post'::text])))",
+      "table_name": "messages",
+      "schema_name": "public"
+    },
+    {
+      "name": "muted_conversations_conversation_id_fkey",
+      "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE",
+      "table_name": "muted_conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "muted_conversations_pkey",
+      "definition": "PRIMARY KEY (user_id, conversation_id)",
+      "table_name": "muted_conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "muted_conversations_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "muted_conversations",
+      "schema_name": "public"
+    },
+    {
+      "name": "notification_settings_pkey",
+      "definition": "PRIMARY KEY (user_id)",
+      "table_name": "notification_settings",
+      "schema_name": "public"
+    },
+    {
+      "name": "notification_settings_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "notification_settings",
+      "schema_name": "public"
+    },
+    {
+      "name": "notifications_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "notifications",
+      "schema_name": "public"
+    },
+    {
+      "name": "notifications_actor_id_fkey",
+      "definition": "FOREIGN KEY (actor_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "notifications",
+      "schema_name": "public"
+    },
+    {
+      "name": "notifications_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "notifications",
+      "schema_name": "public"
+    },
+    {
+      "name": "notifications_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "notifications",
+      "schema_name": "public"
+    },
+    {
+      "name": "post_likes_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "post_likes",
+      "schema_name": "public"
+    },
+    {
+      "name": "post_likes_post_id_fkey",
+      "definition": "FOREIGN KEY (post_id) REFERENCES activity_photos(id) ON DELETE CASCADE",
+      "table_name": "post_likes",
+      "schema_name": "public"
+    },
+    {
+      "name": "post_likes_post_id_user_id_key",
+      "definition": "UNIQUE (post_id, user_id)",
+      "table_name": "post_likes",
+      "schema_name": "public"
+    },
+    {
+      "name": "post_likes_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "post_likes",
+      "schema_name": "public"
+    },
+    {
+      "name": "profile_interests_interest_id_fkey",
+      "definition": "FOREIGN KEY (interest_id) REFERENCES interests(id) ON DELETE CASCADE",
+      "table_name": "profile_interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "profile_interests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "profile_interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "profile_interests_profile_id_fkey",
+      "definition": "FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "profile_interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "profile_interests_unique",
+      "definition": "UNIQUE (profile_id, interest_id)",
+      "table_name": "profile_interests",
+      "schema_name": "public"
+    },
+    {
+      "name": "profiles_id_fkey",
+      "definition": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "profiles_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "profiles",
+      "schema_name": "public"
+    },
+    {
+      "name": "push_tokens_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "push_tokens",
+      "schema_name": "public"
+    },
+    {
+      "name": "push_tokens_profile_id_expo_push_token_key",
+      "definition": "UNIQUE (profile_id, expo_push_token)",
+      "table_name": "push_tokens",
+      "schema_name": "public"
+    },
+    {
+      "name": "push_tokens_profile_id_fkey",
+      "definition": "FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "push_tokens",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_locations_driver_id_fkey",
+      "definition": "FOREIGN KEY (driver_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "ride_locations",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_locations_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "ride_locations",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_locations_ride_id_fkey",
+      "definition": "FOREIGN KEY (ride_id) REFERENCES rides_offered(id) ON DELETE CASCADE",
+      "table_name": "ride_locations",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_locations_ride_id_key",
+      "definition": "UNIQUE (ride_id)",
+      "table_name": "ride_locations",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_author_id_fkey",
+      "definition": "FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_check",
+      "definition": "CHECK ((author_id <> recipient_id))",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_comment_check",
+      "definition": "CHECK ((length(comment) <= 1000))",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_pkey",
+      "definition": "PRIMARY KEY (ride_id, author_id, recipient_id)",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_recipient_id_fkey",
+      "definition": "FOREIGN KEY (recipient_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_ride_id_fkey",
+      "definition": "FOREIGN KEY (ride_id) REFERENCES rides_offered(id) ON DELETE CASCADE",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_ratings_stars_check",
+      "definition": "CHECK (((stars >= 1) AND (stars <= 5)))",
+      "table_name": "ride_ratings",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_driver_id_fkey",
+      "definition": "FOREIGN KEY (driver_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_requester_id_fkey",
+      "definition": "FOREIGN KEY (requester_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_ride_id_fkey",
+      "definition": "FOREIGN KEY (ride_id) REFERENCES rides_offered(id) ON DELETE CASCADE",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_requests_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'cancelled'::text, 'completed'::text]))) NOT VALID",
+      "table_name": "ride_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_routes_pkey",
+      "definition": "PRIMARY KEY (ride_id)",
+      "table_name": "ride_routes",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_routes_ride_id_fkey",
+      "definition": "FOREIGN KEY (ride_id) REFERENCES rides_offered(id) ON DELETE CASCADE",
+      "table_name": "ride_routes",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_wanted_requests_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "ride_wanted_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_wanted_requests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "ride_wanted_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_wanted_requests_requester_id_fkey",
+      "definition": "FOREIGN KEY (requester_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "ride_wanted_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "ride_wanted_requests_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['open'::text, 'fulfilled'::text, 'cancelled'::text])))",
+      "table_name": "ride_wanted_requests",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_driver_id_fkey",
+      "definition": "FOREIGN KEY (driver_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_pickup_mode_check",
+      "definition": "CHECK ((pickup_mode = ANY (ARRAY['fixed'::text, 'individual'::text])))",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_profiles_fkey",
+      "definition": "FOREIGN KEY (driver_id) REFERENCES profiles(id) ON DELETE SET NULL",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rides_offered_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['open'::text, 'full'::text, 'cancelled'::text, 'in_progress'::text, 'completed'::text]))) NOT VALID",
+      "table_name": "rides_offered",
+      "schema_name": "public"
+    },
+    {
+      "name": "rsvps_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "rsvps_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "rsvps_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "rsvps",
+      "schema_name": "public"
+    },
+    {
+      "name": "saved_activities_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "saved_activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "saved_activities_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "saved_activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "saved_activities_user_id_activity_id_key",
+      "definition": "UNIQUE (user_id, activity_id)",
+      "table_name": "saved_activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "saved_activities_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "saved_activities",
+      "schema_name": "public"
+    },
+    {
+      "name": "universities_id_check",
+      "definition": "CHECK ((id ~ '^[a-z0-9_-]+$'::text))",
+      "table_name": "universities",
+      "schema_name": "public"
+    },
+    {
+      "name": "universities_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "universities",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_email_domains_domain_check",
+      "definition": "CHECK (((domain = lower(domain)) AND (domain !~ '[@/[:space:]]'::text)))",
+      "table_name": "university_email_domains",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_email_domains_pkey",
+      "definition": "PRIMARY KEY (domain)",
+      "table_name": "university_email_domains",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_email_domains_university_id_fkey",
+      "definition": "FOREIGN KEY (university_id) REFERENCES universities(id) ON DELETE CASCADE",
+      "table_name": "university_email_domains",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_event_sources_feed_url_check",
+      "definition": "CHECK ((feed_url ~~ 'https://%'::text))",
+      "table_name": "university_event_sources",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_event_sources_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "university_event_sources",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_event_sources_provider_check",
+      "definition": "CHECK ((provider = ANY (ARRAY['moderncampus_rss'::text, 'livewhale_json'::text])))",
+      "table_name": "university_event_sources",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_event_sources_university_id_feed_url_key",
+      "definition": "UNIQUE (university_id, feed_url)",
+      "table_name": "university_event_sources",
+      "schema_name": "public"
+    },
+    {
+      "name": "university_event_sources_university_id_fkey",
+      "definition": "FOREIGN KEY (university_id) REFERENCES universities(id)",
+      "table_name": "university_event_sources",
+      "schema_name": "public"
+    },
+    {
+      "name": "waitlist_activity_id_fkey",
+      "definition": "FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE",
+      "table_name": "waitlist",
+      "schema_name": "public"
+    },
+    {
+      "name": "waitlist_activity_id_user_id_key",
+      "definition": "UNIQUE (activity_id, user_id)",
+      "table_name": "waitlist",
+      "schema_name": "public"
+    },
+    {
+      "name": "waitlist_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "waitlist",
+      "schema_name": "public"
+    },
+    {
+      "name": "waitlist_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE",
+      "table_name": "waitlist",
+      "schema_name": "public"
+    }
+  ]
+}

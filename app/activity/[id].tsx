@@ -1202,7 +1202,7 @@ export default function ActivityDetailScreen() {
             {activity.is_recurring && activity.recurrence_rule && (
               <>
                 <View style={styles.metaRow}>
-                  <AppText style={{ fontSize: 16 }}>🔁</AppText>
+                  <IconSymbol name="arrow.triangle.2.circlepath" size={16} color={colors.text} />
                   <AppText
                     style={[
                       styles.metaText,

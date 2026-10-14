@@ -15,6 +15,7 @@ import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
 import { OfferRideHeader } from '@/components/rides/offer/offer-ride-header';
 import { OfferRideIntroCard } from '@/components/rides/offer/offer-ride-intro-card';
 import { AppText } from '@/components/text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -358,8 +359,12 @@ export default function OfferRideScreen() {
                 { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant },
               ]}
             >
+              <View style={[styles.gateIconCircle, { backgroundColor: colors.secondaryContainer }]}>
+                <IconSymbol name="lock.fill" size={24} color={colors.onSecondaryContainer} />
+              </View>
+
               <AppText style={[styles.gateTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                🔒 Verify your license to offer rides
+                Verify Your License to Offer Rides
               </AppText>
 
               <AppText style={[styles.gateBody, { color: colors.icon, fontFamily: Fonts?.sans }]}>
@@ -399,18 +404,31 @@ const styles = StyleSheet.create({
   gateCard: {
     borderWidth: 1,
     borderRadius: 20,
-    padding: 20,
+    padding: 24,
     gap: 12,
+    alignItems: 'center',
+  },
+  gateIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   gateTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
+    textAlign: 'center',
   },
   gateBody: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 320,
   },
   gateButton: {
+    alignSelf: 'stretch',
     borderRadius: 14,
     marginTop: 8,
   },

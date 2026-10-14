@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Animated, Image, Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,7 +24,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
   const { profile, refreshProfile } = useAuthContext();
-  const slideAnim = useMemo(() => new Animated.Value(-SIDEBAR_WIDTH), []);
+  const [slideAnim] = useState(() => new Animated.Value(-SIDEBAR_WIDTH));
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
 
@@ -35,7 +35,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
       tension: 65,
       friction: 9,
     }).start();
-  }, [visible]);
+  }, [visible, slideAnim]);
 
   async function handleSignOut() {
     onClose();
@@ -114,14 +114,14 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>View Profile</AppText>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/campus-events')}>
+              <IconSymbol name="calendar" size={20} color={colors.icon} />
+              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Campus Event</AppText>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/saved-activities')}>
               <IconSymbol name="bookmark.fill" size={20} color={colors.icon} />
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Saved Activities</AppText>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/notification-settings')}>
-              <IconSymbol name="bell.fill" size={20} color={colors.icon} />
-              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Notifications</AppText>
             </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />

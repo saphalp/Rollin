@@ -50,21 +50,16 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
         finally { busyRef.current = false; setBusy(''); }
     }
     function closeConfirmation() { if (busyRef.current) return; setConfirm(null); setPassword(''); setDeleteWord(''); }
-    const button = (label: string, onPress: () => void, disabled = false, destructive = false) => (
-        <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || !!busy }} disabled={disabled || !!busy} onPress={onPress}
-            style={[styles.button, { borderColor: destructive ? colors.error : colors.tint, opacity: disabled || busy ? 0.5 : 1 }]}>
-            <AppText style={{ color: destructive ? colors.error : colors.tint, fontWeight: '600' }}>{label}</AppText>
-        </Pressable>
-    );
+
     if (checking) return <View style={[styles.loading, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.tint} /></View>;
     return (
         <View style={[styles.screen, { backgroundColor: colors.background }]}>
             <View style={[styles.header, { paddingTop: insets.top + 12, borderColor: colors.outlineVariant }]}>
-                {!gated && button('‹ Back', () => router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+                {!gated && <ActionButton label={'‹ Back'} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} busy={!!busy} />}
                 <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]}>Account Center</AppText>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]}>
-                {!!(error || loadError) && <View style={styles.section}><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error || loadError}</AppText>{button('Retry', () => void reload())}</View>}
+                {!!(error || loadError) && <View style={styles.section}><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error || loadError}</AppText>{<ActionButton label={'Retry'} onPress={() => void reload()} busy={!!busy} />}</View>}
                 {!!notice && <AppText accessibilityLiveRegion="polite" style={{ color: colors.tint }}>{notice}</AppText>}
                 {!!busy && <ActivityIndicator color={colors.tint} />}
                 {!account ? <AppText style={{ color: colors.text }}>Sign in to manage your account.</AppText> : <>
@@ -72,7 +67,7 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
                     {locked && <View style={[styles.section, { borderColor: colors.outlineVariant }]}>
                         <AppText style={[styles.heading, { color: colors.text }]}>{account.deleting ? 'Deletion needs to finish' : 'Your account is deactivated'}</AppText>
                         <AppText style={{ color: colors.text }}>{account.deleting ? 'Some files may already be removed. Retry deletion to finish removing your account.' : 'Your profile and posted activities, rides, and photos are hidden. Reactivate to use Rollin again.'}</AppText>
-                        {!account.deleting && button('Reactivate Account', () => void run('reactivate', async () => { await setDeactivated(false, account.user_id); await refreshProfile(); setNotice('Account reactivated.'); }))}
+                        {!account.deleting && <ActionButton label={'Reactivate Account'} onPress={() => void run('reactivate', async () => { await setDeactivated(false, account.user_id); await refreshProfile(); setNotice('Account reactivated.'); })} busy={!!busy} />}
                     </View>}
                     {!locked && <>
                         <View style={[styles.section, { borderColor: colors.outlineVariant }]}>
@@ -93,8 +88,8 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
                                     editable={!busy && !loadError} autoCapitalize="none" autoCorrect={false} keyboardType="url" maxLength={512} placeholder={platform === 'linkedin' ? 'https://linkedin.com/in/your-name' : `https://${platform}.com/your-name`}
                                     placeholderTextColor={colors.outline} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} />
                                 <View style={styles.actions}>
-                                    {button('Save', () => void run(`save-${platform}`, async () => { await saveSocialLink(account.user_id, platform, links[platform]); setNotice(`${platform} link saved.`); }), !links[platform].trim() || !!loadError)}
-                                    {button('Remove', () => void run(`remove-${platform}`, async () => { await removeSocialLink(account.user_id, platform); setLinks(previous => ({ ...previous, [platform]: '' })); setNotice('Link removed.'); }), !!loadError, true)}
+                                    {<ActionButton label={'Save'} onPress={() => void run(`save-${platform}`, async () => { await saveSocialLink(account.user_id, platform, links[platform]); setNotice(`${platform} link saved.`); })} disabled={!links[platform].trim() || !!loadError} busy={!!busy} />}
+                                    {<ActionButton label={'Remove'} onPress={() => void run(`remove-${platform}`, async () => { await removeSocialLink(account.user_id, platform); setLinks(previous => ({ ...previous, [platform]: '' })); setNotice('Link removed.'); })} disabled={!!loadError} destructive={true} busy={!!busy} />}
                                 </View>
                             </View>)}
                         </View>
@@ -102,22 +97,22 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
                             <AppText style={[styles.heading, { color: colors.text }]}>Share Profile</AppText>
                             <AppText style={[styles.caption, { color: colors.text }]}>Sharing a link does not make a private profile public.</AppText>
                             <View style={styles.actions}>
-                                {button('Copy Link', () => void run('copy', async () => { await Clipboard.setStringAsync(Linking.createURL(`shared-profile/${account.user_id}`)); setNotice('Profile link copied.'); }), !!loadError)}
-                                {button('Share', () => void run('share', () => Share.share({ message: Linking.createURL(`shared-profile/${account.user_id}`) })), !!loadError)}
+                                {<ActionButton label={'Copy Link'} onPress={() => void run('copy', async () => { await Clipboard.setStringAsync(Linking.createURL(`shared-profile/${account.user_id}`)); setNotice('Profile link copied.'); })} disabled={!!loadError} busy={!!busy} />}
+                                {<ActionButton label={'Share'} onPress={() => void run('share', () => Share.share({ message: Linking.createURL(`shared-profile/${account.user_id}`) }))} disabled={!!loadError} busy={!!busy} />}
                             </View>
                         </View>
                         <View style={[styles.section, { borderColor: colors.outlineVariant }]}>
                             <AppText style={[styles.heading, { color: colors.text }]}>Deactivate Account</AppText>
                             <AppText style={[styles.caption, { color: colors.text }]}>Hide your account temporarily and keep your data. Sign in and choose Reactivate Account to return.</AppText>
-                            {button('Deactivate Account', () => setConfirm('deactivate'), !!loadError, true)}
+                            {<ActionButton label={'Deactivate Account'} onPress={() => setConfirm('deactivate')} disabled={!!loadError} destructive={true} busy={!!busy} />}
                         </View>
                     </>}
                     <View style={[styles.section, { borderColor: colors.outlineVariant }]}>
                         <AppText style={[styles.heading, { color: colors.error }]}>Delete Account</AppText>
                         <AppText style={[styles.caption, { color: colors.text }]}>Permanently remove your account, profile, social links, uploads, hosted activities, offered rides, and related participation and chat records. Posts and conversations attached to your hosted activities are also removed. This cannot be undone.</AppText>
-                        {button(account.deleting ? 'Retry Deletion' : 'Delete Account', () => setConfirm('delete'), !!loadError, true)}
+                        {<ActionButton label={account.deleting ? 'Retry Deletion' : 'Delete Account'} onPress={() => setConfirm('delete')} disabled={!!loadError} destructive={true} busy={!!busy} />}
                     </View>
-                    {gated && button('Sign Out', () => void run('signout', () => supabase.auth.signOut({ scope: 'local' }).then(({ error }) => { if (error) throw error; })))}
+                    {gated && <ActionButton label={'Sign Out'} onPress={() => void run('signout', () => supabase.auth.signOut({ scope: 'local' }).then(({ error }) => { if (error) throw error; }))} busy={!!busy} />}
                 </>}
             </ScrollView>
             <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={closeConfirmation}>
@@ -130,21 +125,32 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
                             <TextInput accessibilityLabel="Type DELETE to confirm" placeholder="Type DELETE" placeholderTextColor={colors.outline} autoCapitalize="characters" autoCorrect={false} value={deleteWord} onChangeText={setDeleteWord} editable={!busy} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} />
                         </>}
                         {!!error && <AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText>}
-                        {button('Cancel', closeConfirmation)}
-                        {button(busy ? 'Working…' : confirm === 'delete' ? 'Delete Permanently' : 'Deactivate', () => {
+                        {<ActionButton label={'Cancel'} onPress={closeConfirmation} busy={!!busy} />}
+                        {<ActionButton label={busy ? 'Working…' : confirm === 'delete' ? 'Delete Permanently' : 'Deactivate'} onPress={() => {
                             const deleting = confirm === 'delete';
                             void run(deleting ? 'delete' : 'deactivate', async () => {
                                 if (deleting) { try { await deleteMyAccount(password, deleteWord, account!.user_id); } finally { setPassword(''); setDeleteWord(''); } }
                                 else { await setDeactivated(true, account!.user_id); await supabase.auth.signOut({ scope: 'local' }); }
                                 setConfirm(null);
                             });
-                        }, confirm === 'delete' && (!password || deleteWord !== 'DELETE'), true)}
+                        }} disabled={confirm === 'delete' && (!password || deleteWord !== 'DELETE')} destructive={true} busy={!!busy} />}
                     </View>
                 </ScrollView></View>
             </Modal>
         </View>
     );
 }
+
+function ActionButton({ label, onPress, disabled = false, destructive = false, busy }: {
+    label: string; onPress: () => void; disabled?: boolean; destructive?: boolean; busy: boolean;
+}) {
+    const colors = Colors[useColorScheme() ?? 'light'];
+    return <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} disabled={disabled || busy} onPress={onPress}
+        style={[styles.button, { borderColor: destructive ? colors.error : colors.tint, opacity: disabled || busy ? 0.5 : 1 }]}>
+        <AppText style={{ color: destructive ? colors.error : colors.tint, fontWeight: '600' }}>{label}</AppText>
+    </Pressable>;
+}
+
 const styles = StyleSheet.create({
     screen: { flex: 1 }, loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },

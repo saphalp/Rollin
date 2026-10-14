@@ -35,6 +35,9 @@ export function RootNavigator() {
         <Stack.Screen name="tutorial" />
         <Stack.Screen name="shared-profile/[id]" />
         <Stack.Screen name="account-center" />
+        <Stack.Screen name="campus-events" />
+        <Stack.Screen name="campus-event/[id]" />
+        <Stack.Screen name="host-campus-event/[id]" />
       </Stack.Protected>
 
       <Stack.Protected guard={isLoggedIn && !isProfileComplete}>

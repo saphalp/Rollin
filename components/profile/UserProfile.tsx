@@ -33,7 +33,6 @@ import SectionHeader from "@/components/profile/SectionHeader";
 
 import { RideRatingSummary } from './RideRatingSummary';
 
-const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
 
 type ActivityRow = {
   id: string;
@@ -128,6 +127,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [attendedCount, setAttendedCount] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
@@ -155,7 +155,10 @@ function UserProfileContent({ userId }: UserProfileProps) {
             "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
           )
           .eq("user_id", userId)
-        : Promise.resolve({ data: [], error: null });
+        : supabase
+          .from("rsvps")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
 
       const [createdResult, joinedResult] = await Promise.all([
         createdRequest,
@@ -175,16 +178,22 @@ function UserProfileContent({ userId }: UserProfileProps) {
         sortActivitiesByDate(created.map(toActivityRow)),
       );
 
-      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
-      const joined = joinedRows.flatMap((row) => {
-        if (!row.activity) return [];
-        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
-        return activities.filter((a: any) => !a.recurrence_parent_id);
-      });
+      if (isOwnProfile) {
+        const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+        const joined = joinedRows.flatMap((row) => {
+          if (!row.activity) return [];
+          const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+          return activities.filter((a: any) => !a.recurrence_parent_id);
+        });
 
-      setJoinedActivities(
-        sortActivitiesByDate(joined.map(toActivityRow)),
-      );
+        setJoinedActivities(
+          sortActivitiesByDate(joined.map(toActivityRow)),
+        );
+        setAttendedCount(joined.length);
+      } else {
+        setJoinedActivities([]);
+        setAttendedCount(joinedResult.count ?? 0);
+      }
       setActivitiesLoading(false);
     })();
 
@@ -337,7 +346,8 @@ function UserProfileContent({ userId }: UserProfileProps) {
 
         <ProfileStats
           statsData={{
-            ...EMPTY_STATS,
+            attended: attendedCount,
+            hosted: createdActivities.length,
             rides: rideCount,
             rating,
           }}

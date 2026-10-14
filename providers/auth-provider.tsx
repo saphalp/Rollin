@@ -30,6 +30,7 @@ export default function AuthProvider({
       return;
     }
 
+    setIsLoading(true);
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -39,10 +40,12 @@ export default function AuthProvider({
     if (error) {
       console.error("Error fetching profile:", error);
       setProfile(null);
+      setIsLoading(false);
       return;
     }
 
     setProfile(data);
+    setIsLoading(false);
   }, [claims?.sub]);
 
   useEffect(() => {
@@ -116,6 +119,8 @@ export default function AuthProvider({
         isLoggedIn,
         isProfileComplete,
         refreshProfile,
+        verificationError: null,
+        refreshLoginVerification: refreshProfile,
       }}
     >
       {children}

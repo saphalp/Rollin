@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Text } from 'react-native-paper';
 
 import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
 import { OfferRideHeader } from '@/components/rides/offer/offer-ride-header';
@@ -42,6 +43,8 @@ export default function RequestRideScreen() {
     useState<Date | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [activityError, setActivityError] = useState(false);
+  const [activityAttempt, setActivityAttempt] = useState(0);
 
   useEffect(() => {
     if (!activityId) {
@@ -50,22 +53,27 @@ export default function RequestRideScreen() {
     }
 
     let cancelled = false;
+    setLinkedActivity(null);
+    setActivityError(false);
 
     async function loadActivity() {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('id, title, location')
-        .eq('id', activityId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('activities')
+          .select('id, title, location')
+          .eq('id', activityId)
+          .single();
 
-      if (cancelled || error || !data) {
-        return;
-      }
+        if (cancelled) return;
+        if (error || !data) throw new Error('Activity unavailable');
 
-      setLinkedActivity(data);
+        setLinkedActivity(data);
 
-      if (data.location) {
-        setDestination(data.location);
+        if (data.location) {
+          setDestination(data.location);
+        }
+      } catch {
+        if (!cancelled) setActivityError(true);
       }
     }
 
@@ -74,7 +82,7 @@ export default function RequestRideScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activityId]);
+  }, [activityId, activityAttempt]);
 
   function goBack() {
     if (router.canGoBack()) {
@@ -86,6 +94,11 @@ export default function RequestRideScreen() {
   }
 
   async function handleSubmit() {
+    if (saving) return;
+    if (activityId && linkedActivity?.id !== activityId) {
+      Alert.alert('Activity unavailable', 'Load the activity before posting your ride request.');
+      return;
+    }
     const cleanedPickup = pickupLocation.trim();
     const cleanedDestination = destination.trim();
 
@@ -149,7 +162,9 @@ export default function RequestRideScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/(tabs)/rides'),
+            onPress: () => activityId
+              ? router.replace({ pathname: '/activity/[id]', params: { id: activityId } })
+              : router.replace('/(tabs)/rides'),
           },
         ],
       );
@@ -206,7 +221,12 @@ export default function RequestRideScreen() {
             linkedSubtitle="This request will be connected to the selected activity."
           />
 
-          <OfferRideForm
+          {activityId && !linkedActivity ? (
+            <>
+              <Text>{activityError ? 'Could not load this activity. Retry before requesting a ride.' : 'Loading activity…'}</Text>
+              {activityError && <Button textColor={colors.tint} onPress={() => setActivityAttempt(value => value + 1)}>Retry</Button>}
+            </>
+          ) : <OfferRideForm
             pickupLocation={pickupLocation}
             onPickupLocationChange={(text) => { setPickupLocation(text); }}
             onPickupPlaceSelect={(place) => { setPickupLocation(place.displayText); }}
@@ -224,7 +244,7 @@ export default function RequestRideScreen() {
             pickupPlaceholder="Where would you like to be picked up?"
             destinationPlaceholder="Where are you headed?"
             notesPlaceholder="Anything a driver should know..."
-          />
+          />}
         </ScrollView>
       </KeyboardAvoidingView>
     </AppView>

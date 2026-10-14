@@ -8,6 +8,7 @@ import {
 } from '@/types/rides';
 
 type AvailableRideOptions = {
+    includeOwn?: boolean;
     activityId?: string | null;
     filter?: RideFilter;
     search?: string;
@@ -188,9 +189,12 @@ export async function fetchAvailableRides(
         .select('*')
         .eq('status', 'open')
         .gt('available_seats', 0)
-        .neq('driver_id', user.id)
         .gte('date_time', new Date().toISOString())
         .order('date_time', { ascending: true });
+
+    if (!options.includeOwn) {
+        query = query.neq('driver_id', user.id);
+    }
 
     if (activityId) {
         query = query.eq('activity_id', activityId);

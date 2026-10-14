@@ -1,8 +1,9 @@
-import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
+import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
+import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
@@ -14,6 +15,8 @@ import {
   View,
 } from "react-native";
 import { Chip, Text } from "react-native-paper";
+import { ProfilePrivacyGate } from './ProfilePrivacyGate';
+import { ProfileSocialLinks } from './ProfileSocialLinks';
 
 import ActivitySegmentedControl, {
   type ActivityView,
@@ -107,6 +110,10 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ userId }: UserProfileProps) {
+  return <ProfilePrivacyGate userId={userId}><UserProfileContent userId={userId} /></ProfilePrivacyGate>;
+}
+
+function UserProfileContent({ userId }: UserProfileProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
@@ -295,6 +302,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const name = profile.full_name || "Complete your profile";
   const avatarUri = resolveAvatarUri(profile.profile_picture);
   const verified = !!profile.is_educational_email;
+  const isVerifiedDriver = !!profile.is_verified_driver;
   const university = profile.university || "";
   const major = profile.major || "";
 
@@ -311,12 +319,19 @@ export default function UserProfile({ userId }: UserProfileProps) {
           <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
         )}
 
-        <ProfileInfo name={name} university={university} major={major} />
+        <ProfileInfo
+          name={name}
+          university={university}
+          major={major}
+          isVerifiedDriver={isVerifiedDriver}
+        />
+
+        <ProfileSocialLinks userId={userId} />
 
         <ProfileActionBar
           isOwnProfile={isOwnProfile}
           followState={followState}
-          onFollowPress={toggleFollow}
+          onFollowPress={() => { void (async () => { await toggleFollow(); notifyAccountChanges(); })().catch(() => setActivitiesError("Unable to update follow status.")); }}
           onMessagePress={handleMessagePress}
         />
 

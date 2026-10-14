@@ -1,6 +1,12 @@
-import { Colors, Fonts } from "@/constants/theme";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { TextInput } from "react-native-paper";
+import { Text, TextInput } from "react-native-paper";
+
+import { SelectField } from "@/components/profile/SelectField";
+import { Colors, Fonts } from "@/constants/theme";
+import { fetchVehicleModels, VEHICLE_MAKES, vehicleYearOptions } from "@/lib/vehicle-data";
+
+const YEAR_OPTIONS = vehicleYearOptions();
 
 type DriverVehicleFieldsProps = {
   vehicleMake: string;
@@ -31,6 +37,39 @@ export default function DriverVehicleFields({
 }: DriverVehicleFieldsProps) {
   const colors = Colors.light;
 
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!vehicleMake) {
+      setModelOptions([]);
+      return;
+    }
+
+    let active = true;
+    setModelsLoading(true);
+
+    fetchVehicleModels(vehicleMake)
+      .then((models) => {
+        if (active) setModelOptions(models);
+      })
+      .catch(() => {
+        if (active) setModelOptions([]);
+      })
+      .finally(() => {
+        if (active) setModelsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [vehicleMake]);
+
+  function handleMakeChange(make: string) {
+    onChangeVehicleMake(make);
+    onChangeVehicleModel("");
+  }
+
   const inputProps = {
     mode: "outlined" as const,
     autoCapitalize: "words" as const,
@@ -38,52 +77,66 @@ export default function DriverVehicleFields({
     outlineColor: colors.outlineVariant,
     activeOutlineColor: colors.tint,
     textColor: colors.text,
-    style: [
-      styles.input,
-      { backgroundColor: colors.surfaceContainerHigh },
-    ],
+    placeholderTextColor: colors.icon,
+    theme: { roundness: 15 },
+    style: [styles.input, { backgroundColor: colors.surface }],
   };
 
   return (
     <View style={styles.form}>
-      <TextInput
-        {...inputProps}
+      <SelectField
         label="Vehicle Make"
         value={vehicleMake}
-        onChangeText={onChangeVehicleMake}
+        options={VEHICLE_MAKES}
+        onChange={handleMakeChange}
+        placeholder="Select a make"
+        disabled={disabled}
       />
 
-      <TextInput
-        {...inputProps}
+      <SelectField
         label="Vehicle Model"
         value={vehicleModel}
-        onChangeText={onChangeVehicleModel}
+        options={modelOptions}
+        onChange={onChangeVehicleModel}
+        placeholder={vehicleMake ? "Select a model" : "Select a make first"}
+        disabled={disabled || !vehicleMake}
+        loading={modelsLoading}
+        emptyMessage={modelsLoading ? "Loading models…" : "No models found for this make"}
       />
 
-      <TextInput
-        {...inputProps}
+      <SelectField
         label="Vehicle Year"
         value={vehicleYear}
-        onChangeText={onChangeVehicleYear}
-        autoCapitalize="none"
-        keyboardType="number-pad"
-        maxLength={4}
+        options={YEAR_OPTIONS}
+        onChange={onChangeVehicleYear}
+        placeholder="Select a year"
+        disabled={disabled}
       />
 
-      <TextInput
-        {...inputProps}
-        label="Vehicle Color"
-        value={vehicleColor}
-        onChangeText={onChangeVehicleColor}
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          Vehicle Color
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. Blue"
+          value={vehicleColor}
+          onChangeText={onChangeVehicleColor}
+        />
+      </View>
 
-      <TextInput
-        {...inputProps}
-        label="License Plate Number"
-        value={licensePlateNumber}
-        onChangeText={(value) => onChangeLicensePlateNumber(value.toUpperCase())}
-        autoCapitalize="characters"
-      />
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+          License Plate Number
+        </Text>
+        <TextInput
+          {...inputProps}
+          placeholder="e.g. ABC-1234"
+          value={licensePlateNumber}
+          onChangeText={(value) => onChangeLicensePlateNumber(value.toUpperCase())}
+          autoCapitalize="characters"
+        />
+      </View>
     </View>
   );
 }
@@ -91,6 +144,17 @@ export default function DriverVehicleFields({
 const styles = StyleSheet.create({
   form: {
     gap: 16,
+  },
+
+  fieldGroup: {
+    gap: 6,
+  },
+
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   input: {

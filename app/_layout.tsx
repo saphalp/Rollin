@@ -20,12 +20,16 @@ const appTheme = {
 };
 
 export function RootNavigator() {
-  const { isLoggedIn, isProfileComplete, isLoading } = useAuthContext();
+  const { isLoggedIn, isProfileComplete, isLoading, needsEmailVerification } = useAuthContext();
 
   if (isLoading) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={needsEmailVerification}>
+        <Stack.Screen name="login-verification" />
+      </Stack.Protected>
+
       <Stack.Protected guard={isLoggedIn && isProfileComplete}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[id]" />
@@ -33,6 +37,7 @@ export function RootNavigator() {
         <Stack.Screen name="saved-activities" />
         <Stack.Screen name="my-activities" />
         <Stack.Screen name="tutorial" />
+        <Stack.Screen name="notification-settings" />
         <Stack.Screen name="shared-profile/[id]" />
         <Stack.Screen name="account-center" />
         <Stack.Screen name="campus-events" />
@@ -44,7 +49,7 @@ export function RootNavigator() {
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isLoggedIn}>
+      <Stack.Protected guard={!isLoggedIn && !needsEmailVerification}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 

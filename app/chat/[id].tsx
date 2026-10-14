@@ -34,6 +34,7 @@ type SharedPostPreview = {
 
 type Message = {
   id: string;
+  senderId?: string;
   text: string;
   fromMe: boolean;
   time: string;
@@ -61,10 +62,11 @@ function formatTime(iso: string) {
 }
 
 export default function ChatConversationScreen() {
-  const { id, name, avatar } = useLocalSearchParams<{
+  const { id, name, avatar, otherUserId: paramOtherUserId } = useLocalSearchParams<{
     id: string;
     name?: string;
     avatar?: string;
+    otherUserId?: string;
   }>();
 
   const theme = useColorScheme() ?? "light";
@@ -72,6 +74,8 @@ export default function ChatConversationScreen() {
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [conversationType, setConversationType] = useState<"direct" | "group" | null>(null);
+  const [otherUserId, setOtherUserId] = useState<string | null>(paramOtherUserId ?? null);
+  const [activityId, setActivityId] = useState<string | null>(null);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +132,26 @@ export default function ChatConversationScreen() {
     }
 
     setConversationType(conversation.type);
+    if (conversation.activity_id) {
+      setActivityId(conversation.activity_id);
+    }
+
+    let otherId = paramOtherUserId ?? null;
+    if (!otherId && conversation.type === "direct" && uid) {
+      const { data: otherParticipant } = await supabase
+        .from("conversation_participants")
+        .select("user_id")
+        .eq("conversation_id", id)
+        .neq("user_id", uid)
+        .maybeSingle();
+
+      if (otherParticipant?.user_id) {
+        otherId = otherParticipant.user_id;
+      }
+    }
+    if (otherId) {
+      setOtherUserId(otherId);
+    }
 
     let names: Record<string, string> = {};
     if (conversation.type === "group") {
@@ -259,6 +283,7 @@ export default function ChatConversationScreen() {
 
         return {
           id: m.id,
+          senderId: m.sender_id,
           text: m.content ?? "",
           fromMe: m.sender_id === uid,
           time: formatTime(m.created_at),
@@ -330,11 +355,18 @@ export default function ChatConversationScreen() {
 
   return (
     <AppView style={styles.container}>
-     <ConversationHeader
+      <ConversationHeader
         name={name ?? "Chat"}
         avatar={{ uri: avatar ?? "" }}
         muted={muted}
         onToggleMute={toggleMute}
+        onPressProfile={
+          otherUserId
+            ? () => router.push(`/profile/${otherUserId}`)
+            : activityId
+            ? () => router.push(`/activity/${activityId}`)
+            : undefined
+        }
       />
 
       <KeyboardAvoidingView
@@ -399,6 +431,11 @@ export default function ChatConversationScreen() {
                   fromMe={m.fromMe}
                   time={m.time}
                   senderName={senderName}
+                  onPressSender={
+                    !m.fromMe && m.senderId
+                      ? () => router.push(`/profile/${m.senderId}`)
+                      : undefined
+                  }
                 />
               );
             })}

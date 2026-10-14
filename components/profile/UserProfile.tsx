@@ -286,6 +286,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         id: conversationId,
         name: profile.full_name ?? "",
         avatar: resolveAvatarUri(profile.profile_picture),
+        otherUserId: profile.id,
       },
     });
   }

@@ -1,3 +1,4 @@
+import { requireVerifiedLogin } from '../_shared/login-verification.ts';
 import { createClient } from "npm:@supabase/supabase-js@2.110.2";
 
 // Not a secret — Didit's own docs say to treat workflow_id as per-session
@@ -37,6 +38,7 @@ Deno.serve(async (req: Request) => {
     } = await client.auth.getUser();
     if (authError || !user)
       return reply({ error: "Sign in again to verify your license." }, 401);
+    if (!(await requireVerifiedLogin(client))) return reply({ error: 'Complete email login verification first.' }, 403);
 
     // Use the caller's RLS permissions, never a service-role key.
     const { data: driverProfile, error: driverError } = await client

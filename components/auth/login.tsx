@@ -54,9 +54,8 @@ export default function Login({ onSignUpClick }: LoginProps) {
       return;
     }
 
-    if (data.user?.confirmed_at) {
-      router.replace("/(tabs)");
-    } else if (data.user) {
+    // AuthProvider checks this session's email approval before choosing the next screen.
+    if (data.user && !data.user.confirmed_at) {
       router.replace({
         pathname: "/(auth)/EmailConfirmation",
         params: { email: normalizedEmail },

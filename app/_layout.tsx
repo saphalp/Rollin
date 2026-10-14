@@ -38,6 +38,7 @@ export function RootNavigator() {
     isLoggedIn,
     isProfileComplete,
     isLoading,
+    needsEmailVerification,
   } = useAuthContext();
 
   if (isLoading) {
@@ -46,6 +47,9 @@ export function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={needsEmailVerification}>
+        <Stack.Screen name="login-verification" />
+      </Stack.Protected>
       <Stack.Protected
         guard={isLoggedIn && isProfileComplete}
       >
@@ -55,6 +59,23 @@ export function RootNavigator() {
         <Stack.Screen name="saved-activities" />
         <Stack.Screen name="my-activities" />
         <Stack.Screen name="tutorial" />
+        <Stack.Screen name="calendar" />
+        <Stack.Screen name="complete-profile" />
+        <Stack.Screen name="notification-settings" />
+        <Stack.Screen name="activity/[id]" />
+        <Stack.Screen name="activity/announce/[id]" />
+        <Stack.Screen name="activity/edit/[id]" />
+        <Stack.Screen name="activity/upload-photo/[id]" />
+        <Stack.Screen name="campus-event/[id]" />
+        <Stack.Screen name="post/[id]" />
+        <Stack.Screen name="ride/[id]" />
+        <Stack.Screen name="ride/available" />
+        <Stack.Screen name="ride/find" />
+        <Stack.Screen name="ride/map" />
+        <Stack.Screen name="ride/offer" />
+        <Stack.Screen name="ride/request" />
+        <Stack.Screen name="ride/ratings/[id]" />
+        <Stack.Screen name="ride/tracking/[id]" />
       </Stack.Protected>
 
       <Stack.Protected
@@ -63,7 +84,7 @@ export function RootNavigator() {
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isLoggedIn}>
+      <Stack.Protected guard={!isLoggedIn && !needsEmailVerification}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 

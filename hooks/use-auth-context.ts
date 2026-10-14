@@ -22,6 +22,9 @@ export type AuthData = {
   isLoggedIn: boolean;
   isProfileComplete: boolean;
   refreshProfile: () => Promise<void>;
+  needsEmailVerification: boolean;
+  verificationError: string;
+  refreshLoginVerification: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthData>({
@@ -31,6 +34,9 @@ export const AuthContext = createContext<AuthData>({
   isLoggedIn: false,
   isProfileComplete: false,
   refreshProfile: async () => {},
+  needsEmailVerification: false,
+  verificationError: '',
+  refreshLoginVerification: async () => {},
 });
 
 export const useAuthContext = () => useContext(AuthContext);

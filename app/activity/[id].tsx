@@ -1,4 +1,5 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -1360,6 +1361,9 @@ export default function ActivityDetailScreen() {
           )}
 
           {/* Attendees */}
+          {activity.ride_sharing && !isPast && (
+            <ActivityRidesSection key={activity.id} activityId={activity.id} />
+          )}
 
           {attendees.length > 0 && (
             <View
@@ -2066,6 +2070,7 @@ const styles = StyleSheet.create({
   },
 
   rsvpButton: {
+    paddingVertical: 12,
     flex: 1,
     minHeight: 52,
     flexDirection: "row",
@@ -2078,11 +2083,17 @@ const styles = StyleSheet.create({
   },
 
   rsvpText: {
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    flexShrink: 1,
+    lineHeight: 20,
     fontSize: 15,
     fontWeight: "700",
   },
 
   rideOptionsButton: {
+    paddingVertical: 12,
     flex: 1,
     minHeight: 52,
     flexDirection: "row",
@@ -2095,6 +2106,11 @@ const styles = StyleSheet.create({
   },
 
   rideOptionsText: {
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    flexShrink: 1,
+    lineHeight: 20,
     fontSize: 15,
     fontWeight: "700",
   },

@@ -250,10 +250,10 @@ export default function CampusEventDetailScreen() {
             opacity: joinBusy || loading || !currentUserId ? 0.6 : 1
           }]}>
           {going && <IconSymbol name="checkmark" size={18} color={colors.text} />}
-          <AppText style={{ color: going ? colors.text : colors.onPrimary, fontSize: 15, fontWeight: '700' }}>{joinBusy ? 'Saving…' : going ? 'Going' : 'Join Activity'}</AppText>
+          <AppText style={[styles.buttonLabel, { color: going ? colors.text : colors.onPrimary }]}>{joinBusy ? 'Saving…' : going ? 'Going' : 'Join Activity'}</AppText>
         </TouchableOpacity>}
         <TouchableOpacity accessibilityRole="link" onPress={() => void openOfficial()} style={[styles.officialButton, { backgroundColor: colors.background, borderColor: colors.outline, borderWidth: 1 }]}>
-          <AppText style={{ color: colors.text, fontFamily: Fonts?.sans, fontSize: 15, fontWeight: '700' }}>View Official Event</AppText>
+          <AppText style={[styles.buttonLabel, { color: colors.text }]}>View Official Event</AppText>
         </TouchableOpacity>
       </View>
     </AppView>
@@ -280,5 +280,6 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 15, flex: 1 },
   divider: { height: StyleSheet.hairlineWidth },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  officialButton: { flex: 1, flexDirection: 'row', gap: 8, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 24, paddingHorizontal: 16 },
+  buttonLabel: { fontSize: 15, fontWeight: '700', lineHeight: 20, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, flexShrink: 1 },
+  officialButton: { paddingVertical: 12, flex: 1, flexDirection: 'row', gap: 8, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 24, paddingHorizontal: 16 },
 });

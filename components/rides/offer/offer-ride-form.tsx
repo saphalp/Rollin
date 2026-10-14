@@ -18,6 +18,7 @@ type OfferRideFormProps = {
   destination: string;
   onDestinationChange: (value: string) => void;
   destinationLocked?: boolean;
+  fixedDate?: Date;
   rideDateTime: Date | null;
   onRideDateTimeChange: (date: Date) => void;
   availableSeats?: string;
@@ -43,6 +44,7 @@ export function OfferRideForm({
   destination,
   onDestinationChange,
   destinationLocked = false,
+  fixedDate,
   rideDateTime,
   onRideDateTimeChange,
   availableSeats,
@@ -63,13 +65,14 @@ export function OfferRideForm({
   const colors = Colors[theme];
 
   function handleDateChange(selected: Date) {
+    if (fixedDate) return;
     const next = new Date(rideDateTime ?? selected);
     next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
     onRideDateTimeChange(next);
   }
 
   function handleTimeChange(selected: Date) {
-    const next = new Date(rideDateTime ?? selected);
+    const next = new Date(fixedDate ?? rideDateTime ?? selected);
     next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
     onRideDateTimeChange(next);
   }
@@ -112,31 +115,25 @@ export function OfferRideForm({
             />
           )}
 
-          {destinationLocked && (
-            <AppText
-              style={[
-                styles.lockedDestinationText,
-                {
-                  color: colors.outline,
-                  fontFamily: Fonts?.sans,
-                },
-              ]}
-            >
-              Destination is fixed for this activity.
-            </AppText>
-          )}
         </View>
 
         <View style={styles.row}>
           <View style={styles.rowItem}>
-            <DateTimeField
+            {fixedDate ? (
+              <View style={styles.fixedDateGroup}>
+                <AppText style={[styles.dateLabel, { color: colors.text }]}>Date</AppText>
+                <View style={[styles.fixedDateField, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
+                  <AppText style={[styles.fixedDateText, { color: colors.text }]}>{fixedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</AppText>
+                </View>
+              </View>
+            ) : <DateTimeField
               label="Date"
               mode="date"
               value={rideDateTime}
               onChange={handleDateChange}
               placeholder="Select date"
               minimumDate={new Date()}
-            />
+            />}
           </View>
 
           <View style={styles.rowItem}>
@@ -183,6 +180,26 @@ export function OfferRideForm({
 }
 
 const styles = StyleSheet.create({
+  fixedDateGroup: {
+    gap: 6,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  fixedDateField: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedDateText: {
+    fontSize: 15,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
   section: {
     gap: 14,
   },
@@ -194,11 +211,6 @@ const styles = StyleSheet.create({
 
   destinationSection: {
     gap: 6,
-  },
-
-  lockedDestinationText: {
-    fontSize: 12,
-    lineHeight: 16,
   },
 
   row: {

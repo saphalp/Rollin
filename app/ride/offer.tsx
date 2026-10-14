@@ -8,8 +8,8 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Button } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Text } from 'react-native-paper';
 
 import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
 import { OfferRideHeader } from '@/components/rides/offer/offer-ride-header';
@@ -27,6 +27,7 @@ type LinkedActivity = {
   id: string;
   title: string;
   location: string | null;
+  date_time: string | null;
 };
 
 export default function OfferRideScreen() {
@@ -40,7 +41,6 @@ export default function OfferRideScreen() {
       pickupLocation?: string;
       sourceRequestId?: string;
     }>();
-  const isActivityRide = Boolean(activityId);
 
   const [linkedActivity, setLinkedActivity] =
     useState<LinkedActivity | null>(null);
@@ -53,6 +53,8 @@ export default function OfferRideScreen() {
   const [availableSeats, setAvailableSeats] = useState('1');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [activityError, setActivityError] = useState(false);
+  const [activityAttempt, setActivityAttempt] = useState(0);
   const [selectedPickupPlace, setSelectedPickupPlace] = useState<{ latitude: number; longitude: number } | null>(null);
   const [selectedDestinationPlace, setSelectedDestinationPlace] = useState<{ latitude: number; longitude: number } | null>(null);
 
@@ -83,22 +85,28 @@ export default function OfferRideScreen() {
     }
 
     let cancelled = false;
+    setLinkedActivity(null);
+    setActivityError(false);
 
     async function loadActivity() {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('id, title, location')
-        .eq('id', activityId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('activities')
+          .select('id, title, location, date_time')
+          .eq('id', activityId)
+          .single();
 
-      if (cancelled || error || !data) {
-        return;
-      }
+        if (cancelled) return;
+        if (error || !data) throw new Error(error?.message ?? 'Activity unavailable');
 
-      setLinkedActivity(data);
+        setLinkedActivity(data);
+        setRideDateTime(null);
 
-      if (data.location) {
-        setDestination(data.location);
+        if (data.location) {
+          setDestination(data.location);
+        }
+      } catch {
+        if (!cancelled) setActivityError(true);
       }
     }
 
@@ -107,7 +115,7 @@ export default function OfferRideScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activityId]);
+  }, [activityId, activityAttempt]);
 
   function goBack() {
     if (router.canGoBack()) {
@@ -119,6 +127,15 @@ export default function OfferRideScreen() {
   }
 
   async function handleSubmit() {
+    if (saving) return;
+    if (activityId && linkedActivity?.id !== activityId) {
+      Alert.alert('Activity unavailable', 'Load the activity before offering a ride.');
+      return;
+    }
+    if (linkedActivity && (!linkedActivity.date_time || !Number.isFinite(new Date(linkedActivity.date_time).getTime()))) {
+      Alert.alert('Activity date not set', 'The host needs to set a date for this activity before you can offer a ride.');
+      return;
+    }
     const cleanedPickup = pickupLocation.trim();
     const cleanedDestination = destination.trim();
 
@@ -171,7 +188,9 @@ export default function OfferRideScreen() {
       return;
     }
 
-    if (rideDateTime.getTime() <= Date.now()) {
+    const departure = new Date(linkedActivity?.date_time ?? rideDateTime);
+    departure.setHours(rideDateTime.getHours(), rideDateTime.getMinutes(), 0, 0);
+    if (!Number.isFinite(departure.getTime()) || departure.getTime() <= Date.now()) {
       Alert.alert(
         'Invalid departure time',
         'Departure time must be in the future.',
@@ -218,7 +237,7 @@ export default function OfferRideScreen() {
           destination_longitude:
             destinationCoordinates.longitude,
 
-          date_time: rideDateTime.toISOString(),
+          date_time: departure.toISOString(),
           available_seats: seats,
           notes: notes.trim() || null,
           status: 'open',
@@ -292,8 +311,27 @@ export default function OfferRideScreen() {
               <OfferRideIntroCard
                 linkedActivityTitle={linkedActivity?.title}
               />
+              {linkedActivity?.date_time && Number.isFinite(new Date(linkedActivity.date_time).getTime()) && (
+                <Text style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
+                  Event starts: {new Date(linkedActivity.date_time).toLocaleString(undefined, {
+                    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                  })}
+                </Text>
+              )}
 
-              <OfferRideForm
+              {activityId && !linkedActivity ? (
+                <>
+                  <Text style={{ color: colors.text }}>{activityError ? 'Could not load this activity. Check your connection and retry.' : 'Loading activity…'}</Text>
+                  {activityError && <Button textColor={colors.tint} onPress={() => setActivityAttempt(value => value + 1)}>Retry</Button>}
+                </>
+              ) : linkedActivity && (!linkedActivity.date_time || !Number.isFinite(new Date(linkedActivity.date_time).getTime())) ? (
+                <>
+                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>Activity date not set</Text>
+                  <Text style={{ color: colors.icon }}>The host needs to set a date for this activity before you can offer a ride.</Text>
+                  <Button textColor={colors.tint} onPress={goBack}>Back to activity</Button>
+                </>
+              ) : <OfferRideForm
+                fixedDate={linkedActivity?.date_time ? new Date(linkedActivity.date_time) : undefined}
                 individualPickup={individualPickup}
                 onIndividualPickupChange={setIndividualPickup}
                 pickupLocation={pickupLocation}
@@ -311,7 +349,7 @@ export default function OfferRideScreen() {
                 onNotesChange={setNotes}
                 saving={saving}
                 onSubmit={handleSubmit}
-              />
+              />}
             </>
           ) : verificationStatus !== 'loading' ? (
             <View

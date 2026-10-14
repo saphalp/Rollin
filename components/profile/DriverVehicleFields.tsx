@@ -1,6 +1,12 @@
-import { Colors, Fonts } from "@/constants/theme";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Text, TextInput } from "react-native-paper";
+
+import { SelectField } from "@/components/profile/SelectField";
+import { Colors, Fonts } from "@/constants/theme";
+import { fetchVehicleModels, VEHICLE_MAKES, vehicleYearOptions } from "@/lib/vehicle-data";
+
+const YEAR_OPTIONS = vehicleYearOptions();
 
 type DriverVehicleFieldsProps = {
   vehicleMake: string;
@@ -31,6 +37,39 @@ export default function DriverVehicleFields({
 }: DriverVehicleFieldsProps) {
   const colors = Colors.light;
 
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!vehicleMake) {
+      setModelOptions([]);
+      return;
+    }
+
+    let active = true;
+    setModelsLoading(true);
+
+    fetchVehicleModels(vehicleMake)
+      .then((models) => {
+        if (active) setModelOptions(models);
+      })
+      .catch(() => {
+        if (active) setModelOptions([]);
+      })
+      .finally(() => {
+        if (active) setModelsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [vehicleMake]);
+
+  function handleMakeChange(make: string) {
+    onChangeVehicleMake(make);
+    onChangeVehicleModel("");
+  }
+
   const inputProps = {
     mode: "outlined" as const,
     autoCapitalize: "words" as const,
@@ -45,44 +84,34 @@ export default function DriverVehicleFields({
 
   return (
     <View style={styles.form}>
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
-          Vehicle Make
-        </Text>
-        <TextInput
-          {...inputProps}
-          placeholder="e.g. Honda"
-          value={vehicleMake}
-          onChangeText={onChangeVehicleMake}
-        />
-      </View>
+      <SelectField
+        label="Vehicle Make"
+        value={vehicleMake}
+        options={VEHICLE_MAKES}
+        onChange={handleMakeChange}
+        placeholder="Select a make"
+        disabled={disabled}
+      />
 
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
-          Vehicle Model
-        </Text>
-        <TextInput
-          {...inputProps}
-          placeholder="e.g. Civic"
-          value={vehicleModel}
-          onChangeText={onChangeVehicleModel}
-        />
-      </View>
+      <SelectField
+        label="Vehicle Model"
+        value={vehicleModel}
+        options={modelOptions}
+        onChange={onChangeVehicleModel}
+        placeholder={vehicleMake ? "Select a model" : "Select a make first"}
+        disabled={disabled || !vehicleMake}
+        loading={modelsLoading}
+        emptyMessage={modelsLoading ? "Loading models…" : "No models found for this make"}
+      />
 
-      <View style={styles.fieldGroup}>
-        <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
-          Vehicle Year
-        </Text>
-        <TextInput
-          {...inputProps}
-          placeholder="e.g. 2021"
-          value={vehicleYear}
-          onChangeText={onChangeVehicleYear}
-          autoCapitalize="none"
-          keyboardType="number-pad"
-          maxLength={4}
-        />
-      </View>
+      <SelectField
+        label="Vehicle Year"
+        value={vehicleYear}
+        options={YEAR_OPTIONS}
+        onChange={onChangeVehicleYear}
+        placeholder="Select a year"
+        disabled={disabled}
+      />
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>

@@ -26,6 +26,7 @@ nav:
       - First-login Tutorial: features/first-login-tutorial.md
       - User Profiles and Connections: features/user-profiles-and-connections.md
       - Activity Creation and Discovery: features/activity-creation-and-discovery.md
+      - Calendar Export: features/calendar-export.md
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md

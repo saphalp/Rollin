@@ -18,6 +18,7 @@
 
 - **Supabase for auth.** It gives us email/password and Google OAuth out of the box, plus a place to run server-side logic (edge functions).
 - **Email confirmation before normal sign-in.** Supabase sends a numeric signup code. The user enters it in Rollin to verify ownership and start an authenticated session.
+- **Email code on fresh sessions.** The local implementation requires a separate login code before loading app data. Existing approved sessions stay signed in. See [Email login verification](login-email-verification.md) for required backend rollout steps and the distinction from native Supabase MFA.
 - **Educational verification should run server-side.** The mobile client reads the resulting `is_educational_email` value from the profile instead of deciding whether a user is verified. The server-side implementation is configured outside this repository and must also be configured when the backend is recreated.
 - **Hipolabs for educational-domain lookup.** The verification design uses the free Hipolabs Universities API to compare an email domain with known university domains without placing that decision in the client application.
 
@@ -34,8 +35,8 @@
 1. The user enters an email address and password.
 2. Supabase creates the account and sends an email-confirmation code.
 3. The app passes the signup email to the confirmation screen. The user enters the code, and `verifyOtp` with type `email` confirms ownership and creates a session.
-4. The authentication provider loads the associated profile from that session.
-5. The application routes the user to profile completion or the main tabs based on the current profile state.
+4. The authentication provider checks the session's server-side login approval; a fresh session must enter an emailed login code.
+5. After approval, the provider loads the profile and routes the user to profile completion or the main tabs.
 
 Users who try to log in before confirmation return to the code-entry screen. Resend code calls `auth.resend` with type `signup`, with a 60-second cooldown after a successful request or rate-limit response. Invalid/expired codes and request failures are shown inline. Regular login continues to use email and password.
 
@@ -44,7 +45,7 @@ Users who try to log in before confirmation return to the code-entry screen. Res
 1. The user chooses Google sign-in.
 2. Google handles account selection and authentication.
 3. The OAuth redirect returns the user to Rollin and Supabase creates the authenticated session.
-4. The application loads the user's profile and continues to profile completion or the main tabs.
+4. The application requires the emailed login code for the new session, then loads the user's profile and continues to profile completion or the main tabs.
 
 Educational-email verification, when configured in Supabase, runs outside the mobile client and stores its result in the profile's `is_educational_email` field.
 

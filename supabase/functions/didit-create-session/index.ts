@@ -71,6 +71,10 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           workflow_id: DIDIT_WORKFLOW_ID,
           vendor_data: user.id,
+          // Matches the redirect URL the client passes to
+          // WebBrowser.openAuthSessionAsync, which auto-closes the browser
+          // the moment Didit redirects here — no in-app route needed.
+          callback: "rollin://verify/done",
         }),
         signal: AbortSignal.timeout(15_000),
       },

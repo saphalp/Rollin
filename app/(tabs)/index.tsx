@@ -383,8 +383,9 @@ export default function HomeScreen() {
                     )}
                     {featured.recurring && (
                       <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+                        <IconSymbol name="arrow.triangle.2.circlepath" size={12} color="#fff" />
                         <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
-                          🔁 Recurring
+                          Recurring
                         </AppText>
                       </View>
                     )}

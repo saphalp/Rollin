@@ -47,6 +47,8 @@ const MAPPING = {
   'square.and.arrow.up': 'share',
   'xmark.circle.fill': 'cancel',
   'plus': 'add',
+  'lock.fill': 'lock',
+  'arrow.triangle.2.circlepath': 'repeat',
 } as IconMapping;
 
 

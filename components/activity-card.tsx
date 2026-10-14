@@ -84,8 +84,9 @@ export function ActivityCard({
           )}
           {recurring && (
             <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+              <IconSymbol name="arrow.triangle.2.circlepath" size={11} color="#fff" />
               <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
-                🔁 Recurring
+                Recurring
               </AppText>
             </View>
           )}

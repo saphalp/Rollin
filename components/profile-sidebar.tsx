@@ -144,6 +144,11 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
 
             <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
 
+            <TouchableOpacity accessibilityRole="button" style={styles.menuItem} onPress={() => navigate('/account-center')}>
+              <IconSymbol name="person.fill" size={20} color={colors.icon} />
+              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Account Center</AppText>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
               <AppText style={[styles.menuText, { color: colors.error, fontFamily: Fonts?.sans }]}>Sign Out</AppText>
             </TouchableOpacity>

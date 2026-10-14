@@ -52,14 +52,19 @@ export function LocationAutocompleteField({
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
-  const sessionToken = useRef(generateToken());
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const requestId = useRef(0);
-  const skipSearch = useRef(false);
-
   function generateToken() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
+
+  const sessionToken = useRef('');
+  useEffect(() => {
+    if (!sessionToken.current) {
+      sessionToken.current = generateToken();
+    }
+  }, []);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestId = useRef(0);
+  const skipSearch = useRef(false);
 
   const fetchSuggestions = useCallback(async (input: string) => {
     const id = ++requestId.current;

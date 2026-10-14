@@ -11,6 +11,7 @@ export type Profile = {
   educational_domain_checked_at: string | null;
   profile_completed: boolean;
   is_driver: boolean;
+  is_verified_driver: boolean;
   created_at: string;
 };
 
@@ -21,6 +22,9 @@ export type AuthData = {
   isLoggedIn: boolean;
   isProfileComplete: boolean;
   refreshProfile: () => Promise<void>;
+  needsEmailVerification: boolean;
+  verificationError: string;
+  refreshLoginVerification: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthData>({
@@ -30,6 +34,9 @@ export const AuthContext = createContext<AuthData>({
   isLoggedIn: false,
   isProfileComplete: false,
   refreshProfile: async () => {},
+  needsEmailVerification: false,
+  verificationError: '',
+  refreshLoginVerification: async () => {},
 });
 
 export const useAuthContext = () => useContext(AuthContext);

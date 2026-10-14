@@ -16,6 +16,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "@secret:GOOGLE_SERVICE_ACCOUNT",
+        "track": "internal"
+      }
+    }
   }
 }

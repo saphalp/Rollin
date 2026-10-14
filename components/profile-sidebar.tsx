@@ -137,6 +137,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={confirmReset} disabled={sendingReset}>
+              <IconSymbol name="lock.fill" size={20} color={colors.icon} />
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>
                 {sendingReset ? 'Sending…' : 'Reset Password'}
               </AppText>

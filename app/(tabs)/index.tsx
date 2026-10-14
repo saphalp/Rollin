@@ -36,6 +36,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  recurring?: boolean;
   status?: 'active' | 'expired';
 };
 
@@ -80,8 +81,9 @@ export default function HomeScreen() {
         setSavedIds(new Set());
       }
       let query = supabase.from('activities')
-        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, is_recurring, rsvps(id)')
         .eq('status', 'active')
+        .is('recurrence_parent_id', null)
         .order('date_time', { ascending: true }).order('id');
       query = visibleHostIds.length > 0
         ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
@@ -102,7 +104,7 @@ export default function HomeScreen() {
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
         date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
         attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
-        rideSharing: a.ride_sharing ?? false, status: a.status ?? 'active',
+        rideSharing: a.ride_sharing ?? false, recurring: a.is_recurring ?? false, status: a.status ?? 'active',
       })));
     } catch {
       if (current()) {
@@ -322,6 +324,7 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      recurring={activity.recurring}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}
                       onPress={() => openActivity(activity)}

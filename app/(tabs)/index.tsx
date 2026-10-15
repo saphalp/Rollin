@@ -36,6 +36,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  waitlistPosition?: number | null;
   status?: 'active' | 'expired';
 };
 
@@ -89,6 +90,11 @@ export default function HomeScreen() {
       if (selectedCategory !== 'All') {
         query = query.eq('category', selectedCategory.toLowerCase());
       }
+      const { data: spots } = await supabase.rpc('my_waitlist_positions');
+      const positions = new Map<string, number>(
+        (spots ?? []).map((s: any) => [s.activity_id, s.position_in_line]),
+      );
+
       const rows: any[] = [];
       for (let offset = 0; ; offset += 500) {
         const result = await query.range(offset, offset + 499);
@@ -102,7 +108,7 @@ export default function HomeScreen() {
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
         date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
         attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
-        rideSharing: a.ride_sharing ?? false, status: a.status ?? 'active',
+        rideSharing: a.ride_sharing ?? false, waitlistPosition: positions.get(a.id) ?? null, status: a.status ?? 'active',
       })));
     } catch {
       if (current()) {
@@ -322,6 +328,7 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      waitlistPosition={activity.waitlistPosition}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}
                       onPress={() => openActivity(activity)}

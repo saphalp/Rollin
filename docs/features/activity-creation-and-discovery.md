@@ -59,6 +59,7 @@ Allow users to create activities for other students to join and discover activit
 2. All activities are fetched once on open with no date filter.
 3. Dates with activities show colored dots: yellow (`#fea619`) for the user's own hosted events, blue for others'.
 4. Tapping a date shows a list of that day's events below the calendar; tapping an event navigates to its detail screen.
+5. **Export events** saves an `.ics` file with event-group and date filters. See [Calendar export](calendar-export.md) for Google Calendar import steps and scope.
 
 **Activity detail:**
 1. Shows hero image, title, host (tappable → host profile), date, time, location, capacity, ride sharing badge.

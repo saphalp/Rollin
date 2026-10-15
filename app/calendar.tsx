@@ -11,6 +11,7 @@ import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
+import { CalendarExportButton } from '@/components/calendar/export-events';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -158,6 +159,8 @@ export default function CalendarScreen() {
           </View>
 
         </TourTarget>
+
+        <CalendarExportButton selectedDate={selectedDate} />
 
         {/* Day events */}
         {selectedDate && (

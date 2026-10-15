@@ -1,4 +1,5 @@
 import AuthHeader from "@/components/auth/AuthHeader";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
@@ -149,6 +150,13 @@ export default function ResetPasswordScreen() {
               { backgroundColor: colors.surfaceContainer, borderColor: colors.outlineVariant },
             ]}
           >
+            <View style={styles.iconContainer}>
+              <IconSymbol
+                name={isChoosingPassword ? "lock.fill" : "envelope.fill"}
+                size={32}
+                color={colors.tint}
+              />
+            </View>
             <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}>
               {isChoosingPassword ? "Choose a new password" : "Verify reset code"}
             </Text>
@@ -289,4 +297,5 @@ const styles = StyleSheet.create({
   input: { fontSize: 14 },
   error: { fontSize: 13, lineHeight: 18 },
   buttonContent: { height: 52 },
+  iconContainer: { alignItems: 'center', marginBottom: 4 },
 });

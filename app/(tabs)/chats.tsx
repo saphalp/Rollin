@@ -76,6 +76,7 @@ export default function ChatsScreen() {
                         id: conversation.id,
                         name: conversation.title,
                         avatar: conversation.avatarUri,
+                        otherUserId: conversation.otherUserId ?? "",
                       },
                     })
                   }

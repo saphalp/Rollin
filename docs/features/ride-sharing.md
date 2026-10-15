@@ -174,7 +174,21 @@ The user can review:
 - Available seats
 - Notes
 
+### Rides on an activity
+
+Upcoming activities with ride sharing enabled show **Rides for this activity** beneath About. The section previews up to three upcoming open offers with available seats, including the viewer's own offers. Each card opens the existing ride details and seat-request flow. Full, past, and closed offers are excluded. **View all rides and requests** opens the activity-filtered list, including people looking for a ride.
+
+**Request a Ride** opens the existing pickup/time form and posts a request linked to the activity. **Offer a Ride** opens the existing offer form with that activity selected. Both actions remain available when offers already exist. The request form waits for its activity to load and offers retry on failure; it cannot silently create a general request if the lookup fails. Successful activity requests return to the activity page.
+
+The preview refreshes on screen focus and ride updates, and provides loading, empty, error, and retry states. It uses existing ride tables, services, and permissions; no migration or new configuration is required.
+
+Device acceptance check: offer a ride on activity A, view A from another account and request a seat; confirm activity B does not show A's rides. Post a ride request from A both with and without offers and confirm it appears in A's requests. Test lookup failure/retry, returning after creating an offer, and past/ride-sharing-disabled activities.
+
 ### Offer a Ride
+
+The linked offer page shows the event's start date and time above the form. Activity creation and editing require a valid start date/time. Apply `supabase/migrations/202610130001_require_activity_date.sql` to enforce this for database inserts and date changes too; existing undated activities keep their data until their hosts set a date.
+
+For an activity-linked offer, the date is read-only and taken from the activity's local calendar date. The driver chooses only the departure time. Submission combines that time with the activity date and still requires a future departure. Activity lookup failures must be retried before the offer form is available. An activity without a saved date instead explains that its host must set a date; retrying cannot repair missing scheduling data. Independent offers retain editable date and time fields.
 
 When the user selects Offer a Ride:
 

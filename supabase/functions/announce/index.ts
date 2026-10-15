@@ -1,3 +1,4 @@
+import { requireVerifiedLogin } from '../_shared/login-verification.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.110.2';
 
 const cors = {
@@ -24,6 +25,7 @@ Deno.serve(async (req: Request) => {
     );
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) return reply({ error: 'Sign in again to post an announcement.' }, 401);
+    if (!(await requireVerifiedLogin(client))) return reply({ error: 'Complete email login verification first.' }, 403);
 
     const body = await req.json().catch(() => null);
     if (typeof body?.announcementId !== 'string' ||

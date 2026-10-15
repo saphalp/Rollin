@@ -83,9 +83,82 @@ export default function NotificationsScreen() {
       )
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setNotifications(
-        data.map((n: any) => ({
+    if (error || !data) {
+      setLoading(false);
+      return;
+    }
+
+    // Check status of follow requests in follows table
+    const followRequests = data.filter((n: any) => n.type === 'follow_request' && n.actor_id);
+    const followStatusMap: Record<string, string> = {};
+
+    if (currentUserId && followRequests.length > 0) {
+      const actorIds = followRequests.map((n: any) => n.actor_id);
+      const { data: followRows } = await supabase
+        .from('follows')
+        .select('follower_id, status')
+        .eq('following_id', currentUserId)
+        .in('follower_id', actorIds);
+
+      if (followRows) {
+        for (const f of followRows) {
+          followStatusMap[f.follower_id] = f.status;
+        }
+      }
+    }
+
+    // Check status of activity join requests
+    const joinRequests = data.filter(
+      (n: any) => n.type === 'activity_join_request' && n.activity_id && n.actor_id
+    );
+    const joinStatusMap: Record<string, string> = {};
+
+    if (joinRequests.length > 0) {
+      const activityIds = [...new Set(joinRequests.map((n: any) => n.activity_id))];
+      const { data: joinRows } = await supabase
+        .from('activity_join_requests')
+        .select('activity_id, requester_id, status')
+        .in('activity_id', activityIds);
+
+      if (joinRows) {
+        for (const j of joinRows) {
+          joinStatusMap[`${j.activity_id}_${j.requester_id}`] = j.status;
+        }
+      }
+    }
+
+    // Filter out notifications for follow requests that were deleted/cancelled
+    const filtered = data.filter((n: any) => {
+      if (n.type === 'follow_request' && n.actor_id && currentUserId) {
+        const status = followStatusMap[n.actor_id];
+        // If the row no longer exists in follows, the request was cancelled or already removed
+        if (!status) {
+          void supabase.from('notifications').delete().eq('id', n.id);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    setNotifications(
+      filtered.map((n: any) => {
+        let resolution: 'accepted' | 'rejected' | undefined = undefined;
+
+        if (n.type === 'follow_request' && n.actor_id) {
+          const status = followStatusMap[n.actor_id];
+          if (status === 'accepted') {
+            resolution = 'accepted';
+          }
+        } else if (n.type === 'activity_join_request' && n.activity_id && n.actor_id) {
+          const status = joinStatusMap[`${n.activity_id}_${n.actor_id}`];
+          if (status === 'accepted') {
+            resolution = 'accepted';
+          } else if (status === 'rejected') {
+            resolution = 'rejected';
+          }
+        }
+
+        return {
           id: n.id,
           type: n.type,
           message: n.message,
@@ -93,20 +166,21 @@ export default function NotificationsScreen() {
           isRead: n.is_read,
           actor: n.actor,
           activityId: n.activity_id,
-        }))
-      );
-    }
+          resolution,
+        };
+      })
+    );
     setLoading(false);
   }
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchNotifications().finally(() => setRefreshing(false));
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [currentUserId]);
 
   async function markAsRead(id: string) {
     setNotifications((prev) =>
@@ -131,6 +205,7 @@ export default function NotificationsScreen() {
       .eq('following_id', currentUserId);
 
     if (followErr) {
+      console.error('[Notifications] update follow status failed:', followErr);
       setNotifications((prev) =>
         prev.map((x) =>
           x.id === n.id ? { ...x, resolution: undefined } : x
@@ -139,7 +214,11 @@ export default function NotificationsScreen() {
       return;
     }
 
-    await supabase.from('notifications').delete().eq('id', n.id);
+    const { error: delErr } = await supabase.from('notifications').delete().eq('id', n.id);
+    if (delErr) {
+      console.error('[Notifications] delete notification failed:', delErr);
+      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    }
   }
 
   async function handleReject(n: Notification) {
@@ -155,11 +234,16 @@ export default function NotificationsScreen() {
       .eq('following_id', currentUserId);
 
     if (followErr) {
+      console.error('[Notifications] delete follow failed:', followErr);
       setNotifications(previous);
       return;
     }
 
-    await supabase.from('notifications').delete().eq('id', n.id);
+    const { error: delErr } = await supabase.from('notifications').delete().eq('id', n.id);
+    if (delErr) {
+      console.error('[Notifications] delete notification failed:', delErr);
+      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+    }
   }
 
   async function handleAcceptJoinRequest(n: Notification) {

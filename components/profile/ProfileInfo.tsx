@@ -1,3 +1,4 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { StyleSheet, useColorScheme, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -6,12 +7,14 @@ interface ProfileInfoProps {
   name: string;
   university: string;
   major: string;
+  isVerifiedDriver?: boolean;
 }
 
 export default function ProfileInfo({
   name,
   university,
   major,
+  isVerifiedDriver = false,
 }: ProfileInfoProps) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
@@ -40,6 +43,15 @@ export default function ProfileInfo({
           {major}
         </Text>
       </View>
+
+      {isVerifiedDriver && (
+        <View style={[styles.driverBadge, { backgroundColor: colors.primaryContainer }]}>
+          <IconSymbol name="car.fill" size={13} color={colors.onPrimary} />
+          <Text style={[styles.driverBadgeText, { color: colors.onPrimary, fontFamily: Fonts.sans }]}>
+            Verified Driver
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -71,5 +83,18 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     opacity: 0.6,
+  },
+  driverBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 4,
+  },
+  driverBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

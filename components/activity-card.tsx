@@ -18,6 +18,7 @@ type ActivityCardProps = {
   maxAttendees?: number;
   rideSharing?: boolean;
   recurring?: boolean;
+  waitlistPosition?: number | null;
   saved?: boolean;
   onBookmarkPress?: () => void;
   onPress?: () => void;
@@ -34,6 +35,7 @@ export function ActivityCard({
   maxAttendees,
   rideSharing,
   recurring = false,
+  waitlistPosition,
   saved = false,
   onBookmarkPress,
   onPress,
@@ -82,8 +84,9 @@ export function ActivityCard({
           )}
           {recurring && (
             <View style={[styles.rideBadge, { backgroundColor: 'rgba(99,102,241,0.85)' }]}>
+              <IconSymbol name="arrow.triangle.2.circlepath" size={11} color="#fff" />
               <AppText style={[styles.rideBadgeText, { color: '#fff', fontFamily: Fonts?.sans }]}>
-                🔁 Recurring
+                Recurring
               </AppText>
             </View>
           )}
@@ -119,6 +122,14 @@ export function ActivityCard({
               {isCampusEvent ? `${attendeeCount} joined` : `${attendeeCount}/${maxAttendees}`}
             </AppText>
           </View>}
+            {waitlistPosition ? (
+               <View style={styles.metaItem}>
+                 <IconSymbol name="clock" size={12} color={colors.onImageOverlay} />
+                 <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                   Waitlist #{waitlistPosition}
+                 </AppText>
+               </View>
+             ) : null}
         </View>
         {!!location && <View style={styles.metaItem}>
           <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />

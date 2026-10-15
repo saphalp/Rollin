@@ -30,6 +30,7 @@ export function useAvailableRides({
         try {
             const result = await fetchAvailableRides({
                 activityId,
+                includeOwn: Boolean(activityId),
                 filter,
                 search,
             });

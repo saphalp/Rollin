@@ -23,5 +23,9 @@ export async function startLicenseVerification(): Promise<void> {
     throw new Error("License verification did not return a valid link.");
   }
 
-  await WebBrowser.openBrowserAsync(data.url);
+  // openAuthSessionAsync (not openBrowserAsync) auto-closes the browser the
+  // moment Didit redirects to this scheme, instead of requiring the user to
+  // manually dismiss it. The app never needs to actually handle this route —
+  // the OS intercepts the redirect before it would open as a real deep link.
+  await WebBrowser.openAuthSessionAsync(data.url, "rollin://verify/done");
 }

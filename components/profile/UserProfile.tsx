@@ -1,8 +1,9 @@
-import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
+import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
+import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
@@ -14,6 +15,8 @@ import {
   View,
 } from "react-native";
 import { Chip, Text } from "react-native-paper";
+import { ProfilePrivacyGate } from './ProfilePrivacyGate';
+import { ProfileSocialLinks } from './ProfileSocialLinks';
 
 import ActivitySegmentedControl, {
   type ActivityView,
@@ -30,7 +33,6 @@ import SectionHeader from "@/components/profile/SectionHeader";
 
 import { RideRatingSummary } from './RideRatingSummary';
 
-const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
 
 type ActivityRow = {
   id: string;
@@ -107,6 +109,10 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ userId }: UserProfileProps) {
+  return <ProfilePrivacyGate userId={userId}><UserProfileContent userId={userId} /></ProfilePrivacyGate>;
+}
+
+function UserProfileContent({ userId }: UserProfileProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
@@ -121,6 +127,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [attendedCount, setAttendedCount] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
@@ -148,7 +155,10 @@ export default function UserProfile({ userId }: UserProfileProps) {
             "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
           )
           .eq("user_id", userId)
-        : Promise.resolve({ data: [], error: null });
+        : supabase
+          .from("rsvps")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
 
       const [createdResult, joinedResult] = await Promise.all([
         createdRequest,
@@ -168,16 +178,22 @@ export default function UserProfile({ userId }: UserProfileProps) {
         sortActivitiesByDate(created.map(toActivityRow)),
       );
 
-      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
-      const joined = joinedRows.flatMap((row) => {
-        if (!row.activity) return [];
-        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
-        return activities.filter((a: any) => !a.recurrence_parent_id);
-      });
+      if (isOwnProfile) {
+        const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+        const joined = joinedRows.flatMap((row) => {
+          if (!row.activity) return [];
+          const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+          return activities.filter((a: any) => !a.recurrence_parent_id);
+        });
 
-      setJoinedActivities(
-        sortActivitiesByDate(joined.map(toActivityRow)),
-      );
+        setJoinedActivities(
+          sortActivitiesByDate(joined.map(toActivityRow)),
+        );
+        setAttendedCount(joined.length);
+      } else {
+        setJoinedActivities([]);
+        setAttendedCount(joinedResult.count ?? 0);
+      }
       setActivitiesLoading(false);
     })();
 
@@ -270,6 +286,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
         id: conversationId,
         name: profile.full_name ?? "",
         avatar: resolveAvatarUri(profile.profile_picture),
+        otherUserId: profile.id,
       },
     });
   }
@@ -295,6 +312,7 @@ export default function UserProfile({ userId }: UserProfileProps) {
   const name = profile.full_name || "Complete your profile";
   const avatarUri = resolveAvatarUri(profile.profile_picture);
   const verified = !!profile.is_educational_email;
+  const isVerifiedDriver = !!profile.is_verified_driver;
   const university = profile.university || "";
   const major = profile.major || "";
 
@@ -311,18 +329,26 @@ export default function UserProfile({ userId }: UserProfileProps) {
           <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
         )}
 
-        <ProfileInfo name={name} university={university} major={major} />
+        <ProfileInfo
+          name={name}
+          university={university}
+          major={major}
+          isVerifiedDriver={isVerifiedDriver}
+        />
+
+        <ProfileSocialLinks userId={userId} />
 
         <ProfileActionBar
           isOwnProfile={isOwnProfile}
           followState={followState}
-          onFollowPress={toggleFollow}
+          onFollowPress={() => { void (async () => { await toggleFollow(); notifyAccountChanges(); })().catch(() => setActivitiesError("Unable to update follow status.")); }}
           onMessagePress={handleMessagePress}
         />
 
         <ProfileStats
           statsData={{
-            ...EMPTY_STATS,
+            attended: attendedCount,
+            hosted: createdActivities.length,
             rides: rideCount,
             rating,
           }}

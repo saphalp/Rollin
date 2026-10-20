@@ -36,6 +36,7 @@ export function RootNavigator() {
         <Stack.Screen name="profile/[id]" />
         <Stack.Screen name="saved-activities" />
         <Stack.Screen name="my-activities" />
+        <Stack.Screen name="reviews/[userId]" />
         <Stack.Screen name="tutorial" />
         <Stack.Screen name="notification-settings" />
         <Stack.Screen name="shared-profile/[id]" />

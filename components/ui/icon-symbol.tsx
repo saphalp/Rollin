@@ -49,6 +49,10 @@ const MAPPING = {
   'plus': 'add',
   'lock.fill': 'lock',
   'arrow.triangle.2.circlepath': 'repeat',
+  // Reviews
+  'star': 'star-border',
+  'star.fill': 'star',
+  'star.leadinghalf.filled': 'star-half',
 } as IconMapping;
 
 

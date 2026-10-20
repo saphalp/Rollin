@@ -1,5 +1,6 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
+import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -172,6 +173,9 @@ export default function ActivityDetailScreen() {
     useState(false);
 
   const [shareSheetVisible, setShareSheetVisible] =
+    useState(false);
+
+  const [reviewSheetVisible, setReviewSheetVisible] =
     useState(false);
 
   const [boosted, setBoosted] =
@@ -751,6 +755,10 @@ export default function ActivityDetailScreen() {
       ? new Date(activity.date_time) < new Date()
       : false;
 
+  // Attendees can review the host once the activity has happened; the server re-checks this.
+  const canReviewHost =
+    !isHost && hasRsvp && isPast;
+
   return (
     <AppView style={styles.container}>
       <ScrollView
@@ -859,7 +867,7 @@ export default function ActivityDetailScreen() {
                 />
               </TouchableOpacity>
 
-              {isHost && (
+              {(isHost || canReviewHost) && (
                 <Menu
                   visible={menuVisible}
                   onDismiss={() =>
@@ -890,6 +898,8 @@ export default function ActivityDetailScreen() {
                       colors.cardBackground,
                   }}
                 >
+                  {isHost ? (
+                  <>
                   <Menu.Item
                     leadingIcon="pencil"
                     title="Edit Activity"
@@ -956,6 +966,21 @@ export default function ActivityDetailScreen() {
                       fontFamily: Fonts?.sans,
                     }}
                   />
+                  </>
+                  ) : (
+                  <Menu.Item
+                    leadingIcon="star-outline"
+                    title="Review Host"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      setReviewSheetVisible(true);
+                    }}
+                    titleStyle={{
+                      color: colors.text,
+                      fontFamily: Fonts?.sans,
+                    }}
+                  />
+                  )}
                 </Menu>
               )}
             </View>
@@ -1857,6 +1882,20 @@ export default function ActivityDetailScreen() {
         shareType="activity"
         contentId={activity.id}
       />
+
+      {canReviewHost && (
+        <ReviewFormSheet
+          subjectId={activity.host_id}
+          visible={reviewSheetVisible}
+          onClose={() =>
+            setReviewSheetVisible(false)
+          }
+          initialItem={{
+            kind: "host",
+            item_id: activity.id,
+          }}
+        />
+      )}
     </AppView>
   );
 }

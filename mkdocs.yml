@@ -30,6 +30,8 @@ nav:
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md
+      - Ride Ratings: features/ride-ratings.md
+      - Reviews: features/reviews.md
   - Development:
       - Development Workflow: development-workflow.md
   - Project Reference:

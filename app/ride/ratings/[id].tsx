@@ -29,7 +29,7 @@ function RatingForm({ target, existing }: { target: RatingTarget; existing?: Rid
     <TextInput accessibilityLabel="Optional rating comment" placeholder="Comment (optional)" placeholderTextColor={colors.icon}
       multiline maxLength={1000} editable={!busy} value={comment} onChangeText={v => { setComment(v); setSaved(false); }}
       style={{ color: colors.text, borderWidth: 1, borderColor: colors.outlineVariant, padding: 12, borderRadius: 12, minHeight: 90 }} />
-    <AppText style={{ fontSize: 12 }}>Only you and the recipient can read this comment.</AppText>
+    <AppText style={{ fontSize: 12 }}>Ratings and comments are public on their profile and show your name.</AppText>
     <TouchableOpacity disabled={!stars || busy || saved} onPress={() => void submit()} accessibilityRole="button"
       style={{ backgroundColor: colors.tint, padding: 14, borderRadius: 12, opacity: !stars || saved ? 0.5 : 1 }}>
       <AppText style={{ color: colors.onPrimary, textAlign: 'center' }}>{busy ? 'Saving…' : saved ? 'Saved' : 'Save rating'}</AppText>

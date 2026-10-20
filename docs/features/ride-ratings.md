@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Drivers and passengers can rate each other after a completed ride. The profile rating shows the average of the ratings that user has received.
+Drivers and passengers can rate each other after a completed ride. Ride ratings are one kind of review; see [Reviews](reviews.md) for host reviews, the reviews page, and the combined profile average.
 
 ## Assumptions
 
@@ -15,9 +15,9 @@ Drivers and passengers can rate each other after a completed ride. The profile r
 
 ### Stars and comments
 
-Ratings use 1 to 5 stars with an optional comment of up to 1,000 characters. The profile shows the average and number of ratings. Users with no ratings see No ratings yet.
+Ratings use 1 to 5 stars with an optional comment of up to 1,000 characters. The profile stats bar shows one average across ride ratings and host reviews.
 
-Comments are visible only to their author and recipient. The author needs access so they can edit their own comment. Other users can see the average but cannot read individual ratings through the database.
+Ratings and comments are public, with the author's name, on the recipient's reviews page. Direct table reads are still limited to the author and recipient; everyone else reads them through the `profile_reviews` function described in [Reviews](reviews.md).
 
 ### Editing ratings
 
@@ -31,7 +31,7 @@ Completing a ride takes the driver to the rating form. Other participants get a 
 
 ### Privacy and eligibility
 
-The ride_ratings table has row-level security. Only the author and recipient can read a rating. Writes go through save_ride_rating, which checks the completed ride and participant relationship. The public summary function returns only the average and count.
+The ride_ratings table has row-level security. Only the author and recipient can read rows directly. Writes go through save_ride_rating, which checks the completed ride and participant relationship. Public reads go through `profile_reviews` and `review_summary`.
 
 ### Completing a ride
 
@@ -45,7 +45,7 @@ The finish_ride function completes the ride and accepted requests, rejects pendi
 4. The user selects stars, optionally writes a comment, and saves
 5. The recipient's profile average reflects the saved rating
 6. Either person can open the ride from History and choose Add or edit ride ratings
-7. Recipients can read their private feedback on their own profile
+7. Anyone can read the rating on the recipient's reviews page
 
 ## Setup
 
@@ -57,7 +57,7 @@ Run `supabase/migrations/20260919090000_ride_ratings_and_pickups.sql` in Supabas
 |---|---|
 | `app/ride/ratings/[id].tsx` | Rating forms for a completed ride |
 | `components/rides/rating-reminder.tsx` | In-app completion reminders |
-| `components/profile/RideRatingSummary.tsx` | Profile average, count, and private feedback |
+| `app/reviews/[userId].tsx` | Reviews page that lists ride ratings with host reviews |
 | `services/ride-ratings-service.ts` | Loads targets and saves ratings |
 | `services/ride-dashboard-service.ts` | Links History entries to the original ride |
 | `scripts/test-ride-database.cjs` | Tests the migration in a temporary PostgreSQL database |

@@ -3,6 +3,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
+import { useReviewSummary } from "@/hooks/use-review-summary";
 import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
@@ -31,9 +32,7 @@ import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 
-import { RideRatingSummary } from './RideRatingSummary';
-
-const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, rating: 0 };
+const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, reviews: null };
 
 type ActivityRow = {
   id: string;
@@ -122,13 +121,13 @@ function UserProfileContent({ userId }: UserProfileProps) {
   const { followState, toggle: toggleFollow } = useFollow(userId);
   const { allInterestNames, selectedNames, save: saveInterests } =
     useProfileInterests(userId);
+  const { average: reviewAverage } = useReviewSummary(userId);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activityView, setActivityView] =
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
-  const [rating, setRating] = useState<number | null>(null);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -339,11 +338,11 @@ function UserProfileContent({ userId }: UserProfileProps) {
           statsData={{
             ...EMPTY_STATS,
             rides: rideCount,
-            rating,
+            reviews: reviewAverage,
           }}
+          onReviewsPress={() => router.push(`/reviews/${userId}`)}
         />
 
-        <RideRatingSummary userId={userId} isOwnProfile={isOwnProfile} onAverage={setRating} />
         <View>
           <SectionHeader header="Interests" />
           <View style={styles.chipsRow}>

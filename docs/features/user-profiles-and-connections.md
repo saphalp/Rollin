@@ -67,7 +67,7 @@
 - Profile avatar: Displays the uploaded picture or a fallback avatar. An educational verification badge appears when is_educational_email is true.
 - Profile information: Displays the user's full name, university, and major.
 - Action bar: Shows Edit Profile for the owner. Other users see Follow, Requested, Following, and Message controls depending on connection state.
-- Statistics: Displays attended, hosted, rides, and rating. Completed rides and ride ratings are loaded from Supabase. Rating comments are visible only on the recipient’s own profile.
+- Statistics: Displays attended, hosted, rides, and reviews. Completed rides and the combined ride and host review average are loaded from Supabase. Tapping reviews opens the user's [reviews page](reviews.md).
 - Interests: Displays selected interests as chips. The profile owner can open a bottom sheet to add or remove interests.
 - My Activities: The profile owner can switch between Created and Joined activities.
 - Recent Activities: Other profiles display activities created by that user.

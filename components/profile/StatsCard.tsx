@@ -1,18 +1,25 @@
 import { Colors, Fonts } from "@/constants/theme";
-import { StyleSheet, useColorScheme, View } from "react-native";
+import { Pressable, StyleSheet, useColorScheme } from "react-native";
 import { Text } from "react-native-paper";
 
 interface StatsCardProps {
   label: string;
   score: number | string;
+  onPress?: () => void;
 }
 
-export default function StatsCard({ label, score }: StatsCardProps) {
+export default function StatsCard({ label, score, onPress }: StatsCardProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
   return (
-    <View style={styles.container}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={`${score} ${label}`}
+      style={({ pressed }) => [styles.container, pressed && styles.pressed]}
+    >
       <Text
         style={[
           styles.score,
@@ -26,7 +33,7 @@ export default function StatsCard({ label, score }: StatsCardProps) {
       >
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -36,6 +43,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   score: {
     fontSize: 20,

@@ -22,3 +22,4 @@ The main features of the Rollin application so far are as follows:
 - [Road routing and passenger pickups](features/road-routing-setup.md)
 
 - [Ride ratings](features/ride-ratings.md)
+- [Reviews](features/reviews.md)

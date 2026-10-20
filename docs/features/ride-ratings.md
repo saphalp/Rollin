@@ -19,9 +19,9 @@ Ratings use 1 to 5 stars with an optional comment of up to 1,000 characters. The
 
 Ratings and comments are public, with the author's name, on the recipient's reviews page. Direct table reads are still limited to the author and recipient; everyone else reads them through the `profile_reviews` function described in [Reviews](reviews.md).
 
-### Editing ratings
+### One final rating
 
-There is one rating per author, recipient, and ride. Saving again updates that rating instead of adding another vote to the average. Ride History provides access to the rating form later.
+There is one rating per author, recipient, and ride, and it can't be changed once saved. A second save is rejected by `save_ride_rating`. Ride History provides access to the rating form later for anyone not rated yet; saved ratings show as read-only.
 
 ### In-app reminders
 
@@ -44,12 +44,12 @@ The finish_ride function completes the ride and accepted requests, rejects pendi
 3. Each passenger gets an in-app reminder to rate the driver
 4. The user selects stars, optionally writes a comment, and saves
 5. The recipient's profile average reflects the saved rating
-6. Either person can open the ride from History and choose Add or edit ride ratings
+6. Either person can open the ride from History and choose Rate this ride to rate anyone they haven't rated yet
 7. Anyone can read the rating on the recipient's reviews page
 
 ## Setup
 
-Run `supabase/migrations/20260919090000_ride_ratings_and_pickups.sql` in Supabase before using the new screens. The migration adds ratings and the pickup fields used by road routing.
+Run `supabase/migrations/20260919090000_ride_ratings_and_pickups.sql` in Supabase before using the new screens. The migration adds ratings and the pickup fields used by road routing. `20261021120000_reviews_once.sql` later makes ratings final.
 
 ## Relevant Files
 

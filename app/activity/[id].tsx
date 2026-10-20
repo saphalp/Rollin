@@ -1,6 +1,7 @@
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
+import { hasReviewedHost } from "@/services/reviews-service";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -178,6 +179,9 @@ export default function ActivityDetailScreen() {
   const [reviewSheetVisible, setReviewSheetVisible] =
     useState(false);
 
+  const [hostReviewed, setHostReviewed] =
+    useState(false);
+
   const [boosted, setBoosted] =
     useState(false);
 
@@ -195,6 +199,20 @@ export default function ActivityDetailScreen() {
       void load();
     }
   }, [id]);
+
+  // Each attendee gets one host review per activity, so the menu item turns off once it's posted.
+  useEffect(() => {
+    if (!activity || !hasRsvp || currentUserId === activity.host_id) return;
+    let active = true;
+    hasReviewedHost(activity.id)
+      .then((reviewed) => {
+        if (active) setHostReviewed(reviewed);
+      })
+      .catch((error) => console.error("[activity] host review check failed:", error));
+    return () => {
+      active = false;
+    };
+  }, [activity, hasRsvp, currentUserId]);
 
     useFocusEffect(
     useCallback(() => {
@@ -969,14 +987,25 @@ export default function ActivityDetailScreen() {
                   </>
                   ) : (
                   <Menu.Item
-                    leadingIcon="star-outline"
-                    title="Review Host"
+                    leadingIcon={
+                      hostReviewed
+                        ? "check-circle-outline"
+                        : "star-outline"
+                    }
+                    title={
+                      hostReviewed
+                        ? "Host Reviewed"
+                        : "Review Host"
+                    }
+                    disabled={hostReviewed}
                     onPress={() => {
                       setMenuVisible(false);
                       setReviewSheetVisible(true);
                     }}
                     titleStyle={{
-                      color: colors.text,
+                      color: hostReviewed
+                        ? colors.outline
+                        : colors.text,
                       fontFamily: Fonts?.sans,
                     }}
                   />
@@ -1889,6 +1918,9 @@ export default function ActivityDetailScreen() {
           visible={reviewSheetVisible}
           onClose={() =>
             setReviewSheetVisible(false)
+          }
+          onSaved={() =>
+            setHostReviewed(true)
           }
           initialItem={{
             kind: "host",

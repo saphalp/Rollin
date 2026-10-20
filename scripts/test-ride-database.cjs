@@ -31,6 +31,7 @@ const id = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   `);
   await db.exec(fs.readFileSync('supabase/migrations/20260919090000_ride_ratings_and_pickups.sql', 'utf8'));
   await db.exec(fs.readFileSync('supabase/migrations/20261020120000_host_reviews.sql', 'utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/20261021120000_reviews_once.sql', 'utf8'));
   async function as(n) { await db.exec(`reset role; set request.jwt.claim.sub = '${id(n)}'; set role authenticated;`); }
   const scalar = async sql => Object.values((await db.query(sql)).rows[0])[0];
   await as(1);
@@ -48,18 +49,18 @@ const id = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   assert.equal(await scalar(`select status from ride_requests where id='${id(20)}'`), 'completed');
   assert.equal(await scalar(`select is_active from ride_locations where ride_id='${id(10)}'`), false);
   await db.exec(`select save_ride_rating('${id(10)}','${id(2)}',5,'Private feedback')`);
-  await db.exec(`select save_ride_rating('${id(10)}','${id(2)}',4,'Edited feedback')`);
+  await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(2)}',4,'Second review')`), /already reviewed/);
   assert.equal(await scalar('select count(*)::int from ride_ratings'), 1);
   await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(2)}',6,'Invalid')`));
   await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(1)}',5,'Self')`));
   await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(3)}',5,'Stranger')`));
   await as(2);
-  assert.equal(await scalar('select comment from ride_ratings'), 'Edited feedback');
+  assert.equal(await scalar('select comment from ride_ratings'), 'Private feedback');
   await db.exec(`select save_ride_rating('${id(10)}','${id(1)}',5,'Thanks')`);
   await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(4)}',5,'Passenger to passenger')`));
   await as(3);
   assert.equal(await scalar('select count(*)::int from ride_ratings'), 0);
-  assert.equal(Number(await scalar(`select average from ride_rating_summary('${id(2)}')`)), 4);
+  assert.equal(Number(await scalar(`select average from ride_rating_summary('${id(2)}')`)), 5);
   assert.equal(await scalar('select count(*)::int from ride_rating_targets(null)'), 0);
   await assert.rejects(db.exec(`select save_ride_rating('${id(10)}','${id(1)}',1,'Unrelated')`));
   await assert.rejects(db.exec(`insert into ride_ratings values('${id(10)}','${id(3)}','${id(1)}',5,'Bypass',now())`));
@@ -69,14 +70,15 @@ const id = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   await assert.rejects(db.exec(`insert into ride_requests(id,ride_id,requester_id,driver_id,status) values('${id(22)}','${id(11)}','${id(4)}','${id(1)}','pending')`));
   await db.exec(`insert into ride_requests(id,ride_id,requester_id,driver_id,status,pickup_address,pickup_latitude,pickup_longitude)
     values('${id(22)}','${id(11)}','${id(4)}','${id(1)}','pending','My house',32.5,-92.5)`);
-  // Host reviews: attendees of a past activity only, one editable review each, public through profile_reviews.
+  // Host reviews: attendees of a past activity only, one final review each, public through profile_reviews.
   await as(2);
-  assert.deepEqual((await db.query(`select kind, item_id, my_stars from review_targets('${id(1)}') order by kind`)).rows,
-    [{ kind: 'host', item_id: id(30), my_stars: null }, { kind: 'ride', item_id: id(10), my_stars: 5 }]);
+  // The ride with the driver was already rated above, so only the past activity is left to review.
+  assert.deepEqual((await db.query(`select kind, item_id from review_targets('${id(1)}')`)).rows,
+    [{ kind: 'host', item_id: id(30) }]);
   await db.exec(`select save_host_review('${id(30)}',3,' Fun hike ')`);
-  await db.exec(`select save_host_review('${id(30)}',2,'Edited')`);
+  await assert.rejects(db.exec(`select save_host_review('${id(30)}',2,'Second review')`), /already reviewed/);
   assert.equal(await scalar('select count(*)::int from host_reviews'), 1);
-  assert.equal(await scalar(`select my_comment from review_targets('${id(1)}') where kind='host'`), 'Edited');
+  assert.equal(await scalar(`select count(*)::int from review_targets('${id(1)}')`), 0);
   await assert.rejects(db.exec(`select save_host_review('${id(31)}',5,'Not happened yet')`));
   await assert.rejects(db.exec(`select save_host_review('${id(30)}',0,'Invalid')`));
   await assert.rejects(db.exec(`insert into host_reviews values('${id(31)}','${id(2)}','${id(1)}',5,'Bypass',now())`));
@@ -88,10 +90,10 @@ const id = n => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   assert.equal(await scalar(`select count(*)::int from review_targets('${id(1)}')`), 0);
   assert.equal(await scalar('select count(*)::int from host_reviews'), 0);
   assert.deepEqual((await db.query(`select kind, author_name, stars, comment from profile_reviews('${id(1)}') order by kind`)).rows,
-    [{ kind: 'host', author_name: 'Passenger', stars: 2, comment: 'Edited' },
+    [{ kind: 'host', author_name: 'Passenger', stars: 3, comment: 'Fun hike' },
      { kind: 'ride', author_name: 'Passenger', stars: 5, comment: 'Thanks' }]);
-  assert.equal(Number(await scalar(`select average from review_summary('${id(1)}')`)), 3.5);
+  assert.equal(Number(await scalar(`select average from review_summary('${id(1)}')`)), 4);
   assert.equal(Number(await scalar(`select count from review_summary('${id(1)}')`)), 2);
   await db.close();
-  console.log('Database checks passed: rating eligibility, edits, privacy, averages, completion, pickup approval and order, host reviews.');
+  console.log('Database checks passed: rating eligibility, one review each, privacy, averages, completion, pickup approval and order, host reviews.');
 })().catch(e => { console.error(e); process.exitCode = 1; });

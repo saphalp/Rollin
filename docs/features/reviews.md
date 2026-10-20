@@ -13,7 +13,7 @@ Each profile shows one combined average in its stats bar. Tapping it opens a rev
 
 - "Attended" means the user RSVP'd and the activity's start time has passed. Rollin has no check-in, so this can't confirm that someone actually showed up.
 - A user can't review themselves, and a host can't review their own activity.
-- Each person writes one review per activity and one per ride participant. Saving again edits that review.
+- Each person writes one review per activity and one per ride participant. Reviews are final: they can't be edited, and a second review is rejected.
 - Reports are not part of this feature yet.
 
 ## Decisions
@@ -32,15 +32,15 @@ Host reviews have their own `host_reviews` table, and ride ratings stay in `ride
 
 ### Where you can write a review
 
-- From the reviews page of another user, using **Write a review**. The form lists every activity and ride you can review that person for, including ones you already reviewed, which open pre-filled for editing.
-- From a past activity you RSVP'd to, using **Review Host** in the `…` menu. The form opens on that activity.
+- From the reviews page of another user, using **Write a review**. The "Reviewing for" dropdown has two levels: first **Hosting** or **Rides**, then the activity or ride. Only items you haven't reviewed yet are listed.
+- From a past activity you RSVP'd to, using **Review Host** in the `…` menu. The form opens on that activity. After you post, the item changes to a disabled **Host Reviewed**.
 - Ride reviews can still be written from the ride rating screen and its reminders.
 
 ## Technical Hurdles
 
 ### Enforcing eligibility on the server
 
-`host_reviews` has row-level security that only lets the author and the host read rows directly, and there's no insert or update permission for clients. All writes go through `save_host_review`. It reads the host from the activity, not from the client, and rejects the review unless the caller RSVP'd, isn't the host, and the activity has started. Ride reviews go through the existing `save_ride_rating`. The app hides the menu item and form when you can't review, but the server checks again either way.
+`host_reviews` has row-level security that only lets the author and the host read rows directly, and there's no insert or update permission for clients. All writes go through `save_host_review`. It reads the host from the activity, not from the client, and rejects the review unless the caller RSVP'd, isn't the host, and the activity has started. Both `save_host_review` and `save_ride_rating` insert with `on conflict do nothing` and raise "You already reviewed…" when a row already exists, so a second review is rejected even if two requests race. Ride reviews go through the existing `save_ride_rating`. The app hides the menu item and form when you can't review, but the server checks again either way.
 
 ### Profile privacy
 
@@ -67,4 +67,5 @@ Host reviews have their own `host_reviews` table, and ride ratings stay in `ride
 | `services/reviews-service.ts` | Calls the review functions |
 | `app/activity/[id].tsx` | Review Host menu item for attendees of past activities |
 | `supabase/migrations/20261020120000_host_reviews.sql` | Host reviews table and review functions |
+| `supabase/migrations/20261021120000_reviews_once.sql` | Makes reviews final and limits `review_targets` to unreviewed items |
 | `scripts/test-ride-database.cjs` | Tests ride and host review rules in a temporary PostgreSQL database |

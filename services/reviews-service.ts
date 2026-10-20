@@ -5,9 +5,8 @@ export type ProfileReview = {
   kind: ReviewKind; item_id: string; item_title: string; item_date: string | null; author_id: string;
   author_name: string; author_picture: string | null; stars: number; comment: string; updated_at: string;
 };
-export type ReviewTarget = {
-  kind: ReviewKind; item_id: string; title: string; item_date: string | null; my_stars: number | null; my_comment: string | null;
-};
+// Something the current user can still review this person for. Already-reviewed items are left out.
+export type ReviewTarget = { kind: ReviewKind; item_id: string; title: string; item_date: string | null };
 export type ReviewSummary = { average: number | null; count: number };
 
 export async function profileReviews(userId: string): Promise<ProfileReview[]> {
@@ -27,6 +26,15 @@ export async function reviewTargets(subjectId: string): Promise<ReviewTarget[]> 
   const { data, error } = await supabase.rpc('review_targets', { p_subject_id: subjectId });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+export async function hasReviewedHost(activityId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { count, error } = await supabase.from('host_reviews').select('activity_id', { count: 'exact', head: true })
+    .eq('activity_id', activityId).eq('author_id', user.id);
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
 }
 
 // Ride reviews reuse the existing ride rating RPC so both screens write the same rows.

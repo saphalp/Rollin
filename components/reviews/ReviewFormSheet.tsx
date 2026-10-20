@@ -23,12 +23,20 @@ import { reviewTargets, saveReview, type ReviewKind, type ReviewTarget } from '@
 
 const MAX_COMMENT = 1000;
 
+// The "Reviewing for" picker has two levels: first Hosting or Rides, then the item.
+const GROUPS: { kind: ReviewKind; title: string; icon: 'person.2.fill' | 'car.fill'; noun: [string, string] }[] = [
+  { kind: 'host', title: 'Hosting', icon: 'person.2.fill', noun: ['activity', 'activities'] },
+  { kind: 'ride', title: 'Rides', icon: 'car.fill', noun: ['ride', 'rides'] },
+];
+
+type Picker = null | 'groups' | ReviewKind;
+
 type ReviewFormSheetProps = {
   subjectId: string;
   visible: boolean;
   onClose: () => void;
   onSaved?: () => void;
-  // Opens the form on this item and hides the picker (e.g. "Review host" on an activity).
+  // Opens the form on this item and hides the picker (e.g. "Review Host" on an activity).
   initialItem?: { kind: ReviewKind; item_id: string };
 };
 
@@ -43,7 +51,7 @@ function targetLabel(target: ReviewTarget) {
 export function ReviewFormSheet({ visible, onClose, ...props }: ReviewFormSheetProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* Mounted only while open so every open starts from a fresh form. */}
+      {/* Mounted only while open so every open starts from a blank form. */}
       {visible && <ReviewForm onClose={onClose} {...props} />}
     </Modal>
   );
@@ -55,19 +63,12 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<ReviewTarget | null>(null);
-  const [picking, setPicking] = useState(false);
+  const [picker, setPicker] = useState<Picker>(null);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
 
   const initialKey = initialItem ? targetKey(initialItem) : null;
-
-  function select(target: ReviewTarget | null) {
-    setSelected(target);
-    setStars(target?.my_stars ?? 0);
-    setComment(target?.my_comment ?? '');
-    setPicking(false);
-  }
 
   useEffect(() => {
     let active = true;
@@ -75,14 +76,20 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
       .then((rows) => {
         if (!active) return;
         setTargets(rows);
-        const initial = initialKey ? rows.find((row) => targetKey(row) === initialKey) : rows.length === 1 ? rows[0] : undefined;
-        if (initial) select(initial);
-        else if (initialKey) setError('You can review the host once the activity has happened and you attended it.');
+        if (!initialKey) return;
+        const initial = rows.find((row) => targetKey(row) === initialKey);
+        if (initial) setSelected(initial);
+        else setError('You already reviewed the host of this activity.');
       })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : 'Could not load what you can review.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [subjectId, initialKey]);
+
+  function select(target: ReviewTarget) {
+    setSelected(target);
+    setPicker(null);
+  }
 
   async function submit() {
     if (!selected || !stars) return;
@@ -92,27 +99,73 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
       onSaved?.();
       onClose();
     } catch (e) {
-      Alert.alert('Could not save review', e instanceof Error ? e.message : 'Try again.');
+      Alert.alert('Could not post review', e instanceof Error ? e.message : 'Try again.');
     } finally {
       setSaving(false);
     }
   }
 
-  const isEdit = selected?.my_stars != null;
-  const locked = Boolean(initialKey) || targets.length === 1;
+  const locked = Boolean(initialKey);
+  const group = GROUPS.find((g) => g.kind === picker);
+  const title = picker === 'groups' ? 'Reviewing for' : group ? group.title : 'Write a review';
+
+  function renderPicker() {
+    if (picker === 'groups') {
+      return GROUPS.map((g) => {
+        const count = targets.filter((t) => t.kind === g.kind).length;
+        return (
+          <TouchableOpacity
+            key={g.kind}
+            onPress={() => setPicker(g.kind)}
+            disabled={count === 0}
+            style={[styles.row, { borderBottomColor: colors.outlineVariant, opacity: count === 0 ? 0.5 : 1 }]}
+          >
+            <IconSymbol name={g.icon} size={20} color={colors.tint} />
+            <View style={styles.rowText}>
+              <AppText style={[styles.rowTitle, { color: colors.text, fontFamily: Fonts.sans }]}>{g.title}</AppText>
+              <AppText style={[styles.rowMeta, { color: colors.outline, fontFamily: Fonts.sans }]}>
+                {count === 0 ? 'Nothing to review' : `${count} ${g.noun[count === 1 ? 0 : 1]} to review`}
+              </AppText>
+            </View>
+            {count > 0 && <IconSymbol name="chevron.right" size={20} color={colors.outline} />}
+          </TouchableOpacity>
+        );
+      });
+    }
+    return (
+      <FlatList
+        data={targets.filter((t) => t.kind === picker)}
+        keyExtractor={targetKey}
+        style={styles.list}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => select(item)} style={[styles.row, { borderBottomColor: colors.outlineVariant }]}>
+            <View style={styles.rowText}>
+              <AppText numberOfLines={1} style={[styles.rowTitle, { color: colors.text, fontFamily: Fonts.sans }]}>{item.title}</AppText>
+              <AppText style={[styles.rowMeta, { color: colors.outline, fontFamily: Fonts.sans }]}>{formatReviewDate(item.item_date)}</AppText>
+            </View>
+            {selected && targetKey(item) === targetKey(selected) && <IconSymbol name="checkmark" size={18} color={colors.tint} />}
+          </TouchableOpacity>
+        )}
+      />
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={[styles.sheet, { backgroundColor: colors.cardBackground }]}>
           <View style={[styles.sheetHeader, { borderBottomColor: colors.outlineVariant }]}>
-            <TouchableOpacity onPress={picking ? () => setPicking(false) : onClose} hitSlop={8} style={styles.sheetActionSlot}>
+            <TouchableOpacity
+              onPress={picker === null ? onClose : () => setPicker(picker === 'groups' ? null : 'groups')}
+              hitSlop={8}
+              style={styles.sheetActionSlot}
+            >
               <AppText style={[styles.sheetAction, { color: colors.outline, fontFamily: Fonts.sans }]}>
-                {picking ? 'Back' : 'Cancel'}
+                {picker === null ? 'Cancel' : 'Back'}
               </AppText>
             </TouchableOpacity>
             <AppText numberOfLines={1} style={[styles.sheetTitle, { color: colors.text, fontFamily: Fonts.sans }]}>
-              {picking ? 'Reviewing for' : isEdit ? 'Edit review' : 'Write a review'}
+              {title}
             </AppText>
             <View style={styles.sheetActionSlot} />
           </View>
@@ -123,32 +176,16 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
             <AppText style={[styles.message, { color: colors.error, fontFamily: Fonts.sans }]}>{error}</AppText>
           ) : targets.length === 0 ? (
             <AppText style={[styles.message, { color: colors.outline, fontFamily: Fonts.sans }]}>
-              You can review someone after attending an activity they hosted or completing a ride with them.
+              Nothing left to review. You can review someone after attending an activity they hosted or completing a ride with them, once per activity or ride.
             </AppText>
-          ) : picking ? (
-            <FlatList
-              data={targets}
-              keyExtractor={targetKey}
-              style={styles.list}
-              renderItem={({ item }) => (
-                <TouchableOpacity onPress={() => select(item)} style={[styles.row, { borderBottomColor: colors.outlineVariant }]}>
-                  <IconSymbol name={item.kind === 'ride' ? 'car.fill' : 'person.2.fill'} size={18} color={colors.tint} />
-                  <View style={styles.rowText}>
-                    <AppText numberOfLines={1} style={[styles.rowTitle, { color: colors.text, fontFamily: Fonts.sans }]}>{item.title}</AppText>
-                    <AppText style={[styles.rowMeta, { color: colors.outline, fontFamily: Fonts.sans }]}>
-                      {KIND_LABEL[item.kind]} · {formatReviewDate(item.item_date)}{item.my_stars != null ? ' · Reviewed' : ''}
-                    </AppText>
-                  </View>
-                  {selected && targetKey(item) === targetKey(selected) && <IconSymbol name="checkmark" size={18} color={colors.tint} />}
-                </TouchableOpacity>
-              )}
-            />
+          ) : picker !== null ? (
+            renderPicker()
           ) : (
             <View style={styles.form}>
               <View style={styles.field}>
                 <AppText style={[styles.label, { color: colors.text, fontFamily: Fonts.sans }]}>Reviewing for</AppText>
                 <TouchableOpacity
-                  onPress={() => setPicking(true)}
+                  onPress={() => setPicker('groups')}
                   disabled={locked || saving}
                   style={[styles.select, { backgroundColor: colors.surface, borderColor: colors.outlineVariant }]}
                 >
@@ -182,7 +219,7 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
                   theme={{ roundness: 15 }}
                 />
                 <AppText style={[styles.hint, { color: colors.outline, fontFamily: Fonts.sans }]}>
-                  Reviews are public and show your name.
+                  Reviews are public, show your name, and cannot be changed after posting.
                 </AppText>
               </View>
 
@@ -196,7 +233,7 @@ function ReviewForm({ subjectId, onClose, onSaved, initialItem }: Omit<ReviewFor
                 contentStyle={styles.buttonContent}
                 labelStyle={[styles.buttonLabel, { fontFamily: Fonts.sans }]}
               >
-                {isEdit ? 'Update review' : 'Post review'}
+                Post review
               </Button>
             </View>
           )}

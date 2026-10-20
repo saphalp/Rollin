@@ -22,14 +22,14 @@ function RatingForm({ target, existing }: { target: RatingTarget; existing?: Rid
   return <View style={{ padding: 16, borderRadius: 16, backgroundColor: colors.cardBackground, gap: 12 }}>
     <AppText style={{ fontWeight: '700', fontSize: 18 }}>{target.name}</AppText>
     <View style={{ flexDirection: 'row', gap: 12 }}>{[1,2,3,4,5].map(n =>
-      <TouchableOpacity key={n} disabled={busy} accessibilityRole="button" accessibilityLabel={`${n} stars`}
-        accessibilityState={{ selected: n === stars }} onPress={() => { setStars(n); setSaved(false); }}>
+      <TouchableOpacity key={n} disabled={busy || saved} accessibilityRole="button" accessibilityLabel={`${n} stars`}
+        accessibilityState={{ selected: n === stars }} onPress={() => setStars(n)}>
         <AppText style={{ fontSize: 34, color: colors.tint }}>{n <= stars ? '★' : '☆'}</AppText>
       </TouchableOpacity>)}</View>
     <TextInput accessibilityLabel="Optional rating comment" placeholder="Comment (optional)" placeholderTextColor={colors.icon}
-      multiline maxLength={1000} editable={!busy} value={comment} onChangeText={v => { setComment(v); setSaved(false); }}
+      multiline maxLength={1000} editable={!busy && !saved} value={comment} onChangeText={setComment}
       style={{ color: colors.text, borderWidth: 1, borderColor: colors.outlineVariant, padding: 12, borderRadius: 12, minHeight: 90 }} />
-    <AppText style={{ fontSize: 12 }}>Ratings and comments are public on their profile and show your name.</AppText>
+    <AppText style={{ fontSize: 12 }}>Ratings are public on their profile, show your name, and cannot be changed after saving.</AppText>
     <TouchableOpacity disabled={!stars || busy || saved} onPress={() => void submit()} accessibilityRole="button"
       style={{ backgroundColor: colors.tint, padding: 14, borderRadius: 12, opacity: !stars || saved ? 0.5 : 1 }}>
       <AppText style={{ color: colors.onPrimary, textAlign: 'center' }}>{busy ? 'Saving…' : saved ? 'Saved' : 'Save rating'}</AppText>
@@ -55,7 +55,7 @@ export default function RideRatingsScreen() {
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16 }}>
       <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/rides')}><AppText>← Back</AppText></TouchableOpacity>
       <AppText style={{ fontSize: 24, fontWeight: '700' }}>Rate your ride</AppText>
-      <AppText>You can add or edit these ratings later from ride history.</AppText>
+      <AppText>You can add these ratings later from ride history. Each rating is final once saved.</AppText>
       {loading ? <ActivityIndicator /> : error ? <TouchableOpacity onPress={() => void load()}><AppText>{error} Tap to retry.</AppText></TouchableOpacity>
         : targets.length ? targets.map(t => <RatingForm key={t.recipient_id} target={t} existing={ratings.find(r => r.recipient_id === t.recipient_id)} />)
           : <AppText>No participants to rate for this ride. Ratings are available after a completed trip.</AppText>}

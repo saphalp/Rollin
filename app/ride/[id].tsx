@@ -497,7 +497,7 @@ export default function RideDetailsScreen() {
                 {request?.pickupAddress ? <AppText>Your requested pickup: {request.pickupAddress}</AppText> : null}
                 {ride.status === 'completed' && <TouchableOpacity onPress={() => router.push({ pathname: '/ride/ratings/[id]', params: { id: ride.id } })}
                     style={[styles.mainButton, { backgroundColor: colors.tint }]}>
-                    <AppText style={{ color: colors.onPrimary }}>Add or edit ride ratings</AppText>
+                    <AppText style={{ color: colors.onPrimary }}>Rate this ride</AppText>
                 </TouchableOpacity>}
 
                 {isOfferer ? (

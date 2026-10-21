@@ -1,9 +1,9 @@
-import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ActivityCard } from '@/components/activity-card';
+import { FeaturedCarousel } from '@/components/home/featured-carousel';
 import { StandaloneRidesSection } from '@/components/rides/standalone-rides-section';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -147,7 +147,7 @@ export default function HomeScreen() {
     try { await fetchActivities(); } finally { setRefreshing(false); }
   }, [fetchActivities]);
 
-  function openActivity(activity: Activity) {
+  function openActivity(activity: { id: string }) {
     router.push(`/activity/${activity.id}`);
   }
 
@@ -182,8 +182,9 @@ export default function HomeScreen() {
     return matchesCategory && `${activity.title} ${activity.location ?? ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
   }).sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id));
 
-  const featured = filtered[0];
-  const recommended = filtered.slice(1);
+  // TODO: real featured selection logic; for now the first 3 upcoming activities are featured.
+  const featured = filtered.slice(0, 3);
+  const recommended = filtered.slice(3);
 
   return (
     <AppView style={styles.container}>
@@ -255,60 +256,10 @@ export default function HomeScreen() {
         ) : (
           <>
             {/* Featured */}
-            {featured && (
-              <>
-                <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                  Featured
-                </AppText>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => openActivity(featured)}
-                  style={[styles.featuredCard, { backgroundColor: colors.primaryContainer }]}
-                >
-                  {featured.imageUrl ? (
-                    <Image
-                      source={{ uri: featured.imageUrl }}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : null}
-                  <View style={styles.featuredDim} />
-                  {featured.rideSharing && (
-                    <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
-                      <IconSymbol name="car.fill" size={12} color={colors.onSecondaryContainer} />
-                      <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
-                        Ride sharing available
-                      </AppText>
-                    </View>
-                  )}
-                  <View style={styles.featuredOverlay}>
-                    {featured.host && (
-                      <View style={styles.hostRow}>
-                        <View style={[styles.hostAvatar, { backgroundColor: colors.tint }]} />
-                        <AppText style={[styles.hostedBy, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
-                          Hosted by {featured.host}
-                        </AppText>
-                      </View>
-                    )}
-                    <AppText numberOfLines={2} style={[styles.featuredTitle, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
-                      {featured.title}
-                    </AppText>
-                    {featured.date && <AppText style={{ color: colors.onImageOverlay, fontSize: 12 }}>{featured.date}</AppText>}
-                    {!!featured.location && <View style={styles.joinedRow}>
-                      <IconSymbol name="mappin" size={14} color={colors.onImageOverlay} />
-                      <AppText numberOfLines={1} style={{ color: colors.onImageOverlay, flexShrink: 1, fontSize: 12 }}>{featured.location}</AppText>
-                    </View>}
-                    {<View style={styles.joinedRow}>
-                      <IconSymbol name="person.2.fill" size={14} color={colors.onImageOverlay} />
-                      <AppText style={[styles.joinedText, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
-                        {featured.attendeeCount}/{featured.maxAttendees} joined
-                      </AppText>
-                    </View>}
-                  </View>
-                </TouchableOpacity>
-              </>
-            )}
+            <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
+              Featured
+            </AppText>
+            <FeaturedCarousel activities={featured} onPress={openActivity} />
 
             {/* Recommended */}
             {recommended.length > 0 && (
@@ -384,34 +335,6 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 14, fontWeight: '500' },
   sectionHeading: { fontSize: 18, fontWeight: '700' },
-  featuredCard: {
-    borderRadius: 12,
-    height: 180,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-    padding: 12,
-  },
-  featuredDim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  rideBadge: {
-    flexDirection: 'row',
-    alignSelf: 'flex-end',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  rideBadgeText: { fontSize: 12, fontWeight: '600' },
-  featuredOverlay: { gap: 4 },
-  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hostAvatar: { width: 20, height: 20, borderRadius: 10 },
-  hostedBy: { fontSize: 12 },
-  featuredTitle: { fontSize: 22, fontWeight: '700' },
-  joinedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  joinedText: { fontSize: 13 },
   cardList: { gap: 12 },
   loader: { marginTop: 40 },
   empty: { alignItems: 'center', marginTop: 40 },

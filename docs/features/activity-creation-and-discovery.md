@@ -47,7 +47,7 @@ Allow users to create activities for other students to join and discover activit
 **Discovering activities (Home feed):**
 1. On load, the app fetches the current user's followed users from the `follows` table.
 2. Activities are queried: public ones for everyone, plus private ones whose `host_id` is in the followed list.
-3. The first result becomes the "Featured" card; the rest appear as "Recommended for you".
+3. The first three results (a placeholder rule until real featured selection exists) appear in the "Featured" carousel (`components/home/featured-carousel.tsx`): full-width square cards, one at a time, autoplay every 4s while Home is focused, swipe and dot navigation, and an infinite loop built from cloned edge slides. The rest appear as "Recommended for you".
 4. Category pills filter by category; the search bar filters by title client-side.
 
 **Exploring activities (Explore feed):**
@@ -79,6 +79,7 @@ Allow users to create activities for other students to join and discover activit
 |---|---|
 | `app/(tabs)/post.tsx` | Activity creation form |
 | `app/(tabs)/index.tsx` | Home feed with featured + recommended sections |
+| `components/home/featured-carousel.tsx` | Auto-sliding, looping Featured carousel on Home |
 | `app/(tabs)/explore.tsx` | Explore feed (all activities, unfiltered) |
 | `app/activity/[id].tsx` | Activity detail screen with RSVP, join-request, attendee, editing, and ride-option behavior |
 | `app/activity/edit/[id].tsx` | Activity edit form |

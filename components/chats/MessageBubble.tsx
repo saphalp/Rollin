@@ -1,5 +1,5 @@
 import { Colors, Fonts } from "@/constants/theme";
-import { StyleSheet, useColorScheme, View } from "react-native";
+import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
 import { Text } from "react-native-paper";
 
 interface MessageBubbleProps {
@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   fromMe: boolean;
   time: string;
   senderName?: string;
+  onPressSender?: () => void;
 }
 
 export default function MessageBubble({
@@ -14,6 +15,7 @@ export default function MessageBubble({
   fromMe,
   time,
   senderName,
+  onPressSender,
 }: MessageBubbleProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -35,11 +37,13 @@ export default function MessageBubble({
         ]}
       >
         {senderName && (
-          <Text
-            style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
-          >
-            {senderName}
-          </Text>
+          <Pressable onPress={onPressSender} disabled={!onPressSender} hitSlop={6}>
+            <Text
+              style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+            >
+              {senderName}
+            </Text>
+          </Pressable>
         )}
         <Text
           style={[styles.text, { color: textColor, fontFamily: Fonts.sans }]}

@@ -3,7 +3,6 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
-import { useReviewSummary } from "@/hooks/use-review-summary";
 import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +31,8 @@ import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 
-const EMPTY_STATS = { attended: 0, hosted: 0, rides: 0, reviews: null };
+import { RideRatingSummary } from './RideRatingSummary';
+
 
 type ActivityRow = {
   id: string;
@@ -121,13 +121,14 @@ function UserProfileContent({ userId }: UserProfileProps) {
   const { followState, toggle: toggleFollow } = useFollow(userId);
   const { allInterestNames, selectedNames, save: saveInterests } =
     useProfileInterests(userId);
-  const { average: reviewAverage } = useReviewSummary(userId);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activityView, setActivityView] =
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [attendedCount, setAttendedCount] = useState(0);
+  const [rating, setRating] = useState<number | null>(null);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -154,7 +155,10 @@ function UserProfileContent({ userId }: UserProfileProps) {
             "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
           )
           .eq("user_id", userId)
-        : Promise.resolve({ data: [], error: null });
+        : supabase
+          .from("rsvps")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
 
       const [createdResult, joinedResult] = await Promise.all([
         createdRequest,
@@ -174,16 +178,22 @@ function UserProfileContent({ userId }: UserProfileProps) {
         sortActivitiesByDate(created.map(toActivityRow)),
       );
 
-      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
-      const joined = joinedRows.flatMap((row) => {
-        if (!row.activity) return [];
-        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
-        return activities.filter((a: any) => !a.recurrence_parent_id);
-      });
+      if (isOwnProfile) {
+        const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+        const joined = joinedRows.flatMap((row) => {
+          if (!row.activity) return [];
+          const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+          return activities.filter((a: any) => !a.recurrence_parent_id);
+        });
 
-      setJoinedActivities(
-        sortActivitiesByDate(joined.map(toActivityRow)),
-      );
+        setJoinedActivities(
+          sortActivitiesByDate(joined.map(toActivityRow)),
+        );
+        setAttendedCount(joined.length);
+      } else {
+        setJoinedActivities([]);
+        setAttendedCount(joinedResult.count ?? 0);
+      }
       setActivitiesLoading(false);
     })();
 
@@ -276,6 +286,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         id: conversationId,
         name: profile.full_name ?? "",
         avatar: resolveAvatarUri(profile.profile_picture),
+        otherUserId: profile.id,
       },
     });
   }
@@ -336,13 +347,14 @@ function UserProfileContent({ userId }: UserProfileProps) {
 
         <ProfileStats
           statsData={{
-            ...EMPTY_STATS,
+            attended: attendedCount,
+            hosted: createdActivities.length,
             rides: rideCount,
-            reviews: reviewAverage,
+            rating,
           }}
-          onReviewsPress={() => router.push(`/reviews/${userId}`)}
         />
 
+        <RideRatingSummary userId={userId} isOwnProfile={isOwnProfile} onAverage={setRating} />
         <View>
           <SectionHeader header="Interests" />
           <View style={styles.chipsRow}>

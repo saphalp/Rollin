@@ -48,12 +48,16 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   }
 
   function handleEditPress() {
+    setEditSheetVisible(true);
     onClose();
-    setTimeout(() => setEditSheetVisible(true), 300);
   }
 
   function confirmReset() {
     const email = profile?.email ?? '';
+    if (!email) {
+      Alert.alert('No email found', 'Unable to send a reset email for this account.');
+      return;
+    }
     Alert.alert('Reset password?', `We'll send a password reset code to ${email}.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Send Code', onPress: () => sendResetCode(email) },
@@ -116,7 +120,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/campus-events')}>
               <IconSymbol name="calendar" size={20} color={colors.icon} />
-              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Campus Event</AppText>
+              <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>Campus Events</AppText>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={() => navigate('/saved-activities')}>
@@ -142,6 +146,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} onPress={confirmReset} disabled={sendingReset}>
+              <IconSymbol name="lock.fill" size={20} color={colors.icon} />
               <AppText style={[styles.menuText, { color: colors.text, fontFamily: Fonts?.sans }]}>
                 {sendingReset ? 'Sending…' : 'Reset Password'}
               </AppText>

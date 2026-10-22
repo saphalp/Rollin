@@ -21,28 +21,41 @@ const rpcCalls = [];
 const supabase = { rpc: async (name, args) => { rpcCalls.push([name, args]); return rpcResult; } };
 const { rankFeatured, fetchFeaturedScores } = load('lib/featured-activities.ts', { '@/lib/supabase': { supabase } });
 
-const activity = (id, sortKey = '2026-10-21', attendeeCount = 0, maxAttendees = 10) => ({ id, sortKey, attendeeCount, maxAttendees });
+const NOW = Date.parse('2026-10-20T12:00:00Z');
+const activity = (id, sortKey = '2026-10-21', attendeeCount = 0, maxAttendees = 10, startsAt = Date.parse(`${sortKey}T12:00:00Z`)) => ({ id, sortKey, startsAt, attendeeCount, maxAttendees });
+const rank = (rows, scores, limit = 3) => rankFeatured(rows, scores, limit, NOW);
 const ids = rows => Array.from(rows, row => row.id);
 
 test('ranks by score, highest first, top 3 only', () => {
   const scores = new Map([['a', { score: 1, isFull: false }], ['b', { score: 9, isFull: false }], ['c', { score: 5, isFull: false }], ['d', { score: 7, isFull: false }]]);
-  assert.deepEqual(ids(rankFeatured([activity('a'), activity('b'), activity('c'), activity('d')], scores)), ['b', 'd', 'c']);
+  assert.deepEqual(ids(rank([activity('a'), activity('b'), activity('c'), activity('d')], scores)), ['b', 'd', 'c']);
 });
 
 test('full activities rank after every open one, regardless of score', () => {
   const scores = new Map([['full', { score: 100, isFull: true }], ['open1', { score: 1, isFull: false }], ['open2', { score: 0, isFull: false }]]);
-  assert.deepEqual(ids(rankFeatured([activity('full'), activity('open1'), activity('open2')], scores)), ['open1', 'open2', 'full']);
-  assert.deepEqual(ids(rankFeatured([activity('full'), activity('open1')], scores, 1)), ['open1']);
+  assert.deepEqual(ids(rank([activity('full'), activity('open1'), activity('open2')], scores)), ['open1', 'open2', 'full']);
+  assert.deepEqual(ids(rank([activity('full'), activity('open1')], scores, 1)), ['open1']);
 });
 
 test('ties go to the sooner activity; missing scores fall back to client capacity and date', () => {
   const rows = [activity('later', '2026-10-25'), activity('full-soon', '2026-10-21', 10, 10), activity('soon', '2026-10-22')];
-  assert.deepEqual(ids(rankFeatured(rows, new Map())), ['soon', 'later', 'full-soon']);
+  assert.deepEqual(ids(rank(rows, new Map())), ['soon', 'later', 'full-soon']);
+});
+
+test('undated, past and already-started activities are never featured, whatever their score', () => {
+  const scores = new Map([['undated', { score: 99, isFull: false }], ['past', { score: 99, isFull: false }], ['now', { score: 99, isFull: false }]]);
+  const rows = [
+    activity('undated', '9999', 0, 10, null),
+    activity('past', '2026-10-19'),
+    activity('now', '2026-10-20', 0, 10, NOW),
+    activity('upcoming', '2026-10-21'),
+  ];
+  assert.deepEqual(ids(rank(rows, scores)), ['upcoming']);
 });
 
 test('does not mutate the input order', () => {
   const rows = [activity('a', '2026-10-25'), activity('b', '2026-10-21')];
-  rankFeatured(rows, new Map());
+  rank(rows, new Map());
   assert.deepEqual(ids(rows), ['a', 'b']);
 });
 

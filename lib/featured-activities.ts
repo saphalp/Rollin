@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 export type FeaturedScore = { score: number; isFull: boolean };
 
-type Rankable = { id: string; sortKey: string; attendeeCount: number; maxAttendees: number };
+type Rankable = { id: string; sortKey: string; startsAt: number | null; attendeeCount: number; maxAttendees: number };
 
 /**
  * Engagement scores for the Home "Featured" carousel, computed server-side by
@@ -25,18 +25,21 @@ export async function fetchFeaturedScores(activityIds: string[]): Promise<Map<st
 }
 
 /**
- * Top `limit` activities by score. Full activities rank after every activity that still has
- * room, so they're only featured when there aren't enough open ones. Ties go to the sooner
- * activity.
+ * Top `limit` activities by score. Only dated activities that haven't started yet qualify —
+ * the nightly expiry job leaves past activities `active` until midnight, so status alone isn't
+ * enough. Full activities rank after every activity that still has room, so they're only
+ * featured when there aren't enough open ones. Ties go to the sooner activity.
  */
 export function rankFeatured<T extends Rankable>(
   activities: T[],
   scores: Map<string, FeaturedScore>,
   limit = 3,
+  now = Date.now(),
 ): T[] {
   const isFull = (a: T) => scores.get(a.id)?.isFull ?? a.attendeeCount >= a.maxAttendees;
   const score = (a: T) => scores.get(a.id)?.score ?? 0;
-  return [...activities]
+  return activities
+    .filter(a => a.startsAt !== null && a.startsAt > now)
     .sort((a, b) =>
       Number(isFull(a)) - Number(isFull(b))
       || score(b) - score(a)

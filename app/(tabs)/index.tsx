@@ -30,6 +30,7 @@ type Activity = {
   title: string;
   category: string;
   sortKey: string;
+  startsAt: number | null;
   date?: string;
   location?: string;
   host?: string;
@@ -110,6 +111,7 @@ export default function HomeScreen() {
       setFeaturedScores(scores);
       setActivities(rows.map((a: any) => ({
         id: a.id, title: a.title, category: a.category ?? 'social',
+        startsAt: a.date_time ? new Date(a.date_time).getTime() : null,
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
         date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
         attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,

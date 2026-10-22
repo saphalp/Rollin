@@ -36,7 +36,8 @@ grant execute on function public.record_activity_view(uuid) to authenticated;
 --   rider (pending/accepted/completed request on a live ride offer for the activity) 2.
 -- is_full is returned separately so the client can rank full activities last.
 -- Security definer because saves and views are private per user; only aggregate counts leave
--- the function, and only for activities the caller can see on Home.
+-- the function, and only for upcoming activities the caller can see on Home. Undated and past
+-- activities are excluded (the nightly expiry job leaves past ones 'active' until midnight).
 create or replace function public.featured_activity_scores(p_activity_ids uuid[])
 returns table (activity_id uuid, score numeric, is_full boolean)
 language sql
@@ -66,6 +67,8 @@ as $$
   ) rd on true
   where a.id = any(p_activity_ids)
     and a.status = 'active'
+    and a.date_time is not null
+    and a.date_time > now()
     and (
       a.event_type = 'public'
       or a.host_id = auth.uid()

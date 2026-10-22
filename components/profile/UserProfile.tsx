@@ -31,7 +31,7 @@ import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
 
-import { RideRatingSummary } from './RideRatingSummary';
+import { useReviewSummary } from '@/hooks/use-review-summary';
 
 
 type ActivityRow = {
@@ -128,7 +128,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
   const [attendedCount, setAttendedCount] = useState(0);
-  const [rating, setRating] = useState<number | null>(null);
+  const { average: rating } = useReviewSummary(userId);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -354,7 +354,6 @@ function UserProfileContent({ userId }: UserProfileProps) {
           }}
         />
 
-        <RideRatingSummary userId={userId} isOwnProfile={isOwnProfile} onAverage={setRating} />
         <View>
           <SectionHeader header="Interests" />
           <View style={styles.chipsRow}>

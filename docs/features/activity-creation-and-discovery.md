@@ -47,7 +47,9 @@ Allow users to create activities for other students to join and discover activit
 **Discovering activities (Home feed):**
 1. On load, the app fetches the current user's followed users from the `follows` table.
 2. Activities are queried: public ones for everyone, plus private ones whose `host_id` is in the followed list.
-3. The first three results (a placeholder rule until real featured selection exists) appear in the "Featured" carousel (`components/home/featured-carousel.tsx`): full-width square cards, one at a time, autoplay every 4s while Home is focused, swipe and dot navigation, and an infinite loop built from cloned edge slides. The rest appear as "Recommended for you".
+3. The three highest-scoring results appear in the "Featured" carousel (`components/home/featured-carousel.tsx`): full-width square cards, one at a time, autoplay every 4s while Home is focused, swipe and dot navigation, and an infinite loop built from cloned edge slides. The rest appear as "Recommended for you".
+   - **Featured score** (`featured_activity_scores` RPC, `supabase/migrations/20261021130000_featured_activity_scores.sql`): 3 per attendee, 2 per save, 0.5 per unique viewer, 3 if ride sharing is enabled, and 2 per rider (pending/accepted/completed request on a non-cancelled ride offer for the activity). Full activities rank after every activity with open spots; ties go to the sooner activity (`rankFeatured` in `lib/featured-activities.ts`). If the RPC fails, Home falls back to date order.
+   - **Views** are recorded once per user per activity in `activity_views` via the `record_activity_view` RPC when the detail screen loads; the host's own views don't count. Saves and views are private per user, so the scoring RPC is `security definer` and only returns aggregate counts for activities the caller could see on Home.
 4. Category pills filter by category; the search bar filters by title client-side.
 
 **Exploring activities (Explore feed):**

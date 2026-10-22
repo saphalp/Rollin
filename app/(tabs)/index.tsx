@@ -10,6 +10,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { fetchFeaturedScores, rankFeatured, type FeaturedScore } from '@/lib/featured-activities';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = ['All', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
@@ -52,6 +53,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [featuredScores, setFeaturedScores] = useState<Map<string, FeaturedScore>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -103,6 +105,9 @@ export default function HomeScreen() {
         rows.push(...(result.data ?? []));
         if ((result.data?.length ?? 0) < 500) break;
       }
+      const scores = await fetchFeaturedScores(rows.map(a => a.id));
+      if (!current()) return;
+      setFeaturedScores(scores);
       setActivities(rows.map((a: any) => ({
         id: a.id, title: a.title, category: a.category ?? 'social',
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
@@ -182,9 +187,9 @@ export default function HomeScreen() {
     return matchesCategory && `${activity.title} ${activity.location ?? ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
   }).sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id));
 
-  // TODO: real featured selection logic; for now the first 3 upcoming activities are featured.
-  const featured = filtered.slice(0, 3);
-  const recommended = filtered.slice(3);
+  const featured = rankFeatured(filtered, featuredScores);
+  const featuredIds = new Set(featured.map(a => a.id));
+  const recommended = filtered.filter(a => !featuredIds.has(a.id));
 
   return (
     <AppView style={styles.container}>

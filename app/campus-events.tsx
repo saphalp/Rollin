@@ -34,7 +34,7 @@ export default function CampusEventsScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const generation = useRef(0);
   const filtersRef = useRef({ past, search });
-  filtersRef.current = { past, search };
+  useEffect(() => { filtersRef.current = { past, search }; }, [past, search]);
   const savedGeneration = useRef(0);
   const saveInFlight = useRef(new Set<string>());
   const fetching = useRef(false);

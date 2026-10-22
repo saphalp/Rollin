@@ -350,8 +350,9 @@ function UserProfileContent({ userId }: UserProfileProps) {
             attended: attendedCount,
             hosted: createdActivities.length,
             rides: rideCount,
-            rating,
+            reviews: rating,
           }}
+          onReviewsPress={() => router.push(`/reviews/${userId}`)}
         />
 
         <View>

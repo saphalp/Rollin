@@ -173,6 +173,7 @@ test('offer screen distinguishes an undated activity from a failed lookup and lo
       '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
       '@/lib/supabase': { supabase: { from: () => { const query = { select: () => query, eq: () => query, single: async () => ({ data: { id: 'pickleball', title: 'Pickleball', location: 'Court', date_time: date } }) }; return query; } } },
       '@/components/text': { AppText: 'Text' },
+      '@/components/ui/icon-symbol': { IconSymbol: 'IconSymbol' },
       '@/lib/profile/driver-profile': { getDriverProfile: async () => ({ verification_status: status }) },
       '@/services/geocoding-service': {},
       '@/services/ride-wanted-requests-service': {},

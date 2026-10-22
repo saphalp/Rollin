@@ -1,14 +1,16 @@
+import { IconSymbol, type IconSymbolName } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
-import { Pressable, StyleSheet, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
 import { Text } from "react-native-paper";
 
 interface StatsCardProps {
   label: string;
   score: number | string;
   onPress?: () => void;
+  icon?: IconSymbolName;
 }
 
-export default function StatsCard({ label, score, onPress }: StatsCardProps) {
+export default function StatsCard({ label, score, onPress, icon }: StatsCardProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
@@ -20,14 +22,17 @@ export default function StatsCard({ label, score, onPress }: StatsCardProps) {
       accessibilityLabel={`${score} ${label}`}
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
     >
-      <Text
-        style={[
-          styles.score,
-          { color: colors.secondaryContainer, fontFamily: Fonts.sans },
-        ]}
-      >
-        {score}
-      </Text>
+      <View style={styles.scoreRow}>
+        <Text
+          style={[
+            styles.score,
+            { color: colors.secondaryContainer, fontFamily: Fonts.sans },
+          ]}
+        >
+          {score}
+        </Text>
+        {icon && <IconSymbol name={icon} size={18} color={colors.secondaryContainer} />}
+      </View>
       <Text
         style={[styles.label, { color: colors.icon, fontFamily: Fonts.sans }]}
       >
@@ -42,6 +47,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
+  },
+  scoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   pressed: {

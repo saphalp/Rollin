@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.rollin.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Rollin uses your location to show you nearby activities."
       }
     },
     "android": {
@@ -23,6 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.rollin.app",
+      "permissions": ["android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION"],
       "googleServicesFile": "./google-services.json"
     },
     "web": {

@@ -36,6 +36,7 @@ export default function ProfileStats({ statsData, onReviewsPress }: ProfileStats
             label={key}
             score={key === "reviews" ? (value == null ? '—' : value.toFixed(1)) : (value ?? 0)}
             onPress={key === "reviews" ? onReviewsPress : undefined}
+            icon={key === "reviews" ? "star.fill" : undefined}
           />
           {index < entries.length - 1 && (
             <View

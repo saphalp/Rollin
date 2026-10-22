@@ -47,7 +47,9 @@ Allow users to create activities for other students to join and discover activit
 **Discovering activities (Home feed):**
 1. On load, the app fetches the current user's followed users from the `follows` table.
 2. Activities are queried: public ones for everyone, plus private ones whose `host_id` is in the followed list.
-3. The first result becomes the "Featured" card; the rest appear as "Recommended for you".
+3. The three highest-scoring results appear in the "Featured" carousel (`components/home/featured-carousel.tsx`): full-width square cards, one at a time, autoplay every 4s while Home is focused, swipe and dot navigation, and an infinite loop built from cloned edge slides. The rest appear as "Recommended for you".
+   - **Featured score** (`featured_activity_scores` RPC, `supabase/migrations/20261021130000_featured_activity_scores.sql`): 3 per attendee, 2 per save, 0.5 per unique viewer, 3 if ride sharing is enabled, and 2 per rider (pending/accepted/completed request on a non-cancelled ride offer for the activity). Only dated activities that haven't started yet qualify (the nightly expiry job leaves past activities `active` until midnight, so the client and RPC both check `date_time > now`). Full activities rank after every activity with open spots; ties go to the sooner activity (`rankFeatured` in `lib/featured-activities.ts`). If the RPC fails, Home falls back to date order.
+   - **Views** are recorded once per user per activity in `activity_views` via the `record_activity_view` RPC when the detail screen loads; the host's own views don't count. Saves and views are private per user, so the scoring RPC is `security definer` and only returns aggregate counts for activities the caller could see on Home.
 4. Category pills filter by category; the search bar filters by title client-side.
 
 **Exploring activities (Explore feed):**
@@ -79,6 +81,7 @@ Allow users to create activities for other students to join and discover activit
 |---|---|
 | `app/(tabs)/post.tsx` | Activity creation form |
 | `app/(tabs)/index.tsx` | Home feed with featured + recommended sections |
+| `components/home/featured-carousel.tsx` | Auto-sliding, looping Featured carousel on Home |
 | `app/(tabs)/explore.tsx` | Explore feed (all activities, unfiltered) |
 | `app/activity/[id].tsx` | Activity detail screen with RSVP, join-request, attendee, editing, and ride-option behavior |
 | `app/activity/edit/[id].tsx` | Activity edit form |

@@ -8,6 +8,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { recordActivityView } from "@/lib/featured-activities";
 import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -273,6 +274,7 @@ export default function ActivityDetailScreen() {
 
     setActivity(activityData);
     setCurrentUserId(user?.id ?? null);
+    if (user && user.id !== activityData.host_id) void recordActivityView(activityData.id);
 
     const rsvps =
       activityData.rsvps ?? [];

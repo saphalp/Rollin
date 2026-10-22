@@ -6,18 +6,19 @@ interface StatsData {
   attended: number;
   hosted: number;
   rides: number;
-  rating: number | null;
+  reviews: number | null;
 }
 
 interface ProfileStatsProps {
   statsData: StatsData;
+  onReviewsPress?: () => void;
 }
 
-export default function ProfileStats({ statsData }: ProfileStatsProps) {
+export default function ProfileStats({ statsData, onReviewsPress }: ProfileStatsProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const entries = Object.entries(statsData) as [keyof StatsData, number][];
+  const entries = Object.entries(statsData) as [keyof StatsData, number | null][];
 
   return (
     <View
@@ -33,7 +34,9 @@ export default function ProfileStats({ statsData }: ProfileStatsProps) {
         <View key={key} style={styles.item}>
           <StatsCard
             label={key}
-            score={key === "rating" ? (value == null ? '—' : value.toFixed(1)) : (value ?? 0)}
+            score={key === "reviews" ? (value == null ? '—' : value.toFixed(1)) : (value ?? 0)}
+            onPress={key === "reviews" ? onReviewsPress : undefined}
+            icon={key === "reviews" ? "star.fill" : undefined}
           />
           {index < entries.length - 1 && (
             <View

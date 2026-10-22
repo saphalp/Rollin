@@ -260,6 +260,31 @@ export default function AvailableRidesScreen() {
                     activityLocked={Boolean(activityId)}
                 />
 
+                <TouchableOpacity
+                    onPress={handleRequestRide}
+                    style={[
+                        styles.requestButton,
+                        { backgroundColor: colors.tint },
+                    ]}
+                >
+                    <MaterialCommunityIcons
+                        name="car-search-outline"
+                        size={19}
+                        color={colors.onPrimary}
+                    />
+                    <AppText
+                        style={[
+                            styles.requestButtonText,
+                            {
+                                color: colors.onPrimary,
+                                fontFamily: Fonts?.sans,
+                            },
+                        ]}
+                    >
+                        Request a Ride
+                    </AppText>
+                </TouchableOpacity>
+
                 {!wantedLoading && wantedRequests.length > 0 && (
                     <View style={styles.wantedSection}>
                         <AppText
@@ -419,30 +444,7 @@ export default function AvailableRidesScreen() {
                             {emptyMessage}
                         </AppText>
 
-                        <TouchableOpacity
-                            onPress={handleRequestRide}
-                            style={[
-                                styles.requestButton,
-                                { backgroundColor: colors.tint },
-                            ]}
-                        >
-                            <MaterialCommunityIcons
-                                name="car-search-outline"
-                                size={19}
-                                color={colors.onPrimary}
-                            />
-                            <AppText
-                                style={[
-                                    styles.requestButtonText,
-                                    {
-                                        color: colors.onPrimary,
-                                        fontFamily: Fonts?.sans,
-                                    },
-                                ]}
-                            >
-                                Request a Ride
-                            </AppText>
-                        </TouchableOpacity>
+
                     </View>
                 ) : (
                     <View style={styles.list}>

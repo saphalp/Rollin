@@ -8,6 +8,10 @@ const source = fs.readFileSync('supabase/functions/ride-route/index.ts', 'utf8')
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
+const verification = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('supabase/functions/_shared/login-verification.ts','utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { exports: verification });
 
 function setup(options = {}) {
   let handler;
@@ -17,7 +21,9 @@ function setup(options = {}) {
     pickup_longitude: -92.6, destination_latitude: 32.6, destination_longitude: -92.7,
     ...options.ride };
   const client = {
-    rpc: async () => ({ error: options.orderError ? new Error("changed") : null }),
+    rpc: async (name) => name === 'login_email_verified'
+      ? { data: options.verified !== false, error: null }
+      : { error: options.orderError ? new Error("changed") : null },
     auth: { getUser: async () => ({ data: { user: { id: options.user ?? 'driver' } } }) },
     from: (table) => {
       const query = {
@@ -33,7 +39,7 @@ function setup(options = {}) {
     },
   };
   vm.runInNewContext(compiled, {
-    exports: {}, require: () => ({ createClient: () => client }),
+    exports: {}, require: name => name === '../_shared/login-verification.ts' ? verification : ({ createClient: () => client }),
     Response, Request, AbortSignal,
     Deno: { env: { get: (key) => key === 'ORS_API_KEY' && options.noKey ? undefined : 'test-value' },
       serve: (fn) => { handler = fn; } },
@@ -72,6 +78,12 @@ test('rejects unauthenticated and unrelated callers before using ORS quota', asy
   assert.equal((await app.run(false)).status, 401);
   assert.equal((await app.run()).status, 403);
   assert.equal(app.calls.length, 0);
+});
+test('rejects an unverified login before using ORS quota or saving a route', async () => {
+  const app = setup({ verified: false });
+  assert.equal((await app.run()).status, 403);
+  assert.equal(app.calls.length, 0);
+  assert.equal(app.savedRoutes.length, 0);
 });
 test('passenger receives the saved driver route without calling ORS or overwriting it', async () => {
   const savedRoute = { coordinates: [{ latitude: 32, longitude: -92 }], distanceMeters: 100 };

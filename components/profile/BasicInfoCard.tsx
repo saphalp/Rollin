@@ -74,41 +74,62 @@ export default function BasicInfoCard({
       <ProfileAvatar editable />
 
       <View style={styles.form}>
-        <TextInput
-          label="Full Name"
-          value={fullName}
-          onChangeText={setFullName}
-          mode="outlined"
-          autoCapitalize="words"
-          outlineColor={colors.outlineVariant}
-          activeOutlineColor={colors.tint}
-          textColor={colors.text}
-          style={[styles.input, { backgroundColor: colors.surfaceContainerHigh }]}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+            Full Name
+          </Text>
+          <TextInput
+            placeholder="Enter your full name"
+            value={fullName}
+            onChangeText={setFullName}
+            mode="outlined"
+            autoCapitalize="words"
+            outlineColor={colors.outlineVariant}
+            activeOutlineColor={colors.tint}
+            textColor={colors.text}
+            placeholderTextColor={colors.icon}
+            style={[styles.input, { backgroundColor: colors.surface }]}
+            theme={{ roundness: 15 }}
+          />
+        </View>
 
-        <TextInput
-          label="University"
-          value={university}
-          onChangeText={setUniversity}
-          mode="outlined"
-          autoCapitalize="words"
-          outlineColor={colors.outlineVariant}
-          activeOutlineColor={colors.tint}
-          textColor={colors.text}
-          style={[styles.input, { backgroundColor: colors.surfaceContainerHigh }]}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+            University
+          </Text>
+          <TextInput
+            placeholder="Enter your university"
+            value={university}
+            onChangeText={setUniversity}
+            mode="outlined"
+            autoCapitalize="words"
+            outlineColor={colors.outlineVariant}
+            activeOutlineColor={colors.tint}
+            textColor={colors.text}
+            placeholderTextColor={colors.icon}
+            style={[styles.input, { backgroundColor: colors.surface }]}
+            theme={{ roundness: 15 }}
+          />
+        </View>
 
-        <TextInput
-          label="Major"
-          value={major}
-          onChangeText={setMajor}
-          mode="outlined"
-          autoCapitalize="words"
-          outlineColor={colors.outlineVariant}
-          activeOutlineColor={colors.tint}
-          textColor={colors.text}
-          style={[styles.input, { backgroundColor: colors.surfaceContainerHigh }]}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontFamily: Fonts.sans }]}>
+            Major
+          </Text>
+          <TextInput
+            placeholder="Enter your major"
+            value={major}
+            onChangeText={setMajor}
+            mode="outlined"
+            autoCapitalize="words"
+            outlineColor={colors.outlineVariant}
+            activeOutlineColor={colors.tint}
+            textColor={colors.text}
+            placeholderTextColor={colors.icon}
+            style={[styles.input, { backgroundColor: colors.surface }]}
+            theme={{ roundness: 15 }}
+          />
+        </View>
       </View>
 
       <Button
@@ -151,6 +172,17 @@ const styles = StyleSheet.create({
 
   form: {
     gap: 16,
+  },
+
+  fieldGroup: {
+    gap: 6,
+  },
+
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   input: {

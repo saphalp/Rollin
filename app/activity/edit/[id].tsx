@@ -179,6 +179,12 @@ export default function EditActivityScreen() {
   }
 
   async function performSave(allFuture: boolean) {
+    const parsedDate = new Date(`${date.trim()} ${time.trim()}`);
+    if (!date.trim() || !time.trim() || !Number.isFinite(parsedDate.getTime())) {
+      Alert.alert('Missing date and time', 'Please select when this activity starts.');
+      return;
+    }
+    const dateTime = parsedDate.toISOString();
     setSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -190,11 +196,6 @@ export default function EditActivityScreen() {
 
     const imageUrl = await uploadImage(user.id);
 
-    let dateTime: string | null = null;
-    if (date.trim() && time.trim()) {
-      const parsed = new Date(`${date.trim()} ${time.trim()}`);
-      if (!isNaN(parsed.getTime())) dateTime = parsed.toISOString();
-    }
 
     const isNowRecurring = recurrence.type !== 'none';
     const updatePayload = {

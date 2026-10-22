@@ -1,4 +1,14 @@
+import { requireVerifiedLogin } from '../_shared/login-verification.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.110.2';
+
+function haversineDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +34,7 @@ Deno.serve(async (req: Request) => {
     );
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) return reply({ error: 'Sign in again to post an announcement.' }, 401);
+    if (!(await requireVerifiedLogin(client))) return reply({ error: 'Complete email login verification first.' }, 403);
 
     const body = await req.json().catch(() => null);
     if (typeof body?.announcementId !== 'string' ||
@@ -34,7 +45,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: announcement, error: loadError } = await client
       .from('announcements')
-      .select('id, body, activity_id, activity:activities(title, host_id)')
+      .select('id, body, activity_id, activity:activities(title, host_id, latitude, longitude)')
       .eq('id', announcementId)
       .single();
     if (loadError || !announcement) {
@@ -60,10 +71,30 @@ Deno.serve(async (req: Request) => {
       .filter((id) => id !== user.id);
     if (memberIds.length === 0) return reply({ ok: true, sent: 0 });
 
+    const actLat = (announcement.activity as any)?.latitude as number | null ?? null;
+    const actLng = (announcement.activity as any)?.longitude as number | null ?? null;
+
+    let filteredIds = memberIds;
+    if (actLat != null && actLng != null) {
+      const { data: notifSettings } = await admin
+        .from('notification_settings')
+        .select('user_id, nearby_activities_enabled, nearby_activities_radius_miles, user_latitude, user_longitude')
+        .in('user_id', memberIds);
+
+      const settingsMap = new Map((notifSettings ?? []).map((s: any) => [s.user_id, s]));
+
+      filteredIds = memberIds.filter((id) => {
+        const s = settingsMap.get(id) as any;
+        if (!s?.nearby_activities_enabled) return true;
+        if (s.user_latitude == null || s.user_longitude == null) return true;
+        return haversineDistanceMiles(s.user_latitude, s.user_longitude, actLat, actLng) <= (s.nearby_activities_radius_miles ?? 5);
+      });
+    }
+
     const { data: tokens, error: tokensError } = await admin
       .from('push_tokens')
       .select('expo_push_token')
-      .in('profile_id', memberIds);
+      .in('profile_id', filteredIds);
     if (tokensError) return reply({ error: 'Could not load push tokens.' }, 500);
 
         const pushTokens = [...new Set((tokens ?? []).map((t) => t.expo_push_token))];
@@ -85,8 +116,6 @@ Deno.serve(async (req: Request) => {
     }
 
     return reply({ ok: true, sent: messages.length });
-
-    return reply({ ok: true });
   } catch (error) {
     return reply({ error: 'Something went wrong.' }, 500);
   }

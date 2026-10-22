@@ -23,6 +23,7 @@ const MAPPING = {
   'person.fill': 'person',
   // Home screen icons
   'bell.fill': 'notifications',
+  'bell.slash.fill': 'notifications-off',
   'magnifyingglass': 'search',
   'line.3.horizontal.decrease': 'filter-list',
   // Activity card icons
@@ -46,6 +47,12 @@ const MAPPING = {
   'square.and.arrow.up': 'share',
   'xmark.circle.fill': 'cancel',
   'plus': 'add',
+  'lock.fill': 'lock',
+  'arrow.triangle.2.circlepath': 'repeat',
+  // Reviews
+  'star': 'star-border',
+  'star.fill': 'star',
+  'star.leadinghalf.filled': 'star-half',
 } as IconMapping;
 
 

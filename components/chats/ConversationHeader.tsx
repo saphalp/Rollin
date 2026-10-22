@@ -15,12 +15,18 @@ interface ConversationHeaderProps {
   name: string;
   avatar: ImageSourcePropType;
   subtitle?: string;
+  muted?: boolean;
+  onToggleMute?: () => void;
+  onPressProfile?: () => void;
 }
 
 export default function ConversationHeader({
   name,
   avatar,
   subtitle,
+  muted = false,
+  onToggleMute,
+  onPressProfile,
 }: ConversationHeaderProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -48,27 +54,51 @@ export default function ConversationHeader({
         <IconSymbol name="chevron.left" size={26} color={colors.text} />
       </Pressable>
 
-      <Avatar.Image size={38} source={avatar} />
+      <Pressable
+        onPress={onPressProfile}
+        disabled={!onPressProfile}
+        style={({ pressed }) => [
+          styles.profilePressable,
+          { opacity: pressed && onPressProfile ? 0.7 : 1 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${name}'s profile`}
+      >
+        <Avatar.Image size={38} source={avatar} />
 
-      <View style={styles.nameCol}>
-        <Text
-          numberOfLines={1}
-          style={[styles.name, { color: colors.text, fontFamily: Fonts.sans }]}
-        >
-          {name}
-        </Text>
-        {subtitle && (
+        <View style={styles.nameCol}>
           <Text
             numberOfLines={1}
-            style={[
-              styles.subtitle,
-              { color: colors.icon, fontFamily: Fonts.sans },
-            ]}
+            style={[styles.name, { color: colors.text, fontFamily: Fonts.sans }]}
           >
-            {subtitle}
+            {name}
           </Text>
-        )}
-      </View>
+          {subtitle && (
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.subtitle,
+                { color: colors.icon, fontFamily: Fonts.sans },
+              ]}
+            >
+              {subtitle}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+      {onToggleMute && (
+        <Pressable
+          onPress={onToggleMute}
+          hitSlop={12}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <IconSymbol
+            name={muted ? "bell.slash.fill" : "bell.fill"}
+            size={22}
+            color={muted ? colors.icon : colors.text}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -84,6 +114,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 4,
+  },
+  profilePressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   nameCol: {
     flex: 1,

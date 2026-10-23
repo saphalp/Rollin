@@ -38,6 +38,7 @@ type Activity = {
   attendeeCount: number;
   maxAttendees: number;
   rideSharing?: boolean;
+  isCampusEvent?: boolean;
   waitlistPosition?: number | null;
   status?: 'active' | 'expired';
 };
@@ -84,7 +85,7 @@ export default function HomeScreen() {
         setSavedIds(new Set());
       }
       let query = supabase.from('activities')
-        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, rsvps(id)')
+        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, source_campus_event_id, rsvps(id)')
         .eq('status', 'active')
         .order('date_time', { ascending: true }).order('id');
       query = visibleHostIds.length > 0
@@ -115,7 +116,7 @@ export default function HomeScreen() {
         sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
         date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
         attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
-        rideSharing: a.ride_sharing ?? false, waitlistPosition: positions.get(a.id) ?? null, status: a.status ?? 'active',
+        rideSharing: a.ride_sharing ?? false, isCampusEvent: !!a.source_campus_event_id, waitlistPosition: positions.get(a.id) ?? null, status: a.status ?? 'active',
       })));
     } catch {
       if (current()) {
@@ -286,6 +287,7 @@ export default function HomeScreen() {
                       attendeeCount={activity.attendeeCount}
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
+                      isCampusEvent={activity.isCampusEvent}
                       waitlistPosition={activity.waitlistPosition}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}

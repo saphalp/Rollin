@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { defaultMeetingLocal, hostCampusEvent, loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
 import { campusDateLabel, campusUpcoming, plainDescription, type CampusEvent } from '@/lib/home-campus-events';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -78,7 +79,7 @@ export default function HostCampusEventScreen() {
   const input = (label: string, value: string, onChangeText: (value: string) => void, multiline = false) => <View style={styles.field}><AppText>{label}</AppText><TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} editable={!busy} multiline={multiline} autoCapitalize="none" autoCorrect={false} maxLength={multiline ? 10000 : label === 'Meeting location' ? 500 : 50} keyboardType={label === 'Maximum attendees' ? 'number-pad' : 'default'} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} /></View>;
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-      <Pressable disabled={busy} onPress={() => router.canGoBack() ? router.back() : router.replace('/campus-events')}><AppText style={{ color: colors.tint }}>‹ Back</AppText></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" disabled={busy} onPress={() => router.canGoBack() ? router.back() : router.replace('/campus-events')} style={styles.backButton}><Ionicons name="chevron-back" size={26} color={colors.tint} /></Pressable>
       <AppText style={styles.title}>Host Event</AppText>
       {loading && <ActivityIndicator />}
       {!!error && <AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText>}
@@ -98,4 +99,4 @@ export default function HostCampusEventScreen() {
     </ScrollView>
   </View>;
 }
-const styles = StyleSheet.create({ screen: { flex: 1 }, content: { padding: 20, gap: 18 }, title: { fontSize: 25, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, field: { gap: 8 }, input: { padding: 12, borderWidth: 1, borderRadius: 12, fontSize: 15 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { padding: 10, borderWidth: 1, borderRadius: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, publish: { padding: 16, borderRadius: 28, alignItems: 'center' } });
+const styles = StyleSheet.create({ screen: { flex: 1 }, content: { padding: 20, gap: 18 }, backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 25, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, field: { gap: 8 }, input: { padding: 12, borderWidth: 1, borderRadius: 12, fontSize: 15 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { padding: 10, borderWidth: 1, borderRadius: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, publish: { padding: 16, borderRadius: 28, alignItems: 'center' } });

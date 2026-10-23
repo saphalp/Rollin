@@ -5,7 +5,6 @@ import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { openEventMap } from '@/lib/open-event-map';
 
 type ActivityCardProps = {
   title: string;
@@ -135,19 +134,11 @@ export function ActivityCard({
           ) : null}
         </View>
         {!!location && (
-          <View onStartShouldSetResponder={() => true}>
-            <TouchableOpacity
-              accessibilityRole="link"
-              accessibilityLabel={`Open ${location} in maps`}
-              activeOpacity={0.7}
-              onPress={() => void openEventMap(location)}
-              style={styles.metaItem}
-              hitSlop={8}
-            >
-              <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
-              <AppText numberOfLines={1} style={[styles.metaText, { flex: 1, color: colors.onImageOverlay, fontFamily: Fonts?.sans, textDecorationLine: 'underline' }]}>{location}</AppText>
-              <IconSymbol name="arrow.up.right" size={12} color={colors.onImageOverlay} />
-            </TouchableOpacity>
+          <View style={styles.metaItem}>
+            <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
+            <AppText numberOfLines={1} style={[styles.metaText, { flex: 1, color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              {location}
+            </AppText>
           </View>
         )}
       </View>
@@ -158,7 +149,7 @@ export function ActivityCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    height: 150,
+    height: 200,
     overflow: 'hidden',
     justifyContent: 'space-between',
     padding: 12,

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
+import { DepartureCountdownBadge } from '@/components/rides/departure-countdown-badge';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -108,6 +109,7 @@ export function RideDetailCard({ ride }: Props) {
                 </View>
             </View>
 
+            <DepartureCountdownBadge dateTime={ride.dateTime} />
             {ride.activity ? (
                 <View
                     style={[

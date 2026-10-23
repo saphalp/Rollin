@@ -1,7 +1,6 @@
-import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
+import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
-import { hasReviewedHost } from "@/services/reviews-service";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -9,7 +8,9 @@ import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { recordActivityView } from "@/lib/featured-activities";
+import { openEventMap } from "@/lib/open-event-map";
 import { supabase } from "@/lib/supabase";
+import { hasReviewedHost } from "@/services/reviews-service";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -215,7 +216,7 @@ export default function ActivityDetailScreen() {
     };
   }, [activity, hasRsvp, currentUserId]);
 
-    useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       if (!id) return;
       supabase
@@ -494,7 +495,7 @@ export default function ActivityDetailScreen() {
 
           setMyRequestStatus("none");
         }
-        
+
         void load();
         return;
       }
@@ -769,8 +770,8 @@ export default function ActivityDetailScreen() {
 
   const isFull =
     rsvpCount >= activity.max_attendees;
-  
-    const isPast =
+
+  const isPast =
     activity.date_time
       ? new Date(activity.date_time) < new Date()
       : false;
@@ -919,98 +920,98 @@ export default function ActivityDetailScreen() {
                   }}
                 >
                   {isHost ? (
-                  <>
-                  <Menu.Item
-                    leadingIcon="pencil"
-                    title="Edit Activity"
-                    onPress={() => {
-                      setMenuVisible(false);
-                      router.push(
-                        `/activity/edit/${activity.id}`,
-                      );
-                    }}
-                    titleStyle={{
-                      color: colors.text,
-                      fontFamily: Fonts?.sans,
-                    }}
-                  />
-                  
-                  <Menu.Item
-                    leadingIcon="bullhorn-outline"
-                    title="Send Announcement"
-                    onPress={() => {
-                      setMenuVisible(false);
-                      router.push(
-                        `/activity/announce/${activity.id}`,
-                      );
-                    }}
-                    titleStyle={{
-                      color: colors.text,
-                      fontFamily: Fonts?.sans,
-                    }}
-                  />
+                    <>
+                      <Menu.Item
+                        leadingIcon="pencil"
+                        title="Edit Activity"
+                        onPress={() => {
+                          setMenuVisible(false);
+                          router.push(
+                            `/activity/edit/${activity.id}`,
+                          );
+                        }}
+                        titleStyle={{
+                          color: colors.text,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
 
-                  <Menu.Item
-                    leadingIcon={
-                      boosted
-                        ? "check-circle-outline"
-                        : "rocket-launch-outline"
-                    }
-                    title={
-                      boosted
-                        ? "Boosted"
-                        : "Boost Activity"
-                    }
-                    disabled={boosted}
-                    onPress={() => {
-                      setMenuVisible(false);
-                      handleBoostActivity();
-                    }}
-                    titleStyle={{
-                      color: boosted
-                        ? colors.outline
-                        : colors.tint,
-                      fontFamily: Fonts?.sans,
-                    }}
-                  />
+                      <Menu.Item
+                        leadingIcon="bullhorn-outline"
+                        title="Send Announcement"
+                        onPress={() => {
+                          setMenuVisible(false);
+                          router.push(
+                            `/activity/announce/${activity.id}`,
+                          );
+                        }}
+                        titleStyle={{
+                          color: colors.text,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
 
-                  <Menu.Item
-                    leadingIcon="trash-can-outline"
-                    title="Delete Activity"
-                    onPress={() => {
-                      setMenuVisible(false);
-                      deleteActivity();
-                    }}
-                    titleStyle={{
-                      color: colors.error,
-                      fontFamily: Fonts?.sans,
-                    }}
-                  />
-                  </>
+                      <Menu.Item
+                        leadingIcon={
+                          boosted
+                            ? "check-circle-outline"
+                            : "rocket-launch-outline"
+                        }
+                        title={
+                          boosted
+                            ? "Boosted"
+                            : "Boost Activity"
+                        }
+                        disabled={boosted}
+                        onPress={() => {
+                          setMenuVisible(false);
+                          handleBoostActivity();
+                        }}
+                        titleStyle={{
+                          color: boosted
+                            ? colors.outline
+                            : colors.tint,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
+
+                      <Menu.Item
+                        leadingIcon="trash-can-outline"
+                        title="Delete Activity"
+                        onPress={() => {
+                          setMenuVisible(false);
+                          deleteActivity();
+                        }}
+                        titleStyle={{
+                          color: colors.error,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
+                    </>
                   ) : (
-                  <Menu.Item
-                    leadingIcon={
-                      hostReviewed
-                        ? "check-circle-outline"
-                        : "star-outline"
-                    }
-                    title={
-                      hostReviewed
-                        ? "Host Reviewed"
-                        : "Review Host"
-                    }
-                    disabled={hostReviewed}
-                    onPress={() => {
-                      setMenuVisible(false);
-                      setReviewSheetVisible(true);
-                    }}
-                    titleStyle={{
-                      color: hostReviewed
-                        ? colors.outline
-                        : colors.text,
-                      fontFamily: Fonts?.sans,
-                    }}
-                  />
+                    <Menu.Item
+                      leadingIcon={
+                        hostReviewed
+                          ? "check-circle-outline"
+                          : "star-outline"
+                      }
+                      title={
+                        hostReviewed
+                          ? "Host Reviewed"
+                          : "Review Host"
+                      }
+                      disabled={hostReviewed}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        setReviewSheetVisible(true);
+                      }}
+                      titleStyle={{
+                        color: hostReviewed
+                          ? colors.outline
+                          : colors.text,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
                   )}
                 </Menu>
               )}
@@ -1217,35 +1218,23 @@ export default function ActivityDetailScreen() {
 
             {activity.location && (
               <>
-                <View
-                  style={
-                    styles.metaRow
-                  }
+                <TouchableOpacity
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open ${activity.location} in maps`}
+                  onPress={() => void openEventMap(activity.location)}
+                  activeOpacity={0.7}
+                  style={styles.metaRow}
                 >
-                  <IconSymbol
-                    name="mappin"
-                    size={18}
-                    color={
-                      colors.tint
-                    }
-                  />
-
-                  <AppText
-                    style={[
-                      styles.metaText,
-                      {
-                        color:
-                          colors.text,
-                        fontFamily:
-                          Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    {
-                      activity.location
-                    }
+                  <IconSymbol name="mappin" size={18} color={colors.tint} />
+                  <AppText style={[styles.metaText, {
+                    color: colors.tint,
+                    fontFamily: Fonts?.sans,
+                    textDecorationLine: 'underline',
+                  }]}>
+                    {activity.location}
                   </AppText>
-                </View>
+                  <IconSymbol name="arrow.up.right" size={16} color={colors.tint} />
+                </TouchableOpacity>
 
                 <View
                   style={
@@ -1345,7 +1334,7 @@ export default function ActivityDetailScreen() {
             )}
           </View>
 
-        {/* Announcements */}
+          {/* Announcements */}
 
           {announcements.length > 0 && (
             <View style={styles.descSection}>
@@ -1375,7 +1364,7 @@ export default function ActivityDetailScreen() {
               ))}
             </View>
           )}
-         
+
           {/* Description */}
 
           {activity.description && (
@@ -1739,7 +1728,7 @@ export default function ActivityDetailScreen() {
                         : "Request to Join"}
                   </AppText>
                 </TouchableOpacity>
-                            ) : !hasRsvp && isFull ? (
+              ) : !hasRsvp && isFull ? (
                 <TouchableOpacity
                   onPress={toggleWaitlist}
                   disabled={waitlistLoading}

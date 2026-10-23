@@ -22,8 +22,8 @@ export default function CampusEventsScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [past, setPast] = useState(false);
-  const [tab, setTab] = useState<'all' | 'saved'>('all');
+  const [tab, setTab] = useState<'upcoming' | 'past' | 'archived'>('upcoming');
+  const past = tab === 'past';
   const [savedEvents, setSavedEvents] = useState<CampusEvent[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savedMore, setSavedMore] = useState(false);
@@ -34,7 +34,7 @@ export default function CampusEventsScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const generation = useRef(0);
   const filtersRef = useRef({ past, search });
-  useEffect(() => { filtersRef.current = { past, search }; }, [past, search]);
+  filtersRef.current = { past, search };
   const savedGeneration = useRef(0);
   const saveInFlight = useRef(new Set<string>());
   const fetching = useRef(false);
@@ -181,7 +181,7 @@ export default function CampusEventsScreen() {
   }, [refreshSavedIds]);
 
   useEffect(() => {
-    if (tab === 'saved') void loadSaved(true);
+    if (tab === 'archived') void loadSaved(true);
     // Reload on entering Saved tab, not on every pagination offset change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
@@ -204,7 +204,7 @@ export default function CampusEventsScreen() {
         if (previouslySaved) next.delete(event.id); else next.add(event.id);
         return next;
       });
-      if (previouslySaved && tab === 'saved') {
+      if (previouslySaved && tab === 'archived') {
         setSavedEvents(current => current.filter(item => item.id !== event.id));
         // Refresh to fill vacancies from the saved-event database list.
         await loadSaved(true);
@@ -222,67 +222,116 @@ export default function CampusEventsScreen() {
     void fetchPage(university.id, pageOffset.current, generation.current, 'append', past, search.trim());
   }
 
+  const activeItems = tab !== 'archived' ? events : savedEvents;
+
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}><AppText style={{ color: colors.tint }}>‹ Back</AppText></Pressable>
-      <AppText style={styles.title}>Campus Events</AppText>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backButton}>
+        <Ionicons name="chevron-back" size={26} color={colors.tint} />
+      </Pressable>
+      <View style={styles.headerTitle}>
+        <AppText style={[styles.title, { color: colors.text }]}>Campus Events</AppText>
+        <AppText style={[styles.subtitle, { color: colors.outline }]}>{university?.short_name ?? 'LA Tech'} · Calendar</AppText>
+      </View>
+      <View style={styles.backButton} />
     </View>
-    <FlatList data={tab === 'all' ? events : savedEvents} keyExtractor={item => item.id} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
-      refreshControl={<RefreshControl refreshing={tab === 'all' ? loading : savedLoading} onRefresh={() => { if (tab === 'all') { void reload(past, search.trim()); if (userId) void refreshSavedIds(userId).then(setSavedIds).catch(() => { }); } else void loadSaved(true); }} />}
+
+    <FlatList
+      data={activeItems}
+      keyExtractor={item => item.id}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 }]}
+      refreshControl={<RefreshControl refreshing={tab !== 'archived' ? loading : savedLoading} onRefresh={() => { if (tab !== 'archived') { void reload(past, search.trim()); if (userId) void refreshSavedIds(userId).then(setSavedIds).catch(() => { }); } else void loadSaved(true); }} />}
       ListHeaderComponent={<View style={styles.filters}>
-        <AppText>{university?.short_name ?? 'Your university'} · Calendar events</AppText>
-        <View style={styles.row}>
-          {(['all', 'saved'] as const).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[styles.chip, { borderColor: colors.tint, backgroundColor: tab === value ? colors.tint : colors.background }]}><AppText style={{ color: tab === value ? colors.onImageOverlay : colors.tint }}>{value === 'all' ? 'All Events' : 'Saved Events'}</AppText></Pressable>)}
+        <View style={[styles.tabBar, { backgroundColor: colors.surfaceContainerHigh }]}>
+          {(['upcoming', 'past', 'archived'] as const).map(value => <Pressable
+            key={value} accessibilityRole="button" accessibilityState={{ selected: tab === value }}
+            onPress={() => setTab(value)}
+            style={[styles.tab, tab === value && { backgroundColor: colors.tint }]}
+          >
+            <AppText style={[styles.tabText, { color: tab === value ? colors.onImageOverlay : colors.text }]}>
+              {value === 'upcoming' ? 'Upcoming' : value === 'past' ? 'Past' : 'Archived'}
+            </AppText>
+          </Pressable>)}
         </View>
-        <AppText>Open an event to host an activity with your friends.</AppText>
-        {tab === 'all' && <TextInput accessibilityLabel="Search campus events" placeholder="Search events or location" placeholderTextColor={colors.outline} value={search} onChangeText={setSearch} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} />}
-        {tab === 'all' && <View style={styles.row}>{['Upcoming', 'Past'].map((label, index) => <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected: past === !!index }} onPress={() => setPast(!!index)} style={[styles.chip, { borderColor: colors.tint, backgroundColor: past === !!index ? colors.tint : colors.background }]}><AppText style={{ color: past === !!index ? colors.onImageOverlay : colors.tint }}>{label}</AppText></Pressable>)}</View>}
-        {tab === 'all' && !!error && <View><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText><Pressable onPress={() => void reload(past, search.trim())}><AppText style={{ color: colors.tint }}>Retry</AppText></Pressable></View>}
-        {!!savedError && tab === 'saved' && <AppText accessibilityRole="alert" style={{ color: colors.error }}>{savedError}  <AppText onPress={() => void loadSaved(true)} style={{ color: colors.tint }}>Retry</AppText></AppText>}
-        <AppText>{tab === 'all' ? `Showing ${events.length} ${past ? 'past' : 'upcoming'} events` : `Showing ${savedEvents.length} saved events`}</AppText>
+        {tab !== 'archived' && <View style={[styles.searchBox, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+          <Ionicons name="search-outline" size={19} color={colors.outline} />
+          <TextInput accessibilityLabel="Search campus events" placeholder="Search events or locations" placeholderTextColor={colors.outline} value={search} onChangeText={setSearch} style={[styles.searchInput, { color: colors.text }]} />
+          {!!search && <Pressable accessibilityLabel="Clear search" onPress={() => setSearch('')}><Ionicons name="close-circle" size={19} color={colors.outline} /></Pressable>}
+        </View>}
+        {tab !== 'archived' && !!error && <View><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText><Pressable onPress={() => void reload(past, search.trim())}><AppText style={{ color: colors.tint }}>Retry</AppText></Pressable></View>}
+        {tab === 'archived' && !!savedError && <View><AppText accessibilityRole="alert" style={{ color: colors.error }}>{savedError}</AppText><Pressable onPress={() => void loadSaved(true)}><AppText style={{ color: colors.tint }}>Retry</AppText></Pressable></View>}
+        <View style={styles.resultHeader}>
+          <AppText style={[styles.resultTitle, { color: colors.text }]}>{tab === 'upcoming' ? 'Upcoming events' : tab === 'past' ? 'Past events' : 'Archived events'}</AppText>
+          <AppText style={[styles.resultCount, { color: colors.outline }]}>{activeItems.length} shown</AppText>
+        </View>
       </View>}
-      ListEmptyComponent={(tab === 'all' ? loading : savedLoading) ? <ActivityIndicator /> : <AppText>{tab === 'saved' ? 'No saved campus events yet.' : 'No campus events found.'}</AppText>}
-      ListFooterComponent={(tab === 'all' ? hasMore : savedMore) ? <Pressable accessibilityRole="button" disabled={tab === 'all' ? (loadingMore || loading) : savedLoading} onPress={() => { if (tab === 'all') loadMore(); else void loadSaved(false); }} style={[styles.loadMore, { borderColor: colors.tint }]}>{(tab === 'all' ? loadingMore : savedLoading) ? <ActivityIndicator /> : <AppText style={{ color: colors.tint, fontWeight: '700' }}>Load 10 more</AppText>}</Pressable> : null}
-      renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => router.push(`/campus-event/${item.id}`)} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={savedIds.has(item.id) ? 'Remove saved event' : 'Save event'}
-          accessibilityState={{ disabled: savingIds.has(item.id), selected: savedIds.has(item.id) }}
-          disabled={savingIds.has(item.id)}
-          onPress={e => { e.stopPropagation(); void toggleSaved(item); }}
-          hitSlop={8}
-          style={[styles.bookmark, { backgroundColor: item.image_url ? 'rgba(0,0,0,0.36)' : colors.tint }]}
-        >
-          <Ionicons name={savedIds.has(item.id) ? 'bookmark' : 'bookmark-outline'} size={27} color="#fff" />
-        </Pressable>
-        <View style={styles.cardBody}>
-          <AppText style={[styles.eventTitle, styles.titleWithBookmark]}>{item.title}</AppText>
-          <AppText style={styles.detail}>📅  {campusDateLabel(item)}</AppText>
-          <AppText style={styles.detail}>📍  {[item.location, item.room].filter(Boolean).join(' · ') || 'Location not provided'}</AppText>
-          <View style={styles.cardFooter}><AppText style={{ color: colors.tint, fontWeight: '700' }}>View event  →</AppText></View>
-        </View>
-      </Pressable>} />
+      ListEmptyComponent={(tab !== 'archived' ? loading : savedLoading)
+        ? <ActivityIndicator style={styles.empty} color={colors.tint} />
+        : <View style={styles.empty}><Ionicons name={tab === 'archived' ? 'bookmark-outline' : 'calendar-outline'} size={30} color={colors.outline} /><AppText style={{ color: colors.outline }}>{tab === 'archived' ? 'No archived events yet. Bookmark an event to keep it here.' : 'No campus events found.'}</AppText></View>}
+      ListFooterComponent={(tab !== 'archived' ? hasMore : savedMore) ? <Pressable accessibilityRole="button" disabled={tab !== 'archived' ? (loadingMore || loading) : savedLoading} onPress={() => { if (tab !== 'archived') loadMore(); else void loadSaved(false); }} style={[styles.loadMore, { borderColor: colors.tint }]}>{(tab !== 'archived' ? loadingMore : savedLoading) ? <ActivityIndicator color={colors.tint} /> : <AppText style={{ color: colors.tint, fontWeight: '700' }}>Load 10 more  ↓</AppText>}</Pressable> : null}
+      renderItem={({ item }) => {
+        const bookmarked = savedIds.has(item.id);
+        return <Pressable accessibilityRole="button" onPress={() => router.push(`/campus-event/${item.id}`)} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+          {/* Only show the picture if the feed supplied one. The event text remains compact otherwise. */}
+          {item.image_url ? <View style={styles.imageArea}>
+            <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
+            <View style={styles.imageShade} pointerEvents="none" />
+          </View> : null}
+          <View style={styles.cardBody}>
+            <View style={styles.cardTopRow}>
+              <AppText style={[styles.eventTitle, { color: colors.text }]} numberOfLines={3}>{item.title}</AppText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={bookmarked ? 'Remove saved event' : 'Save event'}
+                accessibilityState={{ disabled: savingIds.has(item.id), selected: bookmarked }}
+                disabled={savingIds.has(item.id)}
+                onPress={e => { e.stopPropagation(); void toggleSaved(item); }}
+                hitSlop={8}
+                style={[styles.bookmark, { backgroundColor: colors.surfaceContainerHigh }]}
+              >
+                <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={21} color={colors.tint} />
+              </Pressable>
+            </View>
+            <View style={styles.details}>
+              <View style={styles.detailRow}><Ionicons name="calendar-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]}>{campusDateLabel(item)}</AppText></View>
+              <View style={styles.detailRow}><Ionicons name="location-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]} numberOfLines={2}>{[item.location, item.room].filter(Boolean).join(' · ') || 'Location not provided'}</AppText></View>
+            </View>
+          </View>
+        </Pressable>;
+      }}
+    />
   </View>;
 }
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  header: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 20 },
-  title: { fontSize: 22, fontWeight: '700' },
-  list: { paddingHorizontal: 20, flexGrow: 1 },
-  filters: { gap: 12, marginBottom: 18 },
-  row: { flexDirection: 'row', gap: 12 },
-  chip: { borderWidth: 1, borderRadius: 20, padding: 12 },
-  input: { borderWidth: 1, borderRadius: 14, padding: 12 },
-  card: { borderWidth: 1, borderRadius: 16, marginBottom: 14, overflow: 'hidden' },
-  cardImage: { width: '100%', height: 190 },
-  cardBody: { padding: 16, gap: 10 },
-  eventTitle: { fontSize: 17, fontWeight: '700' },
-  titleWithBookmark: { paddingRight: 48 },
-  bookmark: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  detail: { fontSize: 14, lineHeight: 21 },
-  cardFooter: { marginTop: 4, paddingTop: 10 },
-  loadMore: { padding: 14, borderWidth: 1, borderRadius: 14, marginBottom: 18, alignItems: 'center' },
+  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 15, flexDirection: 'row', alignItems: 'center' },
+  backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, gap: 4, alignItems: 'center' },
+  title: { fontSize: 23, fontWeight: '800', textAlign: 'center' },
+  subtitle: { fontSize: 12 },
+  list: { paddingHorizontal: 18, flexGrow: 1 },
+  filters: { gap: 14, paddingTop: 3, marginBottom: 16 },
+  tabBar: { flexDirection: 'row', padding: 4, borderRadius: 14, gap: 4 },
+  tab: { flex: 1, minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
+  tabText: { fontWeight: '700', fontSize: 13 },
+  searchBox: { minHeight: 46, borderWidth: 1, borderRadius: 13, flexDirection: 'row', gap: 9, alignItems: 'center', paddingHorizontal: 13 },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 14 },
+  resultHeader: { marginTop: 3, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  resultTitle: { fontSize: 17, fontWeight: '800' },
+  resultCount: { fontSize: 12 },
+  card: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
+  imageArea: { height: 116, overflow: 'hidden' },
+  cardImage: { width: '100%', height: '100%' },
+  imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
+  cardBody: { padding: 14, gap: 9 },
+  cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  bookmark: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
+  eventTitle: { flex: 1, fontSize: 17, lineHeight: 23, fontWeight: '800' },
+  details: { gap: 7 },
+  detailRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  detail: { flex: 1, fontSize: 13, lineHeight: 19 },
+  loadMore: { padding: 14, borderWidth: 1, borderRadius: 13, marginBottom: 18, alignItems: 'center' },
+  empty: { paddingVertical: 36, alignItems: 'center', gap: 9 },
 });

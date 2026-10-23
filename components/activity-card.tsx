@@ -61,20 +61,22 @@ export function ActivityCard({
       {/* dark overlay so text is always readable */}
       <View style={styles.dim} />
 
-      {/* top row: category badge + ride badge + bookmark */}
+      {/* Category and Campus Event appear side by side on the left; ride sharing and bookmark stay on the right. */}
       <View style={styles.topRow}>
-        <View style={[styles.categoryBadge, { backgroundColor: colors.tint }]}>
-          <AppText numberOfLines={1} style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-            {category.charAt(0).toUpperCase() + category.slice(1)}
-          </AppText>
-        </View>
-        <View style={styles.topRight}>
+        <View style={styles.topLeft}>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.tint }]}>
+            <AppText numberOfLines={1} style={[styles.categoryText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </AppText>
+          </View>
           {isCampusEvent && (
             <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
               <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>Campus Event</AppText>
             </View>
           )}
-          {!isCampusEvent && rideSharing && (
+        </View>
+        <View style={styles.topRight}>
+          {rideSharing && (
             <View style={[styles.rideBadge, { backgroundColor: colors.secondaryContainer }]}>
               <IconSymbol name="car.fill" size={11} color={colors.onSecondaryContainer} />
               <AppText style={[styles.rideBadgeText, { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans }]}>
@@ -122,14 +124,14 @@ export function ActivityCard({
               {isCampusEvent ? `${attendeeCount} joined` : `${attendeeCount}/${maxAttendees}`}
             </AppText>
           </View>}
-            {waitlistPosition ? (
-               <View style={styles.metaItem}>
-                 <IconSymbol name="clock" size={12} color={colors.onImageOverlay} />
-                 <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
-                   Waitlist #{waitlistPosition}
-                 </AppText>
-               </View>
-             ) : null}
+          {waitlistPosition ? (
+            <View style={styles.metaItem}>
+              <IconSymbol name="clock" size={12} color={colors.onImageOverlay} />
+              <AppText style={[styles.metaText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+                Waitlist #{waitlistPosition}
+              </AppText>
+            </View>
+          ) : null}
         </View>
         {!!location && <View style={styles.metaItem}>
           <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
@@ -156,6 +158,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  topLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   topRight: {
     flexDirection: 'row',

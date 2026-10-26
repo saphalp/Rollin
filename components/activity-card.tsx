@@ -133,10 +133,14 @@ export function ActivityCard({
             </View>
           ) : null}
         </View>
-        {!!location && <View style={styles.metaItem}>
-          <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
-          <AppText numberOfLines={1} style={[styles.metaText, { flex: 1, color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>{location}</AppText>
-        </View>}
+        {!!location && (
+          <View style={styles.metaItem}>
+            <IconSymbol name="mappin" size={12} color={colors.onImageOverlay} />
+            <AppText numberOfLines={1} style={[styles.metaText, { flex: 1, color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              {location}
+            </AppText>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -145,7 +149,7 @@ export function ActivityCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    height: 150,
+    height: 200,
     overflow: 'hidden',
     justifyContent: 'space-between',
     padding: 12,

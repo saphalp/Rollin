@@ -1743,7 +1743,7 @@ export default function ActivityDetailScreen() {
           </>
         ) : (
           <>
-            {!isPast && (
+            {!isPast && activity.status !== "cancelled" && (
               !hasRsvp &&
                 activity.event_type === "private" ? (
                 <TouchableOpacity

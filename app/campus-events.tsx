@@ -34,7 +34,9 @@ export default function CampusEventsScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const generation = useRef(0);
   const filtersRef = useRef({ past, search });
-  filtersRef.current = { past, search };
+  useEffect(() => {
+    filtersRef.current = { past, search };
+  }, [past, search]);
   const savedGeneration = useRef(0);
   const saveInFlight = useRef(new Set<string>());
   const fetching = useRef(false);
@@ -324,7 +326,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 12 },
   imageArea: { height: 116, overflow: 'hidden' },
   cardImage: { width: '100%', height: '100%' },
-  imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
+  imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.08)' },
   cardBody: { padding: 14, gap: 9 },
   cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   bookmark: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },

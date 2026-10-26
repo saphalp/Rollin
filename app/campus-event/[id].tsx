@@ -3,6 +3,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
 import { campusDateLabel, campusUpcoming, plainDescription, type CampusEvent } from '@/lib/home-campus-events';
+import { openEventMap } from '@/lib/open-event-map';
 import { supabase } from '@/lib/supabase';
 import { officialUniversityLink, type University } from '@/lib/university';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,7 +55,22 @@ export default function CampusEventDetailScreen() {
           <AppText>{university?.short_name} · Official campus calendar</AppText>
           <View style={[styles.info, { borderColor: colors.outlineVariant }]}>
             <AppText>{campusDateLabel(event)}</AppText>
-            <AppText>{[event.location, event.room].filter(Boolean).join(' · ') || 'Location not provided — choose a meeting place when hosting.'}</AppText>
+            {event.location?.trim() ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={`Open ${event.location} in Maps`}
+                onPress={() => void openEventMap([event.location, university?.short_name].filter(Boolean).join(', '))}
+                style={styles.locationLink}
+              >
+                <Ionicons name="location-outline" size={18} color={colors.tint} />
+                <AppText style={{ color: colors.tint, flex: 1 }}>
+                  {[event.location, event.room].filter(Boolean).join(' · ')}
+                </AppText>
+                <Ionicons name="open-outline" size={16} color={colors.tint} />
+              </Pressable>
+            ) : (
+              <AppText>Location not provided — choose a meeting place when hosting.</AppText>
+            )}
           </View>
           <View style={[styles.aboutBox, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
             <AppText style={styles.heading}>About</AppText>
@@ -77,4 +93,4 @@ export default function CampusEventDetailScreen() {
     </View>}
   </View>;
 }
-const styles = StyleSheet.create({ screen: { flex: 1 }, backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }, content: { padding: 20, gap: 18 }, aboutBox: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 12 }, aboutSection: { gap: 8 }, aboutToggle: { alignSelf: 'flex-start', paddingVertical: 4 }, hero: { height: 220, width: '100%' }, title: { fontSize: 26, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, info: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 14 }, footer: { padding: 20 }, button: { padding: 16, alignItems: 'center', borderRadius: 28 } });
+const styles = StyleSheet.create({ screen: { flex: 1 }, backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }, content: { padding: 20, gap: 18 }, aboutBox: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 12 }, aboutSection: { gap: 8 }, aboutToggle: { alignSelf: 'flex-start', paddingVertical: 4 }, hero: { height: 220, width: '100%' }, title: { fontSize: 26, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, info: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 14 }, locationLink: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }, footer: { padding: 20 }, button: { padding: 16, alignItems: 'center', borderRadius: 28 } });

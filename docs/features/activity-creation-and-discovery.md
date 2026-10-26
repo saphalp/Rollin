@@ -58,9 +58,9 @@ Allow users to create activities for other students to join and discover activit
 
 **Calendar view:**
 1. Opened from the calendar icon in the global header (top-right, next to the notification bell).
-2. All activities are fetched once on open with no date filter.
-3. Dates with activities show colored dots: yellow (`#fea619`) for the user's own hosted events, blue for others'.
-4. Tapping a date shows a list of that day's events below the calendar; tapping an event navigates to its detail screen.
+2. My activities combines created/joined activities by default. Created, Joined and All activities filter both the calendar and upcoming agenda.
+3. Include my rides adds offered rides and accepted seats. Dots distinguish hosting (amber), other activities (blue), and rides (green).
+4. Tapping a date shows that day's plans; activity and ride cards open their respective details. The upcoming agenda groups future plans chronologically. Refresh runs on return, app resume, pull-to-refresh and live updates, with a foreground fallback. See [Calendar and agenda](calendar-agenda.md).
 5. **Export events** saves an `.ics` file with event-group and date filters. See [Calendar export](calendar-export.md) for Google Calendar import steps and scope.
 
 **Activity detail:**

@@ -41,6 +41,7 @@ type ActivityRow = {
   time: string;
   imageUri: string;
   dateTime: string | null;
+  cancelled: boolean;
 };
 
 type ActivityRecord = {
@@ -49,6 +50,7 @@ type ActivityRecord = {
   date_time: string | null;
   image_url: string | null;
   category: string | null;
+  status?: string | null;
 };
 
 type JoinedActivityRecord = {
@@ -93,6 +95,7 @@ function toActivityRow(activity: ActivityRecord): ActivityRow {
       CATEGORY_FALLBACK_IMAGE[activity.category ?? ""] ||
       CATEGORY_FALLBACK_IMAGE.social,
     dateTime: activity.date_time,
+    cancelled: activity.status === "cancelled",
   };
 }
 
@@ -143,7 +146,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
 
       const createdRequest = supabase
         .from("activities")
-        .select("id, title, date_time, image_url, category")
+        .select("id, title, date_time, image_url, category, status")
         .eq("host_id", userId)
         .is("recurrence_parent_id", null)
         .order("date_time", { ascending: false });
@@ -152,7 +155,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         ? supabase
           .from("rsvps")
           .select(
-            "activity:activities(id, title, date_time, image_url, category, recurrence_parent_id)",
+            "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
           )
           .eq("user_id", userId)
         : supabase
@@ -429,6 +432,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
                   date={activity.date}
                   time={activity.time}
                   image={{ uri: activity.imageUri }}
+                  cancelled={activity.cancelled}
                   onPress={() => router.push(`/activity/${activity.id}`)}
                 />
               ))

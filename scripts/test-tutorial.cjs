@@ -309,6 +309,7 @@ test('group target boundaries include the section title and calendar legend', ()
   assert.match(profile, /<ActivitySegmentedControl/);
   const calendar = targetSource('app/calendar.tsx', 'calendar-grid-and-legend');
   assert.match(calendar, /<Calendar/);
-  assert.match(calendar, /Your events/);
-  assert.match(calendar, /Others&apos; events/);
+  assert.match(calendar, /Hosting/);
+  assert.match(calendar, /Activities/);
+  assert.match(calendar, /Rides/);
 });

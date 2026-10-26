@@ -48,6 +48,8 @@ type ActivityDetail = {
   host_id: string;
   is_recurring: boolean;
   recurrence_rule: { type: string; endCondition: string; endDate?: string; occurrences?: number } | null;
+  status: string;
+  cancel_reason: string | null;
   rsvps: {
     id: string;
     user_id: string;
@@ -257,6 +259,8 @@ export default function ActivityDetailScreen() {
           host_id,
           is_recurring,
           recurrence_rule,
+          status,
+          cancel_reason,
           rsvps(id, user_id)
           `,
         )
@@ -974,6 +978,22 @@ export default function ActivityDetailScreen() {
                     }}
                   />
 
+                  {/* Host can cancel an upcoming event that isn't already cancelled */}
+                  {activity.status !== "cancelled" && !isPast && (
+                    <Menu.Item
+                      leadingIcon="cancel"
+                      title="Cancel Event"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        router.push(`/activity/cancel/${activity.id}`);
+                      }}
+                      titleStyle={{
+                        color: colors.error,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+                  )}
+                  
                   <Menu.Item
                     leadingIcon="trash-can-outline"
                     title="Delete Activity"
@@ -1019,6 +1039,33 @@ export default function ActivityDetailScreen() {
         </View>
 
         <View style={styles.body}>
+
+          {/* Red banner shown when the host has cancelled the event */}
+          {activity.status === "cancelled" && (
+            <View
+              style={[
+                styles.cancelledBanner,
+                { backgroundColor: colors.errorContainer },
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.cancelledTitle,
+                  { color: colors.error, fontFamily: Fonts?.sans },
+                ]}
+              >
+                This event was cancelled
+              </AppText>
+              {activity.cancel_reason ? (
+                <AppText
+                  style={{ color: colors.text, fontFamily: Fonts?.sans }}
+                >
+                  {activity.cancel_reason}
+                </AppText>
+              ) : null}
+            </View>
+          )}
+
           {/* Title */}
 
           <AppText
@@ -1937,6 +1984,18 @@ export default function ActivityDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+
+  // Red "This event was cancelled" banner
+  cancelledBanner: {
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+    marginBottom: 12,
+  },
+  cancelledTitle: {
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   centered: {

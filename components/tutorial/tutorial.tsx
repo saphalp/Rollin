@@ -1,11 +1,11 @@
-import { TourButton } from './tour-button';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { TourButton } from './tour-button';
 import { overviewLayout, spotlightLayout, TUTORIAL_STEPS, type TourRect } from './tutorial-steps';
 
 type Target = { measure: (done: (rect: TourRect) => void) => void; reveal: () => void };
@@ -20,7 +20,7 @@ export function Tutorial({ step, readyRoute, getTarget, saving, error, onBack, o
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const { fontScale } = window;
-  const root = useRef<View>(null);
+  const root = useRef<ViewInstance>(null);
   const [size, setSize] = useState({ width: window.width, height: window.height });
   const [rect, setRect] = useState<TourRect | null>(null);
   const [cardHeight, setCardHeight] = useState(0);
@@ -41,7 +41,7 @@ export function Tutorial({ step, readyRoute, getTarget, saving, error, onBack, o
         const target = getTarget();
         if (target) {
           if (revealed !== target) { revealed = target; if (!overview) target.reveal(); }
-          root.current?.measureInWindow((rootX, rootY) => {
+          root.current?.measureInWindow((rootX: number, rootY: number) => {
             target.measure(value => {
               if (!alive || value.width <= 0 || value.height <= 0) return;
               const next = { ...value, x: value.x - rootX, y: value.y - rootY };
@@ -69,17 +69,17 @@ export function Tutorial({ step, readyRoute, getTarget, saving, error, onBack, o
   const finalTop = overview && current.placement === 'below' && rect
     ? rect.y + rect.height + 16
     : interaction && hole && overlapsTarget
-    ? (hole.y > size.height / 2 ? Math.max(safeTop, hole.y - cardHeight - 12) : hole.y + hole.height + 12)
-    : top;
+      ? (hole.y > size.height / 2 ? Math.max(safeTop, hole.y - cardHeight - 12) : hole.y + hole.height + 12)
+      : top;
   const path = `M0 0H${size.width}V${size.height}H0Z` + (hole ? `M${hole.x} ${hole.y}h${hole.width}v${hole.height}h-${hole.width}Z` : '');
   return (
     <View ref={root} collapsable={false} style={styles.overlay} pointerEvents={overview || interaction ? 'box-none' : 'auto'} accessibilityViewIsModal={!overview && !interaction} onLayout={event => setSize(event.nativeEvent.layout)}>
-      {!overview && !interaction && <Pressable style={StyleSheet.absoluteFill} accessible={false} onPress={() => {}} />}
+      {!overview && !interaction && <Pressable style={StyleSheet.absoluteFill} accessible={false} onPress={() => { }} />}
       {interaction && hole && <>
-        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: 0, left: 0, right: 0, height: hole.y }]} />
-        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y + hole.height, left: 0, right: 0, bottom: 0 }]} />
-        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y, left: 0, width: hole.x, height: hole.height }]} />
-        <Pressable accessible={false} onPress={() => {}} style={[styles.blocker, { top: hole.y, left: hole.x + hole.width, right: 0, height: hole.height }]} />
+        <Pressable accessible={false} onPress={() => { }} style={[styles.blocker, { top: 0, left: 0, right: 0, height: hole.y }]} />
+        <Pressable accessible={false} onPress={() => { }} style={[styles.blocker, { top: hole.y + hole.height, left: 0, right: 0, bottom: 0 }]} />
+        <Pressable accessible={false} onPress={() => { }} style={[styles.blocker, { top: hole.y, left: 0, width: hole.x, height: hole.height }]} />
+        <Pressable accessible={false} onPress={() => { }} style={[styles.blocker, { top: hole.y, left: hole.x + hole.width, right: 0, height: hole.height }]} />
       </>}
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
         {!overview && <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill} pointerEvents="none">

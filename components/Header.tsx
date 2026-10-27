@@ -71,7 +71,7 @@ export default function Header() {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={hasUnread ? "Notifications, unread" : "Notifications"}
-          onPress={() => router.push('/(tabs)/notifications')}
+          onPress={() => router.push('/notifications')}
         >
           <IconSymbol name="bell.fill" size={24} color={colors.text} style={styles.tourGlyph} />
           {hasUnread && (

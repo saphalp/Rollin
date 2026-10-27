@@ -193,7 +193,7 @@ export default function ExploreScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footerLoader} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footerLoader} /> : undefined}
           ListEmptyComponent={
             <View style={styles.empty}>
               <AppText style={{ color: colors.outline, textAlign: 'center' }}>

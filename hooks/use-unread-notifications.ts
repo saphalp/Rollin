@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useAuthContext } from "./use-auth-context";
 
+const readListeners = new Set<() => void>();
+
+/** Tells every useUnreadNotifications instance to recheck, e.g. right after marking rows read. */
+export function notifyNotificationsRead() {
+  readListeners.forEach((listener) => listener());
+}
+
 /**
  * Whether the signed-in user has any unread notifications. Kept live by realtime
  * inserts/updates on their notifications, and rechecked on navigation and app
@@ -39,6 +46,14 @@ export function useUnreadNotifications(): boolean {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh, pathname]);
+
+  useEffect(() => {
+    const listener = () => void refresh();
+    readListeners.add(listener);
+    return () => {
+      readListeners.delete(listener);
+    };
+  }, [refresh]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {

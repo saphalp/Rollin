@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function FullRideMapScreen() {
     const theme = useColorScheme() ?? 'light';
@@ -200,24 +201,7 @@ export default function FullRideMapScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Return to ride dashboard"
-                    onPress={() => router.back()}
-                    style={[
-                        styles.floatingButton,
-                        {
-                            backgroundColor: colors.cardBackground,
-                            borderColor: colors.outlineVariant,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="arrow-left"
-                        size={25}
-                        color={colors.text}
-                    />
-                </TouchableOpacity>
+                <BackButton variant="floating" accessibilityLabel="Return to ride dashboard" />
 
                 <View
                     style={[

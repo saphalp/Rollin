@@ -10,6 +10,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BackButton } from '@/components/ui/back-button';
 
 const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
   social: 'https://picsum.photos/seed/social/240/240',
@@ -102,7 +103,7 @@ export default function MyActivitiesScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'My Activities', headerBackTitle: 'Back', headerShown: true }} />
+      <Stack.Screen options={{ title: 'My Activities', headerShown: true, headerBackVisible: false, headerLeft: () => <BackButton /> }} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.control}>
           <ActivitySegmentedControl value={view} onChange={setView} />

@@ -16,6 +16,7 @@ import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BackButton } from '@/components/ui/back-button';
 
 type RideEnabledActivity = {
     id: string;
@@ -322,24 +323,7 @@ export default function FindRideScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Go back to rides"
-                    onPress={goBack}
-                    style={[
-                        styles.backButton,
-                        {
-                            backgroundColor: colors.surfaceContainer,
-                            borderColor: colors.outlineVariant,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="arrow-left"
-                        size={24}
-                        color={colors.text}
-                    />
-                </TouchableOpacity>
+                <BackButton onPress={goBack} accessibilityLabel="Go back to rides" />
 
                 <View style={styles.headerTitleContainer}>
                     <AppText

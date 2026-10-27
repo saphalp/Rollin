@@ -13,6 +13,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { profileReviews, type ProfileReview, type ReviewKind } from '@/services/reviews-service';
+import { BackButton } from '@/components/ui/back-button';
 
 const EMPTY_MESSAGE: Record<ReviewFilterValue, string> = {
   all: 'No reviews yet.',
@@ -24,7 +25,7 @@ export default function ReviewsScreen() {
   const { userId = '', kind, itemId } = useLocalSearchParams<{ userId: string; kind?: ReviewKind; itemId?: string }>();
   return (
     <>
-      <Stack.Screen options={{ title: 'Reviews', headerBackTitle: 'Back', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Reviews', headerShown: true, headerBackVisible: false, headerLeft: () => <BackButton /> }} />
       <ProfilePrivacyGate userId={userId}>
         <ReviewsContent userId={userId} initialItem={kind && itemId ? { kind, item_id: itemId } : undefined} />
       </ProfilePrivacyGate>

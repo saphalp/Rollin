@@ -12,6 +12,7 @@ import { Colors } from '@/constants/theme';
 import { useCalendarPlans } from '@/hooks/use-calendar-plans';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { calendarDay, calendarPlanRoute, filterCalendarPlans, groupCalendarPlans, type ActivityFilter, type CalendarPlan } from '@/lib/calendar-plans';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 const OWN_COLOR = '#b97000';
 const OTHER_COLOR = '#0058be';
@@ -67,9 +68,7 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.outlineVariant }]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.backBtn}>
-          <IconSymbol name="chevron.left" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton />
         <TourTarget id="calendar-heading"><AppText style={styles.headerTitle}>Calendar</AppText></TourTarget>
         <View style={styles.backBtn} />
       </View>
@@ -136,7 +135,7 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: { fontSize: 18, fontWeight: '700' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, paddingHorizontal: 20, paddingVertical: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },

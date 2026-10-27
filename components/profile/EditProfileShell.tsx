@@ -1,20 +1,17 @@
-import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import StepProgressBar from '@/components/profile/StepProgressBar';
 import { AppText } from '@/components/text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 type Props = {
   step: 1 | 2;
@@ -34,16 +31,7 @@ export default function EditProfileShell({ step, busy = false, children }: Props
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
       <View style={styles.header}>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-          disabled={busy}
-          hitSlop={10}
-          style={styles.headerSide}
-        >
-          <IconSymbol name="chevron.left" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton disabled={busy} />
         <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
           Edit Profile
         </AppText>
@@ -88,9 +76,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
 
-  headerSide: {
-    width: 24,
-  },
+  headerSide: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
 
   headerTitle: {
     fontSize: 18,

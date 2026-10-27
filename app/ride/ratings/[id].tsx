@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { AppText } from '@/components/text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { myRatings, ratingTargets, RatingTarget, RideRating, saveRating } from '@/services/ride-ratings-service';
+import { BackButton } from '@/components/ui/back-button';
 
 function RatingForm({ target, existing }: { target: RatingTarget; existing?: RideRating }) {
   const colors = Colors[useColorScheme() ?? 'light'];
@@ -53,7 +54,7 @@ export default function RideRatingsScreen() {
   useEffect(() => { void load(); }, [load]);
   return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 16 }}>
-      <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/rides')}><AppText>← Back</AppText></TouchableOpacity>
+      <BackButton fallbackHref="/(tabs)/rides" />
       <AppText style={{ fontSize: 24, fontWeight: '700' }}>Rate your ride</AppText>
       <AppText>You can add these ratings later from ride history. Each rating is final once saved.</AppText>
       {loading ? <ActivityIndicator /> : error ? <TouchableOpacity onPress={() => void load()}><AppText>{error} Tap to retry.</AppText></TouchableOpacity>

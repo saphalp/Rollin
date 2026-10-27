@@ -11,11 +11,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ConversationHeader from "@/components/chats/ConversationHeader";
 import { PostImageCarousel } from "@/components/explore/post-image-carousel";
+import { OverflowMenu } from "@/components/report/overflow-menu";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePostLike } from "@/hooks/use-post-like";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
@@ -142,6 +144,8 @@ function PostDetailView({ post }: { post: PostDetail }) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
+  const { profile } = useAuthContext();
+  const isOwnPost = profile?.id === post.userId;
 
   const { liked, count, toggle } = usePostLike(
     post.id,
@@ -156,6 +160,15 @@ function PostDetailView({ post }: { post: PostDetail }) {
         name={post.userName}
         avatar={{ uri: post.avatarUrl }}
         subtitle={timeAgo(post.createdAt)}
+        right={
+          isOwnPost ? undefined : (
+            <OverflowMenu
+              iconSize={24}
+              anchorStyle={styles.menuButton}
+              report={{ type: "post", id: post.id }}
+            />
+          )
+        }
       />
 
       <ScrollView
@@ -243,6 +256,9 @@ const styles = StyleSheet.create({
   },
   carousel: {
     borderRadius: 0,
+  },
+  menuButton: {
+    padding: 4,
   },
   body: {
     padding: 16,

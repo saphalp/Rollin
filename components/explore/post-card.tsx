@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { PostImageCarousel } from "@/components/explore/post-image-carousel";
+import { OverflowMenu } from "@/components/report/overflow-menu";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -85,14 +86,23 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           </View>
         </TouchableOpacity>
 
-        {isOwnPost && (
-          <TouchableOpacity
-            onPress={() => onDelete?.(post.id)}
-            hitSlop={8}
-          >
-            <IconSymbol name="ellipsis" size={20} color={colors.outline} />
-          </TouchableOpacity>
-        )}
+        <OverflowMenu
+          iconColor={colors.outline}
+          items={
+            isOwnPost && onDelete
+              ? [
+                  {
+                    key: "delete",
+                    title: "Delete Post",
+                    icon: "trash-can-outline",
+                    destructive: true,
+                    onPress: () => onDelete(post.id),
+                  },
+                ]
+              : []
+          }
+          report={isOwnPost ? undefined : { type: "post", id: post.id }}
+        />
       </View>
 
       {post.caption ? (

@@ -14,7 +14,7 @@ Each profile shows one combined average in its stats bar. Tapping it opens a rev
 - "Attended" means the user RSVP'd and the activity's start time has passed. Rollin has no check-in, so this can't confirm that someone actually showed up.
 - A user can't review themselves, and a host can't review their own activity.
 - Each person writes one review per activity and one per ride participant. Reviews are final: they can't be edited, and a second review is rejected.
-- Reports are not part of this feature yet.
+- Reports are a separate feature; see [Reporting](reporting.md).
 
 ## Decisions
 

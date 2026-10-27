@@ -327,7 +327,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View>
+        <View style={styles.header}>
           <ProfileCover
             coverPicture={profile.cover_picture}
             editable={isOwnProfile}
@@ -429,8 +429,8 @@ function UserProfileContent({ userId }: UserProfileProps) {
               >
                 {isOwnProfile
                   ? activityView === "created"
-                    ? "You haven't created an activity yet."
-                    : "You haven't joined an activity yet."
+                    ? "You haven't hosted an activity yet."
+                    : "You haven't RSVP'd to an activity yet."
                   : "No activities yet."}
               </Text>
             ) : (
@@ -473,6 +473,11 @@ const styles = StyleSheet.create({
   // (AvatarCard ring is 136px tall plus 8px top padding: 8 + 136 * 2/3 ≈ 99).
   avatarOverlap: {
     marginTop: -99,
+  },
+  // Tightens the space before the name: the content's 25px gap plus the
+  // avatar's 8px bottom padding read as too loose under the cover.
+  header: {
+    marginBottom: -15,
   },
   content: {
     paddingHorizontal: 16,

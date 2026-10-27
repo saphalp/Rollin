@@ -25,6 +25,8 @@ const light = {
     outline: "#727785",
     outlineVariant: "#c2c6d6",
     verified: "#10B981", // Emerald verified badge
+    verifiedContainer: "#D1FAE5", // soft green pill behind verification badges
+    onVerifiedContainer: "#047857", // text/icon on verifiedContainer (AA contrast)
     cardBackground: "#ffffff", // card surface on top of background
     onImageOverlay: "#ffffff", // text/icons on dark photo overlays
 };
@@ -51,6 +53,8 @@ const dark = {
     outline: "#727785",
     outlineVariant: "#c2c6d6",
     verified: "#10B981", // Emerald verified badge
+    verifiedContainer: "#D1FAE5", // soft green pill behind verification badges
+    onVerifiedContainer: "#047857", // text/icon on verifiedContainer (AA contrast)
     cardBackground: "#ffffff", // card surface on top of background
     onImageOverlay: "#ffffff", // always white on dark photo overlays
 };

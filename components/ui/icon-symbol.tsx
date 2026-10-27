@@ -57,6 +57,7 @@ const MAPPING = {
   'circle': 'radio-button-unchecked',
   'record.circle': 'radio-button-checked',
   'checkmark.circle.fill': 'check-circle',
+  'checkmark.seal.fill': 'verified',
 } as IconMapping;
 
 

@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { Menu } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from '@/components/ui/back-button';
 
 const CATEGORY_IMAGES: Record<string, string> = {
   social: "https://picsum.photos/seed/social/900/500",
@@ -825,24 +826,7 @@ export default function ActivityDetailScreen() {
               },
             ]}
           >
-            <TouchableOpacity
-              onPress={() =>
-                router.back()
-              }
-              style={[
-                styles.backButton,
-                {
-                  backgroundColor:
-                    colors.background,
-                },
-              ]}
-            >
-              <IconSymbol
-                name="chevron.left"
-                size={20}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <BackButton variant="floating" />
 
             <View style={styles.heroRightGroup}>
               <View

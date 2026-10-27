@@ -33,7 +33,8 @@ export default function ProfileActionBar({
           mode="outlined"
           icon="account-check"
           onPress={onFollowPress}
-          style={styles.buttonFlex}
+          textColor={colors.tint}
+          style={[styles.buttonFlex, { borderColor: colors.tint }]}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}
         >

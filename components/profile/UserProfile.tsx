@@ -315,7 +315,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
 
   const name = profile.full_name || "Complete your profile";
   const avatarUri = resolveAvatarUri(profile.profile_picture);
-  const verified = !!profile.is_educational_email;
+  const isEduVerified = !!profile.is_educational_email;
   const isVerifiedDriver = !!profile.is_verified_driver;
   const university = profile.university || "";
   const major = profile.major || "";
@@ -334,9 +334,9 @@ function UserProfileContent({ userId }: UserProfileProps) {
           />
           <View style={styles.avatarOverlap}>
             {isOwnProfile ? (
-              <ProfileAvatar verified={verified} editable />
+              <ProfileAvatar editable />
             ) : (
-              <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
+              <AvatarCard avatarImg={{ uri: avatarUri }} />
             )}
           </View>
         </View>
@@ -345,6 +345,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
           name={name}
           university={university}
           major={major}
+          isEduVerified={isEduVerified}
           isVerifiedDriver={isVerifiedDriver}
         />
 
@@ -430,7 +431,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
                 {isOwnProfile
                   ? activityView === "created"
                     ? "You haven't hosted an activity yet."
-                    : "You haven't RSVP'd to an activity yet."
+                    : "You haven't attended an activity yet."
                   : "No activities yet."}
               </Text>
             ) : (

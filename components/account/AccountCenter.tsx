@@ -8,10 +8,10 @@ import { supabase } from '@/lib/supabase';
 import { useAccountState } from '@/lib/use-account-state';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '@/components/ui/back-button';
 
 export function AccountCenter({ gated = false }: { gated?: boolean }) {
     const colors = Colors[useColorScheme() ?? 'light'];
@@ -55,7 +55,7 @@ export function AccountCenter({ gated = false }: { gated?: boolean }) {
     return (
         <View style={[styles.screen, { backgroundColor: colors.background }]}>
             <View style={[styles.header, { paddingTop: insets.top + 12, borderColor: colors.outlineVariant }]}>
-                {!gated && <ActionButton label={'‹ Back'} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} busy={!!busy} />}
+                {!gated && <BackButton disabled={!!busy} />}
                 <AppText style={[styles.title, { color: colors.text, fontFamily: Fonts?.sans }]}>Account Center</AppText>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]}>

@@ -16,6 +16,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BackButton } from '@/components/ui/back-button';
 
 type SavedActivity = {
   id: string;
@@ -210,7 +211,7 @@ export default function SavedActivitiesScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Saved Activities', headerBackTitle: 'Back', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Saved Activities', headerShown: true, headerBackVisible: false, headerLeft: () => <BackButton /> }} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {loading ? (
           <View style={styles.loader}>

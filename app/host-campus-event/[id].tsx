@@ -6,12 +6,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { defaultMeetingLocal, hostCampusEvent, loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
 import { campusDateLabel, campusUpcoming, plainDescription, type CampusEvent } from '@/lib/home-campus-events';
 import { supabase } from '@/lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '@/components/ui/back-button';
 const categories = ['social', 'sports', 'music', 'study', 'outdoor', 'gaming'];
 
 // host_campus_event expects wall-clock time in the event's time zone:
@@ -108,7 +108,7 @@ export default function HostCampusEventScreen() {
   const input = (label: string, value: string, onChangeText: (value: string) => void, multiline = false) => <View style={styles.field}><AppText>{label}</AppText><TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} editable={!busy} multiline={multiline} autoCapitalize="none" autoCorrect={false} maxLength={multiline ? 10000 : label.startsWith('Meeting location') || label.startsWith('Meeting address') ? 500 : 50} keyboardType={label === 'Maximum attendees' ? 'number-pad' : 'default'} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} /></View>;
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" disabled={busy} onPress={() => router.canGoBack() ? router.back() : router.replace('/campus-events')} style={styles.backButton}><Ionicons name="chevron-back" size={26} color={colors.tint} /></Pressable>
+      <BackButton disabled={busy} fallbackHref="/campus-events" />
       <AppText style={styles.title}>Host Event</AppText>
       {loading && <ActivityIndicator />}
       {!!error && <AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText>}

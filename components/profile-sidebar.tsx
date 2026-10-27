@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Alert, Animated, Image, Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EditProfileSheet } from '@/components/profile/EditProfileSheet';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
@@ -23,9 +22,8 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
-  const { profile, refreshProfile } = useAuthContext();
+  const { profile } = useAuthContext();
   const [slideAnim] = useState(() => new Animated.Value(-SIDEBAR_WIDTH));
-  const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
 
   useEffect(() => {
@@ -48,8 +46,7 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   }
 
   function handleEditPress() {
-    setEditSheetVisible(true);
-    onClose();
+    navigate('/edit-profile');
   }
 
   function confirmReset() {
@@ -166,18 +163,6 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
           <Pressable style={styles.overlay} onPress={onClose} />
         </View>
       </Modal>
-
-      {profile && (
-        <EditProfileSheet
-          visible={editSheetVisible}
-          onClose={() => setEditSheetVisible(false)}
-          userId={profile.id}
-          initialName={profile.full_name ?? ''}
-          initialUniversity={profile.university ?? ''}
-          initialMajor={profile.major ?? ''}
-          onSaved={() => { void refreshProfile(); }}
-        />
-      )}
     </>
   );
 }

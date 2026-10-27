@@ -41,6 +41,7 @@ import { supabase } from '@/lib/supabase';
 import { stopDriverLocation } from '@/services/ride-tracking-service';
 import { fetchRideById } from '@/services/rides-service';
 import { RideOffer } from '@/types/rides';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 export default function RideDetailsScreen() {
     const { id } = useLocalSearchParams<{ id?: string }>();
@@ -470,13 +471,7 @@ export default function RideDetailsScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity onPress={goBack} style={styles.back}>
-                    <MaterialCommunityIcons
-                        name="arrow-left"
-                        size={24}
-                        color={colors.text}
-                    />
-                </TouchableOpacity>
+                <BackButton onPress={goBack} />
 
                 <AppText
                     style={[
@@ -749,12 +744,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingBottom: 10,
     },
-    back: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    back: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
     title: {
         flex: 1,
         textAlign: 'center',

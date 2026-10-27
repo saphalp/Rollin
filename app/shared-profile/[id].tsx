@@ -1,12 +1,12 @@
 import UserProfile from "@/components/profile/UserProfile";
 import { OverflowMenu } from "@/components/report/overflow-menu";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { StyleSheet, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from '@/components/ui/back-button';
 
 export default function SharedProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,16 +27,7 @@ export default function SharedProfileScreen() {
                     },
                 ]}
             >
-                <Pressable
-                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
-                    hitSlop={12}
-                    style={({ pressed }) => [
-                        styles.backButton,
-                        { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                >
-                    <IconSymbol name="chevron.left" size={26} color={colors.text} />
-                </Pressable>
+                <BackButton />
                 {canReport && (
                     <OverflowMenu
                         iconSize={24}

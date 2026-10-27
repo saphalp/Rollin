@@ -169,7 +169,6 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <TourTarget id="explore-heading"><AppText accessibilityRole="header" style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>Explore</AppText></TourTarget>
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator />
@@ -177,13 +176,17 @@ export default function ExploreScreen() {
       ) : (
         <FlatList
           data={posts}
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              isOwnPost={item.userId === currentUserId}
-              onDelete={handleDelete}
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const card = (
+              <PostCard
+                post={item}
+                isOwnPost={item.userId === currentUserId}
+                onDelete={handleDelete}
+              />
+            );
+            // The tutorial's "Follow a shared experience" step highlights the first post.
+            return index === 0 ? <TourTarget id="explore-first-post">{card}</TourTarget> : card;
+          }}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.postList}
           showsVerticalScrollIndicator={false}

@@ -6,9 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,6 +23,7 @@ import {
   type ReportReason,
   type ReportTargetType,
 } from '@/types/reports';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 type Step = 'form' | 'confirm' | 'done';
 
@@ -96,13 +95,7 @@ export function ReportForm({ targetType, targetId, targetName }: Props) {
         {step === 'done' ? (
           <View style={styles.backButton} />
         ) : (
-          <TouchableOpacity
-            onPress={handleBack}
-            style={[styles.backButton, { backgroundColor: colors.surfaceContainerHigh }]}
-            accessibilityLabel="Back"
-          >
-            <IconSymbol name="chevron.left" size={20} color={colors.text} />
-          </TouchableOpacity>
+          <BackButton onPress={handleBack} />
         )}
 
         <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
@@ -311,13 +304,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: { fontSize: 17, lineHeight: 24, fontWeight: '600' },
   body: { padding: 16, gap: 12 },
   sectionTitle: { fontSize: 17, lineHeight: 24, fontWeight: '700', marginTop: 4 },

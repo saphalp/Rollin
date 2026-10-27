@@ -13,11 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 // Longest cancellation message the host can write.
 const MAX_LENGTH = 500;
@@ -84,12 +84,7 @@ export default function CancelActivityScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, { backgroundColor: colors.surfaceContainerHigh }]}
-        >
-          <IconSymbol name="chevron.left" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton />
 
         <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
           Cancel Event
@@ -160,13 +155,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: { fontSize: 17, fontWeight: '600' },
   body: { flex: 1, padding: 16 },
   input: {

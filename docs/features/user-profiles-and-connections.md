@@ -41,7 +41,7 @@
 2. The tab passes the authenticated user ID to UserProfile.
 3. useProfile recognizes that the ID belongs to the signed-in user and uses the profile already loaded by the authentication provider.
 4. The screen loads the user's interests, created activities, joined activities, and completed ride count.
-5. The user can switch between Hosted and RSVP'd activities.
+5. The user can switch between Hosted and Attended activities.
 6. Selecting an activity opens its activity-detail screen.
 7. The user can update their profile picture and interests.
 8. Password-reset and logout actions appear at the bottom of the profile.
@@ -65,6 +65,14 @@
 6. Saving uploads the image to the avatars bucket and updates the profile_picture field.
 7. The previous stored avatar is removed after the new picture is saved.
 
+### Editing profile details
+
+1. The signed-in user opens the profile sidebar and selects Edit Profile.
+2. The app pushes the full-screen `/edit-profile` page (step 1, Personal Details) with the current name, university, and major.
+3. Next validates the fields and pushes `/edit-profile/driver` (step 2, Driver & Vehicle), passing the step 1 values as route params. Back returns to step 1 with its edits intact.
+4. Step 2 loads any saved driver profile and lets the user optionally add vehicle details and verify their license.
+5. Save & Complete Profile writes both steps, refreshes the auth provider's profile, and dismisses both pages. Opening step 2 without step 1's values redirects to step 1.
+
 ### Updating a cover picture
 
 1. The signed-in user presses the camera control in the top-right corner of their cover.
@@ -75,12 +83,12 @@
 ## Interface Details
 
 - Cover picture: A banner behind the avatar showing the uploaded cover or the default cover. Only the owner sees the edit control.
-- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar. An educational verification badge appears when is_educational_email is true.
-- Profile information: Displays the user's full name, university, and major.
+- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar.
+- Profile information: Displays the user's full name, university, and major. Below them, soft-green pills show ".edu Verified" when `is_educational_email` is true and "Verified Driver" when `is_verified_driver` is true (theme tokens `verifiedContainer` / `onVerifiedContainer`).
 - Action bar: Shows Edit Profile for the owner. Other users see Follow, Requested, Following, and Message controls depending on connection state.
 - Statistics: Displays attended, hosted, rides, and reviews. Completed rides and the combined ride and host review average are loaded from Supabase. Tapping reviews opens the user's [reviews page](reviews.md).
 - Interests: Displays selected interests as chips. The profile owner can open a bottom sheet to add or remove interests.
-- My Activities: The profile owner can switch between Hosted and RSVP'd activities.
+- My Activities: The profile owner can switch between Hosted and Attended activities.
 - Recent Activities: Other profiles display activities created by that user.
 - Activity cards: Display an image, title, date, and time. Pressing a card opens the activity.
 - Account actions: Reset Password and Logout are displayed only on the signed-in user's profile.
@@ -94,12 +102,16 @@
 | `app/profile/[id].tsx` | Displays another user's profile through a dynamic route |
 | `components/profile/UserProfile.tsx` | Composes the profile screen and loads activities, ride statistics, interests, follow state, and account actions |
 | `components/profile/ProfileAvatar.tsx` | Loads, selects, and saves the signed-in user's profile picture |
+| `app/edit-profile/index.tsx` | Edit Profile step 1 page: personal details |
+| `app/edit-profile/driver.tsx` | Edit Profile step 2 page: driver and vehicle details; saves both steps |
+| `components/profile/EditProfileShell.tsx` | Full-screen frame shared by both Edit Profile pages (header, step progress, scroll) |
+| `components/profile/EditProfileDriverStep.tsx` | Driver/vehicle form, license verification, and the final save |
 | `components/profile/ProfileCover.tsx` | Displays the cover picture and lets the signed-in user select and save a new one |
 | `components/profile/ProfileActionBar.tsx` | Displays edit, follow, requested, following, and message actions |
 | `components/profile/ProfileInfo.tsx` | Displays the user's name, university, and major |
 | `components/profile/ProfileStats.tsx` | Displays profile activity and ride statistics |
 | `components/profile/InterestPickerSheet.tsx` | Allows the signed-in user to edit selected interests |
-| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Hosted and RSVP'd activities |
+| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Hosted and Attended activities |
 | `components/profile/MyActivities.tsx` | Renders an activity card in the profile activity list |
 | `hooks/use-profile.ts` | Loads either the signed-in profile or another user's profile |
 | `hooks/use-profile-interests.ts` | Loads and updates profile-interest relationships |

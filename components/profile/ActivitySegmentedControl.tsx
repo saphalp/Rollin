@@ -9,7 +9,7 @@ type ActivitySegmentedControlProps = {
 
 const OPTIONS: { label: string; value: ActivityView }[] = [
   { label: "Hosted", value: "created" },
-  { label: "RSVP'd", value: "joined" },
+  { label: "Attended", value: "joined" },
 ];
 
 export default function ActivitySegmentedControl({

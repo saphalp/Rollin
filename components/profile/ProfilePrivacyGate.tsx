@@ -65,7 +65,7 @@ export function ProfilePrivacyGate({ userId, children }: { userId: string; child
     if (!access) return <View style={{ padding: 24 }}><AppText>This profile is unavailable. Sign in to view an active profile.</AppText></View>;
     if (access.can_view) return <>{children}</>;
     return <View style={{ padding: 24, gap: 18 }}>
-        <AvatarCard avatarImg={{ uri: resolveAvatarUri(access.profile_picture) }} verified={false} />
+        <AvatarCard avatarImg={{ uri: resolveAvatarUri(access.profile_picture) }} />
         <AppText style={{ fontSize: 22, fontWeight: '700' }}>{access.full_name ?? 'Rollin user'}</AppText>
         <AppText>This profile is private. Only accepted followers can see its details.</AppText>
         <ProfileActionBar isOwnProfile={false} followState={followRequest?.status === 'pending' ? 'requested' : 'not_following'} onFollowPress={() => { if (!followBusy) void toggleRequest(); }} />

@@ -120,7 +120,7 @@ export default function MyActivitiesScreen() {
         ) : displayed.length === 0 ? (
           <View style={styles.center}>
             <AppText style={[styles.message, { color: colors.outline, fontFamily: Fonts?.sans }]}>
-              {view === 'created' ? "You haven't hosted any activities yet." : "You haven't RSVP'd to any activities yet."}
+              {view === 'created' ? "You haven't hosted any activities yet." : "You haven't attended any activities yet."}
             </AppText>
           </View>
         ) : (

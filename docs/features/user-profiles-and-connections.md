@@ -41,7 +41,7 @@
 2. The tab passes the authenticated user ID to UserProfile.
 3. useProfile recognizes that the ID belongs to the signed-in user and uses the profile already loaded by the authentication provider.
 4. The screen loads the user's interests, created activities, joined activities, and completed ride count.
-5. The user can switch between Hosted and RSVP'd activities.
+5. The user can switch between Hosted and Attended activities.
 6. Selecting an activity opens its activity-detail screen.
 7. The user can update their profile picture and interests.
 8. Password-reset and logout actions appear at the bottom of the profile.
@@ -83,12 +83,12 @@
 ## Interface Details
 
 - Cover picture: A banner behind the avatar showing the uploaded cover or the default cover. Only the owner sees the edit control.
-- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar. An educational verification badge appears when is_educational_email is true.
-- Profile information: Displays the user's full name, university, and major.
+- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar.
+- Profile information: Displays the user's full name, university, and major. Below them, soft-green pills show ".edu Verified" when `is_educational_email` is true and "Verified Driver" when `is_verified_driver` is true (theme tokens `verifiedContainer` / `onVerifiedContainer`).
 - Action bar: Shows Edit Profile for the owner. Other users see Follow, Requested, Following, and Message controls depending on connection state.
 - Statistics: Displays attended, hosted, rides, and reviews. Completed rides and the combined ride and host review average are loaded from Supabase. Tapping reviews opens the user's [reviews page](reviews.md).
 - Interests: Displays selected interests as chips. The profile owner can open a bottom sheet to add or remove interests.
-- My Activities: The profile owner can switch between Hosted and RSVP'd activities.
+- My Activities: The profile owner can switch between Hosted and Attended activities.
 - Recent Activities: Other profiles display activities created by that user.
 - Activity cards: Display an image, title, date, and time. Pressing a card opens the activity.
 - Account actions: Reset Password and Logout are displayed only on the signed-in user's profile.
@@ -111,7 +111,7 @@
 | `components/profile/ProfileInfo.tsx` | Displays the user's name, university, and major |
 | `components/profile/ProfileStats.tsx` | Displays profile activity and ride statistics |
 | `components/profile/InterestPickerSheet.tsx` | Allows the signed-in user to edit selected interests |
-| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Hosted and RSVP'd activities |
+| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Hosted and Attended activities |
 | `components/profile/MyActivities.tsx` | Renders an activity card in the profile activity list |
 | `hooks/use-profile.ts` | Loads either the signed-in profile or another user's profile |
 | `hooks/use-profile-interests.ts` | Loads and updates profile-interest relationships |

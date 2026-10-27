@@ -65,6 +65,14 @@
 6. Saving uploads the image to the avatars bucket and updates the profile_picture field.
 7. The previous stored avatar is removed after the new picture is saved.
 
+### Editing profile details
+
+1. The signed-in user opens the profile sidebar and selects Edit Profile.
+2. The app pushes the full-screen `/edit-profile` page (step 1, Personal Details) with the current name, university, and major.
+3. Next validates the fields and pushes `/edit-profile/driver` (step 2, Driver & Vehicle), passing the step 1 values as route params. Back returns to step 1 with its edits intact.
+4. Step 2 loads any saved driver profile and lets the user optionally add vehicle details and verify their license.
+5. Save & Complete Profile writes both steps, refreshes the auth provider's profile, and dismisses both pages. Opening step 2 without step 1's values redirects to step 1.
+
 ### Updating a cover picture
 
 1. The signed-in user presses the camera control in the top-right corner of their cover.
@@ -94,6 +102,10 @@
 | `app/profile/[id].tsx` | Displays another user's profile through a dynamic route |
 | `components/profile/UserProfile.tsx` | Composes the profile screen and loads activities, ride statistics, interests, follow state, and account actions |
 | `components/profile/ProfileAvatar.tsx` | Loads, selects, and saves the signed-in user's profile picture |
+| `app/edit-profile/index.tsx` | Edit Profile step 1 page: personal details |
+| `app/edit-profile/driver.tsx` | Edit Profile step 2 page: driver and vehicle details; saves both steps |
+| `components/profile/EditProfileShell.tsx` | Full-screen frame shared by both Edit Profile pages (header, step progress, scroll) |
+| `components/profile/EditProfileDriverStep.tsx` | Driver/vehicle form, license verification, and the final save |
 | `components/profile/ProfileCover.tsx` | Displays the cover picture and lets the signed-in user select and save a new one |
 | `components/profile/ProfileActionBar.tsx` | Displays edit, follow, requested, following, and message actions |
 | `components/profile/ProfileInfo.tsx` | Displays the user's name, university, and major |

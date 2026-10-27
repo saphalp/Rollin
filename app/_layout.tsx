@@ -41,6 +41,8 @@ export function RootNavigator() {
         <Stack.Screen name="notification-settings" />
         <Stack.Screen name="shared-profile/[id]" />
         <Stack.Screen name="account-center" />
+        <Stack.Screen name="edit-profile/index" />
+        <Stack.Screen name="edit-profile/driver" />
         <Stack.Screen name="campus-events" />
         <Stack.Screen name="campus-event/[id]" />
         <Stack.Screen name="host-campus-event/[id]" />

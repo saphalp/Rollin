@@ -264,10 +264,14 @@ export default function HomeScreen() {
         ) : (
           <>
             {/* Featured */}
-            <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
-              Featured
-            </AppText>
-            <FeaturedCarousel activities={featured} onPress={openActivity} />
+            {featured.length > 0 && (
+              <>
+                <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  Featured
+                </AppText>
+                <FeaturedCarousel activities={featured} onPress={openActivity} />
+              </>
+            )}
 
             {/* Recommended */}
             {recommended.length > 0 && (

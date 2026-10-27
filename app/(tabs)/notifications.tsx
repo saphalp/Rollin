@@ -1,5 +1,6 @@
 import { TourTarget } from '@/components/tutorial/tour-target';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useIsFocused } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { ActivityJoinRequestRow } from '@/components/activity-join-request-row';
@@ -11,6 +12,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotificationRealtime } from '@/hooks/use-notification-realtime';
+import { notifyNotificationsRead } from '@/hooks/use-unread-notifications';
 import { supabase } from '@/lib/supabase';
 
 type Notification = {
@@ -46,6 +48,16 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Ids that were unread when seen during the current visit: they keep their blue dot
+  // until the user leaves, even though they're already marked read in the database.
+  const newThisVisit = useRef<Set<string>>(new Set());
+
+  const isFocused = useIsFocused();
+  const focusedRef = useRef(isFocused);
+  useEffect(() => {
+    focusedRef.current = isFocused;
+  }, [isFocused]);
+
   useNotificationRealtime(async (incoming) => {
     if (notifications.some((n) => n.id === incoming.id)) return;
     const { data } = await supabase
@@ -57,6 +69,12 @@ export default function NotificationsScreen() {
       .maybeSingle();
 
     if (!data) return;
+
+    // Arrived while the tab is open, so it's been seen: mark it read (keeping its dot for this visit).
+    if (focusedRef.current && !data.is_read) {
+      newThisVisit.current.add(data.id);
+      void markReadInDb([data.id]);
+    }
 
     setNotifications((prev) => {
       if (prev.some((n) => n.id === data.id)) return prev;
@@ -75,7 +93,8 @@ export default function NotificationsScreen() {
     });
   });
 
-  async function fetchNotifications() {
+  /** Loads the list and returns the ids of the unread notifications it shows. */
+  async function fetchNotifications(): Promise<string[]> {
     const { data, error } = await supabase
       .from('notifications')
       .select(
@@ -85,7 +104,7 @@ export default function NotificationsScreen() {
 
     if (error || !data) {
       setLoading(false);
-      return;
+      return [];
     }
 
     // Check status of follow requests in follows table
@@ -163,7 +182,7 @@ export default function NotificationsScreen() {
           type: n.type,
           message: n.message,
           timestamp: formatTimestamp(n.created_at),
-          isRead: n.is_read,
+          isRead: n.is_read && !newThisVisit.current.has(n.id),
           actor: n.actor,
           activityId: n.activity_id,
           resolution,
@@ -171,18 +190,49 @@ export default function NotificationsScreen() {
       })
     );
     setLoading(false);
+    return filtered.filter((n: any) => !n.is_read).map((n: any) => n.id);
+  }
+
+  async function markReadInDb(ids: string[]) {
+    const { error } = await supabase.from('notifications').update({ is_read: true }).in('id', ids);
+    if (error) {
+      console.error('[Notifications] mark read failed:', error);
+      return;
+    }
+    notifyNotificationsRead();
+  }
+
+  /** Loads the list, then marks whatever was unread as read while keeping its dot for this visit. */
+  async function loadAndMarkRead(isActive: () => boolean = () => true) {
+    const unreadIds = await fetchNotifications();
+    if (!isActive() || unreadIds.length === 0) return;
+    unreadIds.forEach((id) => newThisVisit.current.add(id));
+    await markReadInDb(unreadIds);
   }
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchNotifications().finally(() => setRefreshing(false));
+    loadAndMarkRead().finally(() => setRefreshing(false));
   }, [currentUserId]);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [currentUserId]);
+  // Opening the tab marks everything read. Unread rows keep their blue dot for this visit
+  // so new items stand out, and the dots clear when the user leaves the tab.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void loadAndMarkRead(() => active);
+      return () => {
+        active = false;
+        newThisVisit.current.clear();
+        setNotifications((prev) =>
+          prev.some((n) => !n.isRead) ? prev.map((n) => ({ ...n, isRead: true })) : prev
+        );
+      };
+    }, [currentUserId])
+  );
 
   async function markAsRead(id: string) {
+    newThisVisit.current.delete(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );

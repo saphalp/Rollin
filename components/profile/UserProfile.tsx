@@ -336,7 +336,10 @@ function UserProfileContent({ userId }: UserProfileProps) {
             {isOwnProfile ? (
               <ProfileAvatar editable />
             ) : (
-              <AvatarCard avatarImg={{ uri: avatarUri }} />
+              <AvatarCard
+                avatarImg={{ uri: avatarUri }}
+                viewable={!!profile.profile_picture}
+              />
             )}
           </View>
         </View>

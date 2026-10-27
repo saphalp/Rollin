@@ -33,6 +33,7 @@ nav:
       - Live Ride Tracking: features/live-ride-tracking.md
       - Ride Ratings: features/ride-ratings.md
       - Reviews: features/reviews.md
+      - Reporting: features/reporting.md
   - Development:
       - Development Workflow: development-workflow.md
   - Project Reference:

@@ -53,6 +53,10 @@ const MAPPING = {
   'star': 'star-border',
   'star.fill': 'star',
   'star.leadinghalf.filled': 'star-half',
+  // Reports
+  'circle': 'radio-button-unchecked',
+  'record.circle': 'radio-button-checked',
+  'checkmark.circle.fill': 'check-circle',
 } as IconMapping;
 
 

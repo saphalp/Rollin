@@ -1,6 +1,7 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { router } from "expo-router";
+import type { ReactNode } from "react";
 import {
   ImageSourcePropType,
   Pressable,
@@ -18,6 +19,7 @@ interface ConversationHeaderProps {
   muted?: boolean;
   onToggleMute?: () => void;
   onPressProfile?: () => void;
+  right?: ReactNode;
 }
 
 export default function ConversationHeader({
@@ -27,6 +29,7 @@ export default function ConversationHeader({
   muted = false,
   onToggleMute,
   onPressProfile,
+  right,
 }: ConversationHeaderProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -99,6 +102,7 @@ export default function ConversationHeader({
           />
         </Pressable>
       )}
+      {right}
     </View>
   );
 }

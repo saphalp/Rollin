@@ -1,5 +1,6 @@
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { openReport } from "@/components/report/overflow-menu";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
@@ -888,8 +889,7 @@ export default function ActivityDetailScreen() {
                 />
               </TouchableOpacity>
 
-              {(isHost || canReviewHost) && (
-                <Menu
+              <Menu
                   visible={menuVisible}
                   onDismiss={() =>
                     setMenuVisible(false)
@@ -989,32 +989,52 @@ export default function ActivityDetailScreen() {
                       />
                     </>
                   ) : (
-                    <Menu.Item
-                      leadingIcon={
-                        hostReviewed
-                          ? "check-circle-outline"
-                          : "star-outline"
-                      }
-                      title={
-                        hostReviewed
-                          ? "Host Reviewed"
-                          : "Review Host"
-                      }
-                      disabled={hostReviewed}
-                      onPress={() => {
-                        setMenuVisible(false);
-                        setReviewSheetVisible(true);
-                      }}
-                      titleStyle={{
-                        color: hostReviewed
-                          ? colors.outline
-                          : colors.text,
-                        fontFamily: Fonts?.sans,
-                      }}
-                    />
+                    <>
+                      {canReviewHost && (
+                        <Menu.Item
+                          leadingIcon={
+                            hostReviewed
+                              ? "check-circle-outline"
+                              : "star-outline"
+                          }
+                          title={
+                            hostReviewed
+                              ? "Host Reviewed"
+                              : "Review Host"
+                          }
+                          disabled={hostReviewed}
+                          onPress={() => {
+                            setMenuVisible(false);
+                            setReviewSheetVisible(true);
+                          }}
+                          titleStyle={{
+                            color: hostReviewed
+                              ? colors.outline
+                              : colors.text,
+                            fontFamily: Fonts?.sans,
+                          }}
+                        />
+                      )}
+
+                      <Menu.Item
+                        leadingIcon="flag-outline"
+                        title="Report Activity"
+                        onPress={() => {
+                          setMenuVisible(false);
+                          openReport(
+                            "activity",
+                            activity.id,
+                            activity.title,
+                          );
+                        }}
+                        titleStyle={{
+                          color: colors.error,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
+                    </>
                   )}
                 </Menu>
-              )}
             </View>
           </View>
         </View>

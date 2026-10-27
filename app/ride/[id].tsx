@@ -61,6 +61,13 @@ export default function RideDetailsScreen() {
     const [tripBusy, setTripBusy] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [now, setNow] = useState(() => Date.now());
+
+    // Re-check the time every 30 seconds so we know when the ride has left.
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 30_000);
+        return () => clearInterval(timer);
+    }, []);
 
     const {
         request,
@@ -87,6 +94,7 @@ export default function RideDetailsScreen() {
                 throw new Error('Ride not found.');
             }
 
+        
             setRide(loadedRide);
 
             const {
@@ -445,6 +453,8 @@ export default function RideDetailsScreen() {
             </AppView>
         );
     }
+        const departed =
+        !!ride.dateTime && new Date(ride.dateTime).getTime() <= now;
 
     return (
         <AppView
@@ -690,7 +700,13 @@ export default function RideDetailsScreen() {
                             </TouchableOpacity>
                         )}
 
-                        {!request && ride.status === 'open' && <View style={{ gap: 10 }}>
+                    {!request && departed && (
+                            <AppText style={{ color: colors.icon, textAlign: 'center' }}>
+                                This ride has already left.
+                            </AppText>
+                        )}
+
+                        {!request && ride.status === 'open' && !departed && <View style={{ gap: 10 }}>
                             {ride.pickupMode !== 'individual' && <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <AppText style={{ flex: 1 }}>Request a different pickup spot</AppText>
                                 <Switch value={alternatePickup} onValueChange={setAlternatePickup} />
@@ -701,7 +717,7 @@ export default function RideDetailsScreen() {
                                     style={{ color: colors.text, padding: 14, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: 12 }} />
                             </>}
                         </View>}
-                        <RideRequestButton
+                            {(request || !departed) && <RideRequestButton
                             request={request}
                             loading={requestLoading || submitting}
                             disabled={
@@ -710,7 +726,7 @@ export default function RideDetailsScreen() {
                             }
                             onRequest={handleRequest}
                             onCancel={handleCancelRequest}
-                        />
+                        />}
                     </>
                 )}
             </ScrollView>

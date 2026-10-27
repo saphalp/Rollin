@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { DepartureCountdownBadge } from '@/components/rides/departure-countdown-badge';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -234,6 +235,7 @@ export function AvailableRideCard({ ride, onPress }: Props) {
                 ]}
             >
                 <View style={styles.footerInfo}>
+                    <DepartureCountdownBadge dateTime={ride.dateTime} />
                     <View style={styles.metadataRow}>
                         <MaterialCommunityIcons
                             name="clock-outline"

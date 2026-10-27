@@ -17,9 +17,9 @@ Users can report another user, an activity, or a photo post from the Explore fee
 
 The submenu opens the `/report` screen with `type` (`user`, `activity`, or `post`), `id`, and an optional `name` for display. The screen has three steps: choose a reason and add optional details, confirm the summary, then a message that the report has been submitted and will be reviewed. The reason list depends on the target type (`REPORT_REASONS` in `types/reports.ts`).
 
-### Not persisted yet
+### Submitting
 
-`submitReport` in `services/reports.ts` only logs the draft in development. The migration and RPC exist but the client doesn't call them yet; the comment in that function shows the call to switch to once the migration is applied.
+`submitReport` in `services/reports.ts` calls the `submit_report` RPC. If it fails, the confirm step shows the function's own message when it's one of the known ones (target deleted, own content, signed out), and a generic retry message otherwise.
 
 ### One table for every report type
 
@@ -41,6 +41,6 @@ Clients have no direct access to `reports`. Inserts go through the `submit_repor
 - `components/report/overflow-menu.tsx`: the shared three-dot menu, plus `openReport` for screens that already have their own menu
 - `components/report/report-form.tsx`, `app/report.tsx`: the report screen
 - `types/reports.ts`: target types, reasons, and labels
-- `services/reports.ts`: `submitReport`, a stub for now
+- `services/reports.ts`: `submitReport`, which calls the `submit_report` RPC
 - `supabase/migrations/20261026120000_reports.sql`: table, enums, `submit_report`, `report_target_summary`
 - Entry points: `components/explore/post-card.tsx`, `app/post/[id].tsx`, `app/profile/[id].tsx`, `app/shared-profile/[id].tsx`, `app/activity/[id].tsx`

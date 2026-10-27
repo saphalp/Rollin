@@ -28,6 +28,13 @@ import {
 
 type Step = 'form' | 'confirm' | 'done';
 
+// Raised by submit_report; anything else gets the generic message.
+const KNOWN_SUBMIT_ERRORS = [
+  'That content no longer exists',
+  'You cannot report your own content',
+  'Sign in to submit a report',
+];
+
 type Props = {
   targetType: ReportTargetType;
   targetId: string;
@@ -64,7 +71,11 @@ export function ReportForm({ targetType, targetId, targetName }: Props) {
       setStep('done');
     } catch (e) {
       console.error('[report] submit failed:', e);
-      setError('Could not submit your report. Please try again.');
+      const message = (e as { message?: string } | null)?.message ?? '';
+      setError(
+        KNOWN_SUBMIT_ERRORS.find((known) => message.includes(known))
+          ?? 'Could not submit your report. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -195,8 +206,8 @@ export function ReportForm({ targetType, targetId, targetName }: Props) {
                   placeholderTextColor={colors.outline}
                   outlineColor={colors.outlineVariant}
                   activeOutlineColor={colors.tint}
-                  style={[styles.detailsInput, { backgroundColor: colors.cardBackground }]}
-                  contentStyle={{ fontFamily: Fonts?.sans }}
+                  style={{ backgroundColor: colors.cardBackground }}
+                  contentStyle={[styles.detailsInput, { fontFamily: Fonts?.sans }]}
                 />
                 <AppText style={[styles.counter, { color: colors.outline }]}>
                   {details.length}/{REPORT_DETAILS_MAX_LENGTH}
@@ -325,7 +336,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reasonText: { flex: 1, fontSize: 15, lineHeight: 20 },
-  detailsInput: { minHeight: 120 },
+  // Paper's outlined multiline input pads the top and sides differently; even them out so the
+  // placeholder sits the same distance from the top, left, and right edges.
+  detailsInput: {
+    minHeight: 120,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingHorizontal: 14,
+    textAlignVertical: 'top',
+  },
   counter: { alignSelf: 'flex-end', marginTop: -6, fontSize: 12, lineHeight: 16 },
   primaryButton: { marginTop: 8, borderRadius: 12 },
   secondaryButton: { borderRadius: 12 },

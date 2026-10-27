@@ -27,6 +27,7 @@ import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
 import ProfileActionBar from "@/components/profile/ProfileActionBar";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
+import ProfileCover from "@/components/profile/ProfileCover";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
@@ -326,11 +327,19 @@ function UserProfileContent({ userId }: UserProfileProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {isOwnProfile ? (
-          <ProfileAvatar verified={verified} editable />
-        ) : (
-          <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
-        )}
+        <View>
+          <ProfileCover
+            coverPicture={profile.cover_picture}
+            editable={isOwnProfile}
+          />
+          <View style={styles.avatarOverlap}>
+            {isOwnProfile ? (
+              <ProfileAvatar verified={verified} editable />
+            ) : (
+              <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
+            )}
+          </View>
+        </View>
 
         <ProfileInfo
           name={name}
@@ -460,6 +469,11 @@ function UserProfileContent({ userId }: UserProfileProps) {
 }
 
 const styles = StyleSheet.create({
+  // Pulls the avatar up so the cover overlaps the top 2/3 of it
+  // (AvatarCard ring is 136px tall plus 8px top padding: 8 + 136 * 2/3 ≈ 99).
+  avatarOverlap: {
+    marginTop: -99,
+  },
   content: {
     paddingHorizontal: 16,
     paddingBottom: 32,

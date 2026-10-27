@@ -10,7 +10,9 @@ import { MD3DarkTheme, PaperProvider, configureFonts } from 'react-native-paper'
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export const unstable_settings = { anchor: 'index' };
+export const unstable_settings = {
+  anchor: "(tabs)",
+};
 
 const fonts = configureFonts({ config: { fontFamily: Fonts.sans } });
 const appTheme = {

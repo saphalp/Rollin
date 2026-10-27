@@ -11,10 +11,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  useColorScheme,
+  Platform, ScrollView, StyleSheet,
+  useColorScheme, type ScrollViewInstance
 } from "react-native";
 
 type SharedActivityPreview = {
@@ -99,17 +97,17 @@ export default function ChatConversationScreen() {
     setMuted(next);
     const { error } = next
       ? await supabase
-          .from("muted_conversations")
-          .insert({ conversation_id: id, user_id: currentUserId })
+        .from("muted_conversations")
+        .insert({ conversation_id: id, user_id: currentUserId })
       : await supabase
-          .from("muted_conversations")
-          .delete()
-          .eq("conversation_id", id)
-          .eq("user_id", currentUserId);
+        .from("muted_conversations")
+        .delete()
+        .eq("conversation_id", id)
+        .eq("user_id", currentUserId);
     if (error) setMuted(!next);
   }
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   async function load() {
     setLoading(true);
@@ -195,9 +193,9 @@ export default function ChatConversationScreen() {
     const { data: sharedPhotos } =
       postIds.length > 0
         ? await supabase
-            .from("activity_photos")
-            .select("id, activity_id, user_id, image_path, caption")
-            .in("id", postIds)
+          .from("activity_photos")
+          .select("id, activity_id, user_id, image_path, caption")
+          .in("id", postIds)
         : { data: [] as any[] };
 
     const photoById: Record<string, any> = Object.fromEntries(
@@ -216,9 +214,9 @@ export default function ChatConversationScreen() {
     const { data: sharedActivities } =
       activityIds.length > 0
         ? await supabase
-            .from("activities")
-            .select("id, title, image_url, category, host_id")
-            .in("id", activityIds)
+          .from("activities")
+          .select("id, title, image_url, category, host_id")
+          .in("id", activityIds)
         : { data: [] as any[] };
 
     const activityById: Record<string, any> = Object.fromEntries(
@@ -235,9 +233,9 @@ export default function ChatConversationScreen() {
     const { data: sharedProfiles } =
       sharedProfileIds.length > 0
         ? await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", sharedProfileIds)
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", sharedProfileIds)
         : { data: [] as any[] };
 
     const sharedNameById: Record<string, string> = Object.fromEntries(
@@ -276,7 +274,7 @@ export default function ChatConversationScreen() {
             caption: photo?.caption ?? null,
             imageUrl: photo
               ? supabase.storage.from("activity-photos").getPublicUrl(photo.image_path)
-                  .data.publicUrl
+                .data.publicUrl
               : "https://picsum.photos/seed/post/240/240",
           };
         }
@@ -364,8 +362,8 @@ export default function ChatConversationScreen() {
           otherUserId
             ? () => router.push(`/profile/${otherUserId}`)
             : activityId
-            ? () => router.push(`/activity/${activityId}`)
-            : undefined
+              ? () => router.push(`/activity/${activityId}`)
+              : undefined
         }
       />
 

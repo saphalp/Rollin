@@ -37,6 +37,7 @@ The first step was to decide the database schema.
 - **Chats tab:** A single list of all conversations, direct and group, each showing the other person's (or the activity's) name, photo, and a preview of the last message.
 - **Chat screen:** A back button, name, and photo at the top; messages appear as bubbles, aligned differently depending on who sent them. In a group chat, each message also shows the sender's name. A text field and send button sit at the bottom.
 - **Notifications tab:** A simple list taht shows the newest first. Follow and join requests show the requester's photo and name with Accept/Reject buttons. Other notifications are plain rows with a message and a timestamp with unread ones visually marked.
+- **Header bell:** A small red dot appears on the bell icon in the tab header while the user has any notification with `is_read = false`. It updates live through realtime inserts/updates and is rechecked on every navigation and when the app returns to the foreground (realtime can't deliver filtered deletes).
 
 ## Relevant Files
 
@@ -55,4 +56,5 @@ The first step was to decide the database schema.
 | `hooks/use-conversations.ts` | Builds conversation summaries and loads their latest messages |
 | `hooks/use-messages-realtime.ts` | Subscribes to new messages for the active conversation |
 | `hooks/use-notification-realtime.ts` | Subscribes to new notifications for the signed-in user |
+| `hooks/use-unread-notifications.ts` | Tracks whether the signed-in user has unread notifications, for the header bell's red dot |
 | `services/ride-notifications-service.ts` | Configures and sends local notifications used by live rides |

@@ -1,6 +1,9 @@
+import AvatarViewer from "@/components/profile/AvatarViewer";
 import { Colors } from "@/constants/theme";
+import { useState } from "react";
 import {
   ImageSourcePropType,
+  Pressable,
   StyleSheet,
   useColorScheme,
   View,
@@ -12,6 +15,8 @@ type AvatarCardProps = {
   size?: number;
   editable?: boolean;
   onEditPress?: () => void;
+  /** Tapping the photo opens it enlarged. Leave off for placeholder avatars. */
+  viewable?: boolean;
 };
 
 export default function AvatarCard({
@@ -19,11 +24,13 @@ export default function AvatarCard({
   size = 128,
   editable = false,
   onEditPress,
+  viewable = false,
 }: AvatarCardProps) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
   const ringSize = size + 8;
+  const [viewerVisible, setViewerVisible] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -40,7 +47,14 @@ export default function AvatarCard({
           },
         ]}
       >
-        <Avatar.Image size={size} source={avatarImg} />
+        <Pressable
+          onPress={() => setViewerVisible(true)}
+          disabled={!viewable}
+          accessibilityRole={viewable ? "imagebutton" : undefined}
+          accessibilityLabel={viewable ? "View profile picture" : undefined}
+        >
+          <Avatar.Image size={size} source={avatarImg} />
+        </Pressable>
 
         {editable && (
           <IconButton
@@ -54,6 +68,14 @@ export default function AvatarCard({
           />
         )}
       </View>
+
+      {viewable && (
+        <AvatarViewer
+          visible={viewerVisible}
+          source={avatarImg}
+          onClose={() => setViewerVisible(false)}
+        />
+      )}
     </View>
   );
 }

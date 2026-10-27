@@ -83,7 +83,7 @@
 ## Interface Details
 
 - Cover picture: A banner behind the avatar showing the uploaded cover or the default cover. Only the owner sees the edit control.
-- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar.
+- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar. Tapping an uploaded picture (on any profile) opens it enlarged on a dark full-screen overlay; tapping the empty space around it, or Android back, closes it. Fallback avatars are not tappable.
 - Profile information: Displays the user's full name, university, and major. Below them, soft-green pills show ".edu Verified" when `is_educational_email` is true and "Verified Driver" when `is_verified_driver` is true (theme tokens `verifiedContainer` / `onVerifiedContainer`).
 - Action bar: Shows Edit Profile for the owner. Other users see Follow, Requested, Following, and Message controls depending on connection state.
 - Statistics: Displays attended, hosted, rides, and reviews. Completed rides and the combined ride and host review average are loaded from Supabase. Tapping reviews opens the user's [reviews page](reviews.md).
@@ -106,6 +106,7 @@
 | `app/edit-profile/driver.tsx` | Edit Profile step 2 page: driver and vehicle details; saves both steps |
 | `components/profile/EditProfileShell.tsx` | Full-screen frame shared by both Edit Profile pages (header, step progress, scroll) |
 | `components/profile/EditProfileDriverStep.tsx` | Driver/vehicle form, license verification, and the final save |
+| `components/profile/AvatarViewer.tsx` | Full-screen enlarged profile picture, dismissed by tapping the backdrop |
 | `components/profile/ProfileCover.tsx` | Displays the cover picture and lets the signed-in user select and save a new one |
 | `components/profile/ProfileActionBar.tsx` | Displays edit, follow, requested, following, and message actions |
 | `components/profile/ProfileInfo.tsx` | Displays the user's name, university, and major |

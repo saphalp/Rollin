@@ -109,6 +109,7 @@ export default function ProfileAvatar({
         avatarImg={{ uri: displayedImage }}
         editable={editable}
         onEditPress={handleSelectImage}
+        viewable={displayedImage !== FALLBACK_AVATAR}
       />
 
       {selectedImage && (

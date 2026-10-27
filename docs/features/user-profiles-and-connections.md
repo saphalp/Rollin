@@ -15,6 +15,8 @@
 - The profiles, follows, interests, profile_interests, activities, and rsvps tables are available.
 - Profile pictures are stored in the Supabase avatars bucket.
 - A fallback avatar is available when the user has not uploaded a profile picture.
+- Cover pictures are stored in the same avatars bucket, under the user's own folder with a `cover-` filename prefix, so the bucket's existing per-user storage policies apply to them.
+- A bundled default cover (`assets/images/default-cover.jpg`) is shown when the user has not uploaded a cover picture.
 - Follow requests must be accepted before the users are considered connected.
 - Direct-message conversations are created through the get_or_create_direct_conversation Supabase function.
 
@@ -24,6 +26,7 @@
 - **Dynamic routes for other profiles.** Other users are opened through /profile/[id], which allows the same route to display any profile by its user ID.
 - **Three follow states.** A connection can be not_following, requested, or following. These states make it possible to represent pending requests instead of treating following as a simple boolean.
 - **Storage paths for profile pictures.** The profile record stores the avatar path, and the application converts it into a public Supabase Storage URL when displaying the image.
+- **Cover picture reuses the avatar pipeline.** `profiles.cover_picture` stores a storage path just like `profile_picture`, and both uploads go through one shared helper in `upload-profile-picture.ts`. The default cover is a local asset rather than a stored file, so a null column needs no storage object.
 
 ## Technical Hurdles
 
@@ -38,7 +41,7 @@
 2. The tab passes the authenticated user ID to UserProfile.
 3. useProfile recognizes that the ID belongs to the signed-in user and uses the profile already loaded by the authentication provider.
 4. The screen loads the user's interests, created activities, joined activities, and completed ride count.
-5. The user can switch between Created and Joined activities.
+5. The user can switch between Hosted and RSVP'd activities.
 6. Selecting an activity opens its activity-detail screen.
 7. The user can update their profile picture and interests.
 8. Password-reset and logout actions appear at the bottom of the profile.
@@ -62,14 +65,22 @@
 6. Saving uploads the image to the avatars bucket and updates the profile_picture field.
 7. The previous stored avatar is removed after the new picture is saved.
 
+### Updating a cover picture
+
+1. The signed-in user presses the camera control in the top-right corner of their cover.
+2. The same camera/photo-library flow runs, cropping to a 3:1 ratio on Android (iOS crops square; the cover is center-cropped to fit).
+3. The selected image is previewed in place, with Cancel and Save Cover controls on the cover.
+4. Saving uploads the image to the avatars bucket, updates the cover_picture field, removes the previous stored cover, and refreshes the auth provider's profile row.
+
 ## Interface Details
 
-- Profile avatar: Displays the uploaded picture or a fallback avatar. An educational verification badge appears when is_educational_email is true.
+- Cover picture: A banner behind the avatar showing the uploaded cover or the default cover. Only the owner sees the edit control.
+- Profile avatar: Overlaps the bottom edge of the cover. Displays the uploaded picture or a fallback avatar. An educational verification badge appears when is_educational_email is true.
 - Profile information: Displays the user's full name, university, and major.
 - Action bar: Shows Edit Profile for the owner. Other users see Follow, Requested, Following, and Message controls depending on connection state.
 - Statistics: Displays attended, hosted, rides, and reviews. Completed rides and the combined ride and host review average are loaded from Supabase. Tapping reviews opens the user's [reviews page](reviews.md).
 - Interests: Displays selected interests as chips. The profile owner can open a bottom sheet to add or remove interests.
-- My Activities: The profile owner can switch between Created and Joined activities.
+- My Activities: The profile owner can switch between Hosted and RSVP'd activities.
 - Recent Activities: Other profiles display activities created by that user.
 - Activity cards: Display an image, title, date, and time. Pressing a card opens the activity.
 - Account actions: Reset Password and Logout are displayed only on the signed-in user's profile.
@@ -83,16 +94,19 @@
 | `app/profile/[id].tsx` | Displays another user's profile through a dynamic route |
 | `components/profile/UserProfile.tsx` | Composes the profile screen and loads activities, ride statistics, interests, follow state, and account actions |
 | `components/profile/ProfileAvatar.tsx` | Loads, selects, and saves the signed-in user's profile picture |
+| `components/profile/ProfileCover.tsx` | Displays the cover picture and lets the signed-in user select and save a new one |
 | `components/profile/ProfileActionBar.tsx` | Displays edit, follow, requested, following, and message actions |
 | `components/profile/ProfileInfo.tsx` | Displays the user's name, university, and major |
 | `components/profile/ProfileStats.tsx` | Displays profile activity and ride statistics |
 | `components/profile/InterestPickerSheet.tsx` | Allows the signed-in user to edit selected interests |
-| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Created and Joined activities |
+| `components/profile/ActivitySegmentedControl.tsx` | Switches the My Activities section between Hosted and RSVP'd activities |
 | `components/profile/MyActivities.tsx` | Renders an activity card in the profile activity list |
 | `hooks/use-profile.ts` | Loads either the signed-in profile or another user's profile |
 | `hooks/use-profile-interests.ts` | Loads and updates profile-interest relationships |
 | `hooks/use-follow.ts` | Manages follow requests, cancellations, and accepted follow state |
 | `lib/profile/get-profile-picture.ts` | Resolves the signed-in user's stored avatar path to a public URL |
 | `lib/profile/select-profile-image.ts` | Handles camera and photo-library selection with permission checks |
-| `lib/profile/upload-profile-picture.ts` | Uploads profile images and updates the profile record |
+| `lib/profile/upload-profile-picture.ts` | Uploads profile and cover images and updates the profile record |
 | `lib/profile/resolve-avatar-uri.ts` | Converts stored avatar paths into displayable URLs with a fallback avatar |
+| `lib/profile/resolve-cover-source.ts` | Converts stored cover paths into image sources, falling back to the bundled default cover |
+| `supabase/migrations/20261027120000_profile_cover_picture.sql` | Adds the `profiles.cover_picture` column |

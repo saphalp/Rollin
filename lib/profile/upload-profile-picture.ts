@@ -8,8 +8,27 @@ type UploadProfilePictureResult = {
   publicUrl: string;
 };
 
-export async function uploadProfilePicture(
+type ProfileImageField = "profile_picture" | "cover_picture";
+
+export function uploadProfilePicture(
   asset: ImagePickerAsset
+): Promise<UploadProfilePictureResult> {
+  return uploadProfileImage(asset, "profile_picture", "profile picture", "");
+}
+
+export function uploadCoverPicture(
+  asset: ImagePickerAsset
+): Promise<UploadProfilePictureResult> {
+  return uploadProfileImage(asset, "cover_picture", "cover picture", "cover-");
+}
+
+// Both images live in the `avatars` bucket under the user's own folder, so
+// the bucket's per-user storage policies apply to covers as well.
+async function uploadProfileImage(
+  asset: ImagePickerAsset,
+  field: ProfileImageField,
+  label: string,
+  filePrefix: string
 ): Promise<UploadProfilePictureResult> {
   const {
     data: { user },
@@ -22,7 +41,7 @@ export async function uploadProfilePicture(
 
   if (!user) {
     throw new Error(
-      "You must be signed in to upload a profile picture."
+      `You must be signed in to upload a ${label}.`
     );
   }
 
@@ -34,19 +53,22 @@ export async function uploadProfilePicture(
 
   const { data: existingProfile } = await supabase
     .from("profiles")
-    .select("profile_picture")
+    .select(field)
     .eq("id", user.id)
     .single();
 
-  const previousPath = existingProfile?.profile_picture ?? null;
+  const previousPath =
+    (existingProfile as Record<ProfileImageField, string | null> | null)?.[
+      field
+    ] ?? null;
 
   const contentType = asset.mimeType ?? "image/jpeg";
   const extension = getFileExtension(contentType);
   // A unique path per upload (rather than a fixed "avatar.ext" path) means
-  // profile_picture actually changes value each time, so every screen's
+  // the profile column actually changes value each time, so every screen's
   // cached avatar image (keyed by URL) is naturally invalidated instead of
   // silently showing a stale photo forever.
-  const filePath = `${user.id}/${Date.now()}.${extension}`;
+  const filePath = `${user.id}/${filePrefix}${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")
@@ -64,10 +86,10 @@ export async function uploadProfilePicture(
     await supabase
       .from("profiles")
       .update({
-        profile_picture: filePath,
+        [field]: filePath,
       })
       .eq("id", user.id)
-      .select("id, profile_picture")
+      .select("id")
       .single();
 
   if (profileError) {
@@ -76,7 +98,7 @@ export async function uploadProfilePicture(
 
   if (!updatedProfile) {
     throw new Error(
-      "The profile picture uploaded, but the profile record was not updated."
+      `The ${label} uploaded, but the profile record was not updated.`
     );
   }
 
@@ -86,7 +108,7 @@ export async function uploadProfilePicture(
       .remove([previousPath]);
 
     if (removeError) {
-      console.error("[uploadProfilePicture] failed to remove old avatar:", removeError);
+      console.error(`[uploadProfileImage] failed to remove old ${label}:`, removeError);
     }
   }
 

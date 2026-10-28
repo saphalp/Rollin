@@ -204,6 +204,7 @@ export default function ActivityDetailScreen() {
     if (id) {
       void load();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Each attendee gets one host review per activity, so the menu item turns off once it's posted.

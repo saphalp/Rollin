@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
@@ -29,7 +29,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Unit tests
-        run: node --test scripts/test-rating-reminder.cjs scripts/test-ride-navigation.cjs scripts/test-ride-notifications.cjs scripts/test-ride-route.cjs scripts/test-ride-tracking.cjs scripts/test-signup-verification.cjs scripts/test-tutorial.cjs scripts/test-validate-driver-fields.cjs scripts/test-didit-webhook.cjs
+        run: node --test scripts/test-rating-reminder.cjs scripts/test-ride-navigation.cjs scripts/test-ride-notifications.cjs scripts/test-ride-route.cjs scripts/test-ride-tracking.cjs scripts/test-router-initial-link.cjs scripts/test-signup-verification.cjs scripts/test-tutorial.cjs scripts/test-validate-driver-fields.cjs scripts/test-didit-webhook.cjs
 
       - name: Verify the app bundles (catches Metro/syntax errors)
         run: npx expo export --platform android

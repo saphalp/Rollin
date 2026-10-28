@@ -268,8 +268,6 @@ export default function PostScreen() {
       }
     }
 
-    const error = null;
-
     setSaving(false);
 
     setTitle("");

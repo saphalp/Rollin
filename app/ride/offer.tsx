@@ -374,7 +374,7 @@ export default function OfferRideScreen() {
 
               <Button
                 mode="contained"
-                onPress={() => router.push('/(tabs)/profile')}
+                onPress={() => router.push('/edit-profile')}
                 buttonColor={colors.tint}
                 textColor={colors.onPrimary}
                 style={styles.gateButton}

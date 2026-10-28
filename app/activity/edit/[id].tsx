@@ -40,6 +40,19 @@ const CATEGORY_IMAGES: Record<string, string> = {
   grocery: 'https://picsum.photos/seed/grocery/900/500',
 };
 
+// Turns "10/28/2026" + "9:10 PM" into a Date.
+// Android can't read this format with new Date(), so we do it ourselves.
+function parseDateAndTime(dateText: string, timeText: string): Date | null {
+  const d = dateText.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const t = timeText.replace(/\s+/g, ' ').trim().toUpperCase().match(/^(\d{1,2}):(\d{2}) ?(AM|PM)$/);
+  if (!d || !t) return null;
+
+  // 12 AM -> 0, 1-11 PM -> 13-23
+  const hours = (Number(t[1]) % 12) + (t[3] === 'PM' ? 12 : 0);
+  return new Date(Number(d[3]), Number(d[1]) - 1, Number(d[2]), hours, Number(t[2]));
+}
+
+
 export default function EditActivityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useColorScheme() ?? 'light';
@@ -180,8 +193,8 @@ export default function EditActivityScreen() {
   }
 
   async function performSave(allFuture: boolean) {
-    const parsedDate = new Date(`${date.trim()} ${time.trim()}`);
-    if (!date.trim() || !time.trim() || !Number.isFinite(parsedDate.getTime())) {
+    const parsedDate = parseDateAndTime(date, time);
+    if (!parsedDate) {
       Alert.alert('Missing date and time', 'Please select when this activity starts.');
       return;
     }
@@ -473,7 +486,7 @@ export default function EditActivityScreen() {
               <RecurrenceField
                 value={recurrence}
                 onChange={(rule) => { setRecurrence(rule); setIsRecurring(rule.type !== 'none'); }}
-                baseDate={date.trim() && time.trim() ? new Date(`${date.trim()} ${time.trim()}`) : null}
+                baseDate={parseDateAndTime(date, time)}
               />
             </View>
 

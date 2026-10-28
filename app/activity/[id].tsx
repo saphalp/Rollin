@@ -1,3 +1,4 @@
+import { ActivityInfoCard } from "@/components/activity/activity-info-card";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { openReport } from "@/components/report/overflow-menu";
@@ -787,6 +788,22 @@ export default function ActivityDetailScreen() {
   const canReviewHost =
     !isHost && hasRsvp && isPast;
 
+  // Short status shown on the left of the bottom bar.
+  const eventStatus =
+    activity.status === "cancelled"
+      ? { label: "Cancelled", color: colors.error }
+      : isPast
+        ? { label: "Event ended", color: colors.icon }
+        : isHost
+          ? { label: "You're hosting", color: colors.tint }
+          : hasRsvp
+            ? { label: "You're going", color: colors.verified }
+            : isFull
+              ? { label: "Full · Waitlist open", color: colors.secondary }
+              : activity.event_type === "private"
+                ? { label: "Request to join", color: colors.tint }
+                : { label: "Open for RSVP", color: colors.verified };
+
   return (
     <AppView style={styles.container}>
       <ScrollView
@@ -830,34 +847,7 @@ export default function ActivityDetailScreen() {
             <BackButton variant="floating" />
 
             <View style={styles.heroRightGroup}>
-              <View
-                style={[
-                  styles.categoryBadge,
-                  {
-                    backgroundColor:
-                      colors.tint,
-                  },
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.categoryText,
-                    {
-                      color:
-                        colors.onImageOverlay,
-                      fontFamily:
-                        Fonts?.sans,
-                    },
-                  ]}
-                >
-                  {activity.category
-                    .charAt(0)
-                    .toUpperCase() +
-                    activity.category.slice(
-                      1,
-                    )}
-                </AppText>
-              </View>
+              
 
               <TouchableOpacity
                 onPress={() =>
@@ -1073,321 +1063,26 @@ export default function ActivityDetailScreen() {
             </View>
           )}
 
-          {/* Title */}
-
-          <AppText
-            style={[
-              styles.title,
-              {
-                color:
-                  colors.text,
-                fontFamily:
-                  Fonts?.sans,
-              },
-            ]}
-          >
-            {activity.title}
-          </AppText>
-
-          {/* Host */}
-
-          <TouchableOpacity
-            style={styles.hostRow}
-            activeOpacity={0.7}
-            onPress={() =>
-              router.push(
-                `/profile/${activity.host_id}`,
-              )
+          {/* Title, host, when/where, spots, about */}
+          <ActivityInfoCard
+            title={activity.title}
+            rideSharing={activity.ride_sharing}
+            hostId={activity.host_id}
+            hostName={hostName}
+            hostAvatarUrl={hostAvatarUrl}
+            dateTime={activity.date_time}
+            location={activity.location}
+            recurrenceLabel={
+              activity.is_recurring && activity.recurrence_rule
+                ? formatRecurrenceLabel(activity.recurrence_rule, activity.date_time)
+                : null
             }
-          >
-            {hostAvatarUrl ? (
-              <Image
-                source={{
-                  uri: hostAvatarUrl,
-                }}
-                style={
-                  styles.hostAvatar
-                }
-                contentFit="cover"
-              />
-            ) : (
-              <View
-                style={[
-                  styles.hostAvatar,
-                  styles.hostInitials,
-                  {
-                    backgroundColor:
-                      colors.tint,
-                  },
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.initialsText,
-                    {
-                      color:
-                        colors.onImageOverlay,
-                      fontFamily:
-                        Fonts?.sans,
-                    },
-                  ]}
-                >
-                  {initials}
-                </AppText>
-              </View>
-            )}
-
-            <View
-              style={
-                styles.hostText
-              }
-            >
-              <AppText
-                style={[
-                  styles.hostedByLabel,
-                  {
-                    color:
-                      colors.outline,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                Hosted by
-              </AppText>
-
-              <AppText
-                style={[
-                  styles.hostName,
-                  {
-                    color:
-                      colors.text,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                {hostName}
-              </AppText>
-            </View>
-
-            <IconSymbol
-              name="chevron.right"
-              size={18}
-              color={
-                colors.outline
-              }
-            />
-          </TouchableOpacity>
-
-          {/* Activity metadata */}
-
-          <View
-            style={[
-              styles.metaCard,
-              {
-                backgroundColor:
-                  colors.surfaceContainerHigh,
-                borderColor:
-                  colors.outlineVariant,
-              },
-            ]}
-          >
-            {activity.date_time && (
-              <>
-                <View
-                  style={
-                    styles.metaRow
-                  }
-                >
-                  <IconSymbol
-                    name="calendar"
-                    size={18}
-                    color={
-                      colors.tint
-                    }
-                  />
-
-                  <AppText
-                    style={[
-                      styles.metaText,
-                      {
-                        color:
-                          colors.text,
-                        fontFamily:
-                          Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    {formatDate(
-                      activity.date_time,
-                    )}
-                  </AppText>
-                </View>
-
-                <View
-                  style={
-                    styles.metaDivider
-                  }
-                />
-
-                <View
-                  style={
-                    styles.metaRow
-                  }
-                >
-                  <IconSymbol
-                    name="clock"
-                    size={18}
-                    color={
-                      colors.tint
-                    }
-                  />
-
-                  <AppText
-                    style={[
-                      styles.metaText,
-                      {
-                        color:
-                          colors.text,
-                        fontFamily:
-                          Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    {formatTime(
-                      activity.date_time,
-                    )}
-                  </AppText>
-                </View>
-
-                <View
-                  style={
-                    styles.metaDivider
-                  }
-                />
-              </>
-            )}
-
-            {activity.location && (
-              <>
-                <TouchableOpacity
-                  accessibilityRole="link"
-                  accessibilityLabel={`Open ${activity.location} in maps`}
-                  onPress={() => void openEventMap(activity.location)}
-                  activeOpacity={0.7}
-                  style={styles.metaRow}
-                >
-                  <IconSymbol name="mappin" size={18} color={colors.tint} />
-                  <AppText style={[styles.metaText, {
-                    color: colors.tint,
-                    fontFamily: Fonts?.sans,
-                    textDecorationLine: 'underline',
-                  }]}>
-                    {activity.location}
-                  </AppText>
-                  <IconSymbol name="arrow.up.right" size={16} color={colors.tint} />
-                </TouchableOpacity>
-
-                <View
-                  style={
-                    styles.metaDivider
-                  }
-                />
-              </>
-            )}
-
-            {activity.is_recurring && activity.recurrence_rule && (
-              <>
-                <View style={styles.metaRow}>
-                  <IconSymbol name="arrow.triangle.2.circlepath" size={16} color={colors.text} />
-                  <AppText
-                    style={[
-                      styles.metaText,
-                      {
-                        color: colors.text,
-                        fontFamily: Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    {formatRecurrenceLabel(activity.recurrence_rule, activity.date_time)}
-                  </AppText>
-                </View>
-                <View style={styles.metaDivider} />
-              </>
-            )}
-
-            <View
-              style={
-                styles.metaRow
-              }
-            >
-              <IconSymbol
-                name="person.2.fill"
-                size={18}
-                color={colors.tint}
-              />
-
-              <AppText
-                style={[
-                  styles.metaText,
-                  {
-                    color:
-                      colors.text,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                {rsvpCount} /{" "}
-                {
-                  activity.max_attendees
-                }{" "}
-                joined
-              </AppText>
-            </View>
-
-            {activity.ride_sharing && (
-              <>
-                <View
-                  style={
-                    styles.metaDivider
-                  }
-                />
-
-                <View
-                  style={
-                    styles.metaRow
-                  }
-                >
-                  <IconSymbol
-                    name="car.fill"
-                    size={18}
-                    color={
-                      colors.tint
-                    }
-                  />
-
-                  <AppText
-                    style={[
-                      styles.metaText,
-                      {
-                        color:
-                          colors.text,
-                        fontFamily:
-                          Fonts?.sans,
-                      },
-                    ]}
-                  >
-                    Ride sharing
-                    available
-                  </AppText>
-                </View>
-              </>
-            )}
-          </View>
-
-          {/* Announcements */}
+            joined={rsvpCount}
+            max={activity.max_attendees}
+            description={activity.description}
+            onHostPress={() => router.push(`/profile/${activity.host_id}`)}
+            onLocationPress={() => void openEventMap(activity.location)}
+          />
 
           {announcements.length > 0 && (
             <View style={styles.descSection}>
@@ -1418,45 +1113,7 @@ export default function ActivityDetailScreen() {
             </View>
           )}
 
-          {/* Description */}
-
-          {activity.description && (
-            <View
-              style={
-                styles.descSection
-              }
-            >
-              <AppText
-                style={[
-                  styles.sectionHeading,
-                  {
-                    color:
-                      colors.text,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                About
-              </AppText>
-
-              <AppText
-                style={[
-                  styles.description,
-                  {
-                    color:
-                      colors.outline,
-                    fontFamily:
-                      Fonts?.sans,
-                  },
-                ]}
-              >
-                {
-                  activity.description
-                }
-              </AppText>
-            </View>
-          )}
+          
 
           {/* Attendees */}
           {activity.ride_sharing && !isPast && (
@@ -1662,6 +1319,20 @@ export default function ActivityDetailScreen() {
           },
         ]}
       >
+        {/* Event status */}
+        <View style={styles.statusBlock}>
+          <AppText style={[styles.statusLabel, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+            Event Status
+          </AppText>
+          <AppText
+            numberOfLines={1}
+            style={[styles.statusValue, { color: eventStatus.color, fontFamily: Fonts?.sans }]}
+          >
+            {eventStatus.label}
+          </AppText>
+        </View>
+
+
         {isHost ? (
           <>
             {activity.ride_sharing && !isPast && (
@@ -1867,38 +1538,6 @@ export default function ActivityDetailScreen() {
               )
             )}
 
-            {activity.ride_sharing && hasRsvp && !isPast && (
-              <TouchableOpacity
-                onPress={() =>
-                  setRideOptionsVisible(true)
-                }
-                style={[
-                  styles.rideOptionsButton,
-                  {
-                    borderColor: colors.outline,
-                  },
-                ]}
-              >
-                <IconSymbol
-                  name="car.fill"
-                  size={18}
-                  color={colors.text}
-                />
-
-                <AppText
-                  style={[
-                    styles.rideOptionsText,
-                    {
-                      color: colors.text,
-                      fontFamily: Fonts?.sans,
-                    },
-                  ]}
-                >
-                  Ride Options
-                </AppText>
-              </TouchableOpacity>
-            )}
-
             {hasRsvp && isPast && (
               <TouchableOpacity
                 onPress={() =>
@@ -2005,7 +1644,7 @@ const styles = StyleSheet.create({
 
   hero: {
     width: "100%",
-    height: 260,
+    height: 280,
   },
 
   heroOverlay: {
@@ -2044,8 +1683,26 @@ const styles = StyleSheet.create({
   },
 
   body: {
-    padding: 20,
-    gap: 20,
+    padding: 16,
+    gap: 16,
+    // Pull details card up so it overlaps the photo
+    marginTop: -40,
+  },
+
+  statusBlock: {
+    flex: 1, 
+    gap: 2,
+  },
+
+  statusLabel: {
+    fontSize: 12, 
+    lineHeight: 16,
+  },
+
+  statusValue: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "700",
   },
 
   title: {

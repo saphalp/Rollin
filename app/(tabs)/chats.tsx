@@ -1,6 +1,8 @@
 import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import {
+  Alert,
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   StyleSheet,
   useColorScheme,
@@ -11,6 +13,7 @@ import ChatCards from "@/components/chats/ChatCards";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text } from "react-native-paper";
@@ -18,13 +21,28 @@ import { Text } from "react-native-paper";
 export default function ChatsScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-  const { conversations, loading, refresh, formatTime } = useConversations();
+  const { activeConversations, archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
   const [refreshing, setRefreshing] = useState(false);
 
   async function onRefresh() {
     setRefreshing(true);
     await refresh();
     setRefreshing(false);
+  }
+
+  function confirmDelete(conversationId: string) {
+    Alert.alert(
+      "Delete conversation",
+      "This will delete the conversation for you only.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void deleteConversation(conversationId),
+        },
+      ],
+    );
   }
 
   return (
@@ -36,28 +54,34 @@ export default function ChatsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <TourTarget id="chat-heading"><View style={styles.titleRow}>
-          <Text
-            style={[
-              styles.title,
-              { color: colors.text, fontFamily: Fonts.sans },
-            ]}
-          >
+          <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}>
             Messages
           </Text>
+          {archivedConversations.length > 0 && (
+            <Pressable
+              onPress={() => router.push("/archived-chats")}
+              style={styles.archivedButton}
+              accessibilityRole="button"
+              accessibilityLabel="View archived chats"
+            >
+              <Ionicons name="archive-outline" size={14} color={colors.tint} />
+              <Text style={[styles.archivedButtonLabel, { color: colors.tint, fontFamily: Fonts.sans }]}>
+                Archived
+              </Text>
+            </Pressable>
+          )}
         </View></TourTarget>
 
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : conversations.length === 0 ? (
-          <Text
-            style={[styles.empty, { color: colors.icon, fontFamily: Fonts.sans }]}
-          >
+        ) : activeConversations.length === 0 ? (
+          <Text style={[styles.empty, { color: colors.icon, fontFamily: Fonts.sans }]}>
             No conversations yet. Follow someone to message them, or join an
             activity to join its group chat.
           </Text>
         ) : (
           <View style={styles.list}>
-            {conversations.map((conversation, index) => (
+            {activeConversations.map((conversation, index) => (
               <View key={conversation.id}>
                 <ChatCards
                   user={conversation.title}
@@ -80,14 +104,10 @@ export default function ChatsScreen() {
                       },
                     })
                   }
+                  onLongPress={() => confirmDelete(conversation.id)}
                 />
-                {index < conversations.length - 1 && (
-                  <View
-                    style={[
-                      styles.divider,
-                      { backgroundColor: colors.outlineVariant },
-                    ]}
-                  />
+                {index < activeConversations.length - 1 && (
+                  <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
                 )}
               </View>
             ))}
@@ -131,5 +151,14 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 66,
+  },
+  archivedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  archivedButtonLabel: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

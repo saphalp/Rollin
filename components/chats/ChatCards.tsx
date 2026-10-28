@@ -15,6 +15,7 @@ interface ChatCardProps {
   is_read: boolean;
   time: string;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export default function ChatCards({
@@ -24,6 +25,7 @@ export default function ChatCards({
   is_read,
   time,
   onPress,
+  onLongPress,
 }: ChatCardProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -33,6 +35,7 @@ export default function ChatCards({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       android_ripple={{ color: colors.outlineVariant }}
       style={({ pressed }) => [
         styles.card,

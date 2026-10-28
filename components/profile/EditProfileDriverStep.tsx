@@ -13,8 +13,9 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getDriverProfile, upsertDriverProfile } from '@/lib/profile/driver-profile';
 import { startLicenseVerification } from '@/lib/profile/driver-verification';
-import { supabase } from '@/lib/supabase';
 import { isDriverFieldsEmpty, validateDriverFields } from '@/lib/profile/validate-driver-fields';
+import { supabase } from '@/lib/supabase';
+import { getCurrentUniversity } from '@/lib/university';
 
 type Props = {
   userId: string;
@@ -118,11 +119,43 @@ export default function EditProfileDriverStep({ userId, basicInfo, onSaved }: Pr
 
     setSaving(true);
     try {
+      // Never trust the university passed through navigation parameters.
+      // A recognized, verified campus email takes precedence over user input.
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user || auth.user.id !== userId) {
+        throw new Error('Your session has changed. Please sign in again.');
+      }
+      if (!basicInfo.fullName.trim() || !basicInfo.major.trim()) {
+        throw new Error('Name and major are required.');
+      }
+
+      const assignedUniversity = await getCurrentUniversity();
+      let selectedUniversity: string;
+      if (assignedUniversity) {
+        selectedUniversity = assignedUniversity.name;
+      } else {
+        // Personal-email users can skip university or choose a real directory entry.
+        const requestedName = basicInfo.university.trim();
+        if (!requestedName) {
+          selectedUniversity = ''; // Empty string represents skipped university in existing profile schema.
+        } else {
+          const { data: option, error: universityError } = await supabase
+            .from('university_directory')
+            .select('name')
+            .eq('name', requestedName)
+            .maybeSingle();
+          if (universityError) throw universityError;
+          if (!option) throw new Error('Please select a university from the list.');
+          selectedUniversity = option.name;
+        }
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: basicInfo.fullName.trim(),
-          university: basicInfo.university.trim(),
+          university: selectedUniversity,
           major: basicInfo.major.trim(),
         })
         .eq('id', userId);

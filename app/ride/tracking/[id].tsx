@@ -29,6 +29,7 @@ import { canAccessRideTracking } from '@/services/ride-requests-service';
 import { fetchRideById } from '@/services/rides-service';
 import { fetchRoadRoute, RoadRoute } from '@/services/ride-routing-service';
 import { Coordinates, RideOffer } from '@/types/rides';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function RideTrackingScreen() {
     const params = useLocalSearchParams<{ id?: string }>();
@@ -205,26 +206,7 @@ export default function RideTrackingScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity
-                    onPress={() =>
-                        router.canGoBack()
-                            ? router.back()
-                            : router.replace('/(tabs)/rides')
-                    }
-                    style={[
-                        styles.backButton,
-                        {
-                            backgroundColor: colors.surfaceContainer,
-                            borderColor: colors.outlineVariant,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="arrow-left"
-                        size={24}
-                        color={colors.text}
-                    />
-                </TouchableOpacity>
+                <BackButton fallbackHref="/(tabs)/rides" />
 
                 <View style={styles.headerText}>
                     <AppText

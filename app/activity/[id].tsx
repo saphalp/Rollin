@@ -1,6 +1,7 @@
 import { ActivityInfoCard } from "@/components/activity/activity-info-card";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { openReport } from "@/components/report/overflow-menu";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
@@ -25,6 +26,7 @@ import {
 } from "react-native";
 import { Menu } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from '@/components/ui/back-button';
 
 const CATEGORY_IMAGES: Record<string, string> = {
   social: "https://picsum.photos/seed/social/900/500",
@@ -203,6 +205,7 @@ export default function ActivityDetailScreen() {
     if (id) {
       void load();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Each attendee gets one host review per activity, so the menu item turns off once it's posted.
@@ -841,24 +844,7 @@ export default function ActivityDetailScreen() {
               },
             ]}
           >
-            <TouchableOpacity
-              onPress={() =>
-                router.back()
-              }
-              style={[
-                styles.backButton,
-                {
-                  backgroundColor:
-                    colors.background,
-                },
-              ]}
-            >
-              <IconSymbol
-                name="chevron.left"
-                size={20}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <BackButton variant="floating" />
 
             <View style={styles.heroRightGroup}>
               
@@ -882,8 +868,7 @@ export default function ActivityDetailScreen() {
                 />
               </TouchableOpacity>
 
-              {(isHost || canReviewHost) && (
-                <Menu
+              <Menu
                   visible={menuVisible}
                   onDismiss={() =>
                     setMenuVisible(false)
@@ -1000,32 +985,52 @@ export default function ActivityDetailScreen() {
                       />
                     </>
                   ) : (
-                    <Menu.Item
-                      leadingIcon={
-                        hostReviewed
-                          ? "check-circle-outline"
-                          : "star-outline"
-                      }
-                      title={
-                        hostReviewed
-                          ? "Host Reviewed"
-                          : "Review Host"
-                      }
-                      disabled={hostReviewed}
-                      onPress={() => {
-                        setMenuVisible(false);
-                        setReviewSheetVisible(true);
-                      }}
-                      titleStyle={{
-                        color: hostReviewed
-                          ? colors.outline
-                          : colors.text,
-                        fontFamily: Fonts?.sans,
-                      }}
-                    />
+                    <>
+                      {canReviewHost && (
+                        <Menu.Item
+                          leadingIcon={
+                            hostReviewed
+                              ? "check-circle-outline"
+                              : "star-outline"
+                          }
+                          title={
+                            hostReviewed
+                              ? "Host Reviewed"
+                              : "Review Host"
+                          }
+                          disabled={hostReviewed}
+                          onPress={() => {
+                            setMenuVisible(false);
+                            setReviewSheetVisible(true);
+                          }}
+                          titleStyle={{
+                            color: hostReviewed
+                              ? colors.outline
+                              : colors.text,
+                            fontFamily: Fonts?.sans,
+                          }}
+                        />
+                      )}
+
+                      <Menu.Item
+                        leadingIcon="flag-outline"
+                        title="Report Activity"
+                        onPress={() => {
+                          setMenuVisible(false);
+                          openReport(
+                            "activity",
+                            activity.id,
+                            activity.title,
+                          );
+                        }}
+                        titleStyle={{
+                          color: colors.error,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
+                    </>
                   )}
                 </Menu>
-              )}
             </View>
           </View>
         </View>

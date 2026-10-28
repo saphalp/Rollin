@@ -2,7 +2,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SFSymbol, SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
-import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
+import { type ColorValue, type OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 type IconMapping = Record<SFSymbol, ComponentProps<typeof MaterialIcons>['name']>;
 export type IconSymbolName = keyof typeof MAPPING;
@@ -53,6 +53,11 @@ const MAPPING = {
   'star': 'star-border',
   'star.fill': 'star',
   'star.leadinghalf.filled': 'star-half',
+  // Reports
+  'circle': 'radio-button-unchecked',
+  'record.circle': 'radio-button-checked',
+  'checkmark.circle.fill': 'check-circle',
+  'checkmark.seal.fill': 'verified',
 } as IconMapping;
 
 
@@ -64,9 +69,14 @@ export function IconSymbol({
 }: {
   name: IconSymbolName;
   size?: number;
-  color: string | OpaqueColorValue;
+  color?: ColorValue;
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const iconColor =
+    typeof color === 'string' || (typeof color === 'object' && color !== null)
+      ? (color as string | OpaqueColorValue)
+      : undefined;
+
+  return <MaterialIcons color={iconColor} size={size} name={MAPPING[name]} style={[{ color }, style]} />;
 }

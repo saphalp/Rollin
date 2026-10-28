@@ -12,6 +12,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '@/components/ui/back-button';
 export default function CampusEventDetailScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -45,7 +46,7 @@ export default function CampusEventDetailScreen() {
   const canExpandAbout = about.length > 160;
   return <View style={[styles.screen, { backgroundColor: colors.background }]}>
     <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />} contentContainerStyle={{ paddingBottom: 20 }}>
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 12 }}><Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/campus-events')} style={styles.backButton}><Ionicons name="chevron-back" size={26} color={colors.tint} /></Pressable></View>
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 12 }}><BackButton fallbackHref="/campus-events" /></View>
       {loading && !event ? <ActivityIndicator /> : null}
       {!!error && <View style={styles.content}><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText><Pressable onPress={() => void load()}><AppText>Retry</AppText></Pressable></View>}
       {event && <>

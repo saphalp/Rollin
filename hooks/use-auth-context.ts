@@ -7,6 +7,7 @@ export type Profile = {
   university: string | null;
   major: string | null;
   profile_picture: string | null;
+  cover_picture: string | null;
   is_educational_email: boolean | null;
   educational_domain_checked_at: string | null;
   profile_completed: boolean;

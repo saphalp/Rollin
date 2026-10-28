@@ -27,6 +27,7 @@ import InterestPickerSheet from "@/components/profile/InterestPickerSheet";
 import MyActivities from "@/components/profile/MyActivities";
 import ProfileActionBar from "@/components/profile/ProfileActionBar";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
+import ProfileCover from "@/components/profile/ProfileCover";
 import ProfileInfo from "@/components/profile/ProfileInfo";
 import ProfileStats from "@/components/profile/ProfileStats";
 import SectionHeader from "@/components/profile/SectionHeader";
@@ -314,7 +315,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
 
   const name = profile.full_name || "Complete your profile";
   const avatarUri = resolveAvatarUri(profile.profile_picture);
-  const verified = !!profile.is_educational_email;
+  const isEduVerified = !!profile.is_educational_email;
   const isVerifiedDriver = !!profile.is_verified_driver;
   const university = profile.university || "";
   const major = profile.major || "";
@@ -326,16 +327,28 @@ function UserProfileContent({ userId }: UserProfileProps) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {isOwnProfile ? (
-          <ProfileAvatar verified={verified} editable />
-        ) : (
-          <AvatarCard avatarImg={{ uri: avatarUri }} verified={verified} />
-        )}
+        <View style={styles.header}>
+          <ProfileCover
+            coverPicture={profile.cover_picture}
+            editable={isOwnProfile}
+          />
+          <View style={styles.avatarOverlap}>
+            {isOwnProfile ? (
+              <ProfileAvatar editable />
+            ) : (
+              <AvatarCard
+                avatarImg={{ uri: avatarUri }}
+                viewable={!!profile.profile_picture}
+              />
+            )}
+          </View>
+        </View>
 
         <ProfileInfo
           name={name}
           university={university}
           major={major}
+          isEduVerified={isEduVerified}
           isVerifiedDriver={isVerifiedDriver}
         />
 
@@ -420,8 +433,8 @@ function UserProfileContent({ userId }: UserProfileProps) {
               >
                 {isOwnProfile
                   ? activityView === "created"
-                    ? "You haven't created an activity yet."
-                    : "You haven't joined an activity yet."
+                    ? "You haven't hosted an activity yet."
+                    : "You haven't attended an activity yet."
                   : "No activities yet."}
               </Text>
             ) : (
@@ -460,6 +473,16 @@ function UserProfileContent({ userId }: UserProfileProps) {
 }
 
 const styles = StyleSheet.create({
+  // Pulls the avatar up so the cover overlaps the top 2/3 of it
+  // (AvatarCard ring is 136px tall plus 8px top padding: 8 + 136 * 2/3 ≈ 99).
+  avatarOverlap: {
+    marginTop: -99,
+  },
+  // Tightens the space before the name: the content's 25px gap plus the
+  // avatar's 8px bottom padding read as too loose under the cover.
+  header: {
+    marginBottom: -15,
+  },
   content: {
     paddingHorizontal: 16,
     paddingBottom: 32,

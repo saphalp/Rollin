@@ -45,7 +45,7 @@ The current tables used within Rollin include:
 
 Rollin currently uses Supabase Storage for uploaded images.
 
-The `avatars` bucket stores profile pictures. Profile records store the uploaded object path, and helper functions convert that path into a public URL.
+The `avatars` bucket stores profile pictures and profile cover pictures (`profiles.profile_picture` / `profiles.cover_picture`). Profile records store the uploaded object path, and helper functions convert that path into a public URL.
 
 The `activity-images` bucket stores activity images. The resulting image URL is stored with the activity record.
 

@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 const PAGE_SIZE = 10;
 
@@ -228,9 +229,7 @@ export default function CampusEventsScreen() {
 
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={26} color={colors.tint} />
-      </Pressable>
+      <BackButton />
       <View style={styles.headerTitle}>
         <AppText style={[styles.title, { color: colors.text }]}>Campus Events</AppText>
         <AppText style={[styles.subtitle, { color: colors.outline }]}>{university?.short_name ?? 'LA Tech'} · Calendar</AppText>
@@ -271,7 +270,7 @@ export default function CampusEventsScreen() {
       ListEmptyComponent={(tab !== 'archived' ? loading : savedLoading)
         ? <ActivityIndicator style={styles.empty} color={colors.tint} />
         : <View style={styles.empty}><Ionicons name={tab === 'archived' ? 'bookmark-outline' : 'calendar-outline'} size={30} color={colors.outline} /><AppText style={{ color: colors.outline }}>{tab === 'archived' ? 'No archived events yet. Bookmark an event to keep it here.' : 'No campus events found.'}</AppText></View>}
-      ListFooterComponent={(tab !== 'archived' ? hasMore : savedMore) ? <Pressable accessibilityRole="button" disabled={tab !== 'archived' ? (loadingMore || loading) : savedLoading} onPress={() => { if (tab !== 'archived') loadMore(); else void loadSaved(false); }} style={[styles.loadMore, { borderColor: colors.tint }]}>{(tab !== 'archived' ? loadingMore : savedLoading) ? <ActivityIndicator color={colors.tint} /> : <AppText style={{ color: colors.tint, fontWeight: '700' }}>Load 10 more  ↓</AppText>}</Pressable> : null}
+      ListFooterComponent={(tab !== 'archived' ? hasMore : savedMore) ? <Pressable accessibilityRole="button" disabled={tab !== 'archived' ? (loadingMore || loading) : savedLoading} onPress={() => { if (tab !== 'archived') loadMore(); else void loadSaved(false); }} style={[styles.loadMore, { borderColor: colors.tint }]}>{(tab !== 'archived' ? loadingMore : savedLoading) ? <ActivityIndicator color={colors.tint} /> : <AppText style={{ color: colors.tint, fontWeight: '700' }}>Load 10 more  ↓</AppText>}</Pressable> : undefined}
       renderItem={({ item }) => {
         const bookmarked = savedIds.has(item.id);
         return <Pressable accessibilityRole="button" onPress={() => router.push(`/campus-event/${item.id}`)} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
@@ -309,7 +308,7 @@ export default function CampusEventsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 15, flexDirection: 'row', alignItems: 'center' },
-  backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: { flex: 1, gap: 4, alignItems: 'center' },
   title: { fontSize: 23, fontWeight: '800', textAlign: 'center' },
   subtitle: { fontSize: 12 },

@@ -26,6 +26,7 @@ import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 const CATEGORIES = ['Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming', 'Grocery'];
 
@@ -419,9 +420,7 @@ export default function EditActivityScreen() {
             <View style={styles.heroDim} />
             {/* top bar: back + title */}
             <View style={[styles.heroTop, { paddingTop: insets.top + 8 }]}>
-              <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.background }]}>
-                <IconSymbol name="chevron.left" size={20} color={colors.text} />
-              </TouchableOpacity>
+              <BackButton variant="floating" />
               <AppText style={[styles.heroTitle, { color: '#fff', fontFamily: Fonts?.sans }]}>Edit Activity</AppText>
               <View style={styles.backButton} />
             </View>
@@ -640,14 +639,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.92,
-  },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   cameraBadge: {
     flexDirection: 'row',
     alignItems: 'center',

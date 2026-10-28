@@ -26,6 +26,7 @@ import { useRideWantedRequests } from '@/hooks/use-ride-wanted-requests';
 import { openRideDetails } from '@/navigation/ride-navigation';
 import { cancelWantedRequest } from '@/services/ride-wanted-requests-service';
 import { RideFilter } from '@/types/rides';
+import { BackButton } from '@/components/ui/back-button';
 
 export default function AvailableRidesScreen() {
     const params = useLocalSearchParams<{
@@ -156,22 +157,7 @@ export default function AvailableRidesScreen() {
                     },
                 ]}
             >
-                <TouchableOpacity
-                    onPress={goBack}
-                    style={[
-                        styles.backButton,
-                        {
-                            backgroundColor: colors.surfaceContainer,
-                            borderColor: colors.outlineVariant,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="arrow-left"
-                        size={24}
-                        color={colors.text}
-                    />
-                </TouchableOpacity>
+                <BackButton onPress={goBack} />
 
                 <View style={styles.headerText}>
                     <AppText

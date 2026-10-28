@@ -1,16 +1,20 @@
 import UserProfile from "@/components/profile/UserProfile";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { OverflowMenu } from "@/components/report/overflow-menu";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
-import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { useLocalSearchParams } from "expo-router";
+import { StyleSheet, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from '@/components/ui/back-button';
 
 export default function SharedProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const insets = useSafeAreaInsets();
     const theme = useColorScheme() ?? "light";
     const colors = Colors[theme];
+    const { profile } = useAuthContext();
+    const canReport = !!id && profile?.id !== id;
 
     return (
         <AppView style={styles.container}>
@@ -23,16 +27,14 @@ export default function SharedProfileScreen() {
                     },
                 ]}
             >
-                <Pressable
-                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
-                    hitSlop={12}
-                    style={({ pressed }) => [
-                        styles.backButton,
-                        { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                >
-                    <IconSymbol name="chevron.left" size={26} color={colors.text} />
-                </Pressable>
+                <BackButton />
+                {canReport && (
+                    <OverflowMenu
+                        iconSize={24}
+                        anchorStyle={styles.backButton}
+                        report={{ type: "user", id }}
+                    />
+                )}
             </View>
             <UserProfile userId={id ?? ""} />
         </AppView>
@@ -46,6 +48,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
         paddingHorizontal: 12,
         paddingBottom: 8,
     },

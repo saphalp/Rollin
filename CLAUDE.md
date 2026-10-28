@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-Rollin is an Expo React Native app (SDK 57, Expo Router, TypeScript, React Native Paper) backed by Supabase (auth, Postgres, storage, realtime, edge functions). It helps college students discover activities, connect with other students at their university, and coordinate rides. Full developer docs live in `docs/` (published to https://rollin.readthedocs.io) — read the relevant page there before a non-trivial change to a feature area; this file only covers what an agent needs to get oriented and avoid repeating past mistakes.
+Rollin is an Expo React Native app (SDK 58, Expo Router, TypeScript, React Native Paper) backed by Supabase (auth, Postgres, storage, realtime, edge functions). It helps college students discover activities, connect with other students at their university, and coordinate rides. Full developer docs live in `docs/` (published to https://rollin.readthedocs.io) — read the relevant page there before a non-trivial change to a feature area; this file only covers what an agent needs to get oriented and avoid repeating past mistakes.
 
 ## Commands
 
 ```bash
-npm install                 # also applies the expo-router patch via postinstall (patches/)
+npm install                 # postinstall runs patch-package; patches/ is currently empty
 npx expo start               # start the dev server (android/ios/web options in the Expo terminal)
 npm run android               # expo run:android
 npm run ios                   # expo run:ios
@@ -24,7 +24,7 @@ There is no `npm test`. Tests are standalone Node scripts under `scripts/test-*.
 node --test scripts/test-ride-navigation.cjs
 ```
 
-`scripts/test-ride-database.cjs` additionally needs an installed `@electric-sql/pglite` (not a committed dependency) and is invoked as `PGLITE_MODULE=<path-to-pglite> node --test scripts/test-ride-database.cjs`. `scripts/test-router-initial-link.cjs` verifies the `patches/expo-router+57.0.22.patch` workaround still holds — rerun it (and check Android still opens normally) after touching Expo Router or upgrading it, since the patch is pinned to exactly 57.0.22.
+`scripts/test-ride-database.cjs` additionally needs an installed `@electric-sql/pglite` (not a committed dependency) and is invoked as `PGLITE_MODULE=<path-to-pglite> node --test scripts/test-ride-database.cjs`. Any file in `patches/` is pinned to an exact package version and makes `npm install` fail (`postinstall` runs `patch-package --error-on-fail`) once that package is upgraded — update or remove patches in the same change as the upgrade.
 
 Supabase Edge Functions (`supabase/functions/`) are excluded from `tsc`/the lint config — they're Deno, not Node. There's no CI that applies migrations or deploys functions; both are done manually against the Supabase project (SQL editor or `supabase db push` for `supabase/migrations/*.sql`; `supabase functions deploy <name>` for edge functions, with secrets set via `supabase secrets set` or the dashboard — never via `.env`).
 

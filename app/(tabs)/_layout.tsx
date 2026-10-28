@@ -137,7 +137,11 @@ function MainTabs() {
         <Tabs.Screen
           name="notifications"
           options={{
-            href: null,
+            // Reached from the header bell, so it has no tab-bar item. Don't use `href: null`:
+            // since SDK 58 that marks the tab hidden, and Expo Router redirects a focused hidden
+            // tab back to the initial tab (Home). An empty button keeps it a normal tab.
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: "none" },
             sceneStyle: [
               styles.scenePaddingNoHorizontal,
               { backgroundColor: Colors[colorScheme].background },

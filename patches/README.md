@@ -1,9 +1,13 @@
-# Expo Router Startup Fix
+# Patches
 
-After upgrading to SDK 57, Android showed a React warning about updating a component before it mounted. Expo Router was handling the initial link before its navigation container was ready.
+`npm install` and `npm ci` run `patch-package --error-on-fail` as a `postinstall` step, applying any `<package>+<version>.patch` file in this folder to `node_modules`.
 
-`expo-router+57.0.22.patch` makes that callback wait until the container mounts. It also checks whether the navigator has already handled the link.
+There are currently no patches.
 
-`npm install` and `npm ci` apply the patch automatically through the `postinstall` script. Expo Router is pinned to 57.0.22 because the patch was written for that version. When updating Expo Router, check whether the fix is still needed and update or remove the patch. Installation will fail if the patch cannot be applied.
+## History
 
-Run `node --test scripts/test-router-initial-link.cjs` to check the callback behavior. Also check that the app opens normally on Android after an upgrade.
+- `expo-router+57.0.22.patch` (removed with the Expo SDK 58 upgrade). On SDK 57, Android logged a React warning about updating a component before it mounted, because Expo Router handled the initial link before its navigation container was ready. The patch deferred that update until mount. Expo Router 58 rewrote this: the initial navigation state is resolved through Suspense before the container mounts, and the unhandled-link state the patch guarded no longer exists, so the patch no longer applies and isn't needed.
+
+## Adding a patch
+
+A patch only applies to the exact version in its filename. When you upgrade a patched package, update or remove the patch in the same change, or every `npm install` will fail at `postinstall`.

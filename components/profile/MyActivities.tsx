@@ -15,7 +15,6 @@ interface MyActivitiesProps {
   date: string;
   time: string;
   image: ImageSourcePropType;
-  cancelled?: boolean;
   onPress?: () => void;
 }
 
@@ -24,7 +23,6 @@ export default function MyActivities({
   date,
   time,
   image,
-  cancelled,
   onPress,
 }: MyActivitiesProps) {
   const theme = useColorScheme() ?? "light";
@@ -61,15 +59,6 @@ export default function MyActivities({
         >
           {title}
         </Text>
-
-        {/* Red label when the event was cancelled */}
-        {cancelled && (
-          <View style={[styles.cancelledPill, { backgroundColor: colors.errorContainer }]}>
-            <Text style={[styles.cancelledText, { color: colors.error, fontFamily: Fonts.sans }]}>
-              Cancelled
-            </Text>
-          </View>
-        )}
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
@@ -112,17 +101,6 @@ export default function MyActivities({
 const IMAGE_SIZE = 84;
 
 const styles = StyleSheet.create({
-    cancelledPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  cancelledText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  
   card: {
     flexDirection: "row",
     alignItems: "center",

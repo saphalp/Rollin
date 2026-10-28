@@ -13,6 +13,7 @@ export type ConversationSummary = {
   lastMessageAt: string | null;
   otherUserId?: string;
   activityId?: string;
+  isArchived: boolean;
 };
 
 const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
@@ -42,12 +43,14 @@ export function useConversations() {
   const { claims } = useAuthContext();
   const currentUserId = claims?.sub as string | undefined;
 
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [activeConversations, setActiveConversations] = useState<ConversationSummary[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchConversations = useCallback(async () => {
     if (!currentUserId) {
-      setConversations([]);
+      setActiveConversations([]);
+      setArchivedConversations([]);
       setLoading(false);
       return;
     }
@@ -60,22 +63,45 @@ export function useConversations() {
       .eq("user_id", currentUserId);
 
     if (participantError || !participantRows || participantRows.length === 0) {
-      setConversations([]);
+      setActiveConversations([]);
+      setArchivedConversations([]);
       setLoading(false);
       return;
     }
 
     const conversationIds = participantRows.map((r: any) => r.conversation_id);
 
-    const { data: conversationRows } = await supabase
-      .from("conversations")
-      .select("id, type, activity_id, created_at")
-      .in("id", conversationIds);
+    const [conversationRowsResult, deletedRowsResult] = await Promise.all([
+      supabase
+        .from("conversations")
+        .select("id, type, activity_id, created_at, is_archived")
+        .in("id", conversationIds),
+      supabase
+        .from("deleted_conversations")
+        .select("conversation_id")
+        .eq("user_id", currentUserId),
+    ]);
 
-    const directIds = (conversationRows ?? [])
+    const deletedIds = new Set(
+      (deletedRowsResult.data ?? []).map((r: any) => r.conversation_id),
+    );
+
+    const conversationRows = (conversationRowsResult.data ?? []).filter(
+      (c: any) => !deletedIds.has(c.id),
+    );
+
+    if (conversationRows.length === 0) {
+      setActiveConversations([]);
+      setArchivedConversations([]);
+      setLoading(false);
+      return;
+    }
+
+    const remainingIds = conversationRows.map((c: any) => c.id);
+    const directIds = conversationRows
       .filter((c: any) => c.type === "direct")
       .map((c: any) => c.id);
-    const groupConversations = (conversationRows ?? []).filter((c: any) => c.type === "group");
+    const groupConversations = conversationRows.filter((c: any) => c.type === "group");
     const activityIds = groupConversations.map((c: any) => c.activity_id).filter(Boolean);
 
     const [otherParticipantRowsResult, activitiesResult, messagesResult] = await Promise.all([
@@ -95,7 +121,7 @@ export function useConversations() {
       supabase
         .from("messages")
         .select("conversation_id, content, created_at")
-        .in("conversation_id", conversationIds)
+        .in("conversation_id", remainingIds)
         .order("created_at", { ascending: false }),
     ]);
 
@@ -127,7 +153,7 @@ export function useConversations() {
       }
     }
 
-    const summaries: ConversationSummary[] = (conversationRows ?? []).map((c: any) => {
+    const summaries: ConversationSummary[] = conversationRows.map((c: any) => {
       const lastMessage = lastMessageByConversation[c.id];
 
       if (c.type === "direct") {
@@ -140,6 +166,7 @@ export function useConversations() {
           lastMessage: lastMessage?.content ?? "Say hello!",
           lastMessageAt: lastMessage?.created_at ?? c.created_at,
           otherUserId: other?.id,
+          isArchived: false,
         };
       }
 
@@ -155,6 +182,7 @@ export function useConversations() {
         lastMessage: lastMessage?.content ?? "Say hello to the group!",
         lastMessageAt: lastMessage?.created_at ?? c.created_at,
         activityId: c.activity_id,
+        isArchived: !!c.is_archived,
       };
     });
 
@@ -164,13 +192,32 @@ export function useConversations() {
       return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
     });
 
-    setConversations(summaries);
+    setActiveConversations(summaries.filter((s) => !s.isArchived));
+    setArchivedConversations(summaries.filter((s) => s.isArchived));
     setLoading(false);
+  }, [currentUserId]);
+
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    if (!currentUserId) return;
+    await supabase.from("deleted_conversations").insert({
+      user_id: currentUserId,
+      conversation_id: conversationId,
+    });
+    setActiveConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    setArchivedConversations((prev) => prev.filter((c) => c.id !== conversationId));
   }, [currentUserId]);
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
-  return { conversations, loading, refresh: fetchConversations, formatTime };
+  return {
+    conversations: activeConversations,
+    activeConversations,
+    archivedConversations,
+    loading,
+    refresh: fetchConversations,
+    formatTime,
+    deleteConversation,
+  };
 }

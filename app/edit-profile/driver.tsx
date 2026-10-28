@@ -13,7 +13,7 @@ export default function EditProfileDriverScreen() {
   }>();
 
   // Opened without step 1's values (e.g. a reload on this page): restart the flow.
-  if (!profile || !fullName || !university || !major) {
+  if (!profile || !fullName || university === undefined || !major) {
     return <Redirect href="/edit-profile" />;
   }
 

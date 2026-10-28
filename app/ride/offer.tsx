@@ -116,6 +116,7 @@ export default function OfferRideScreen() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId, activityAttempt]);
 
   function goBack() {

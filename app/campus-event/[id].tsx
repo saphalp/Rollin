@@ -39,6 +39,7 @@ export default function CampusEventDetailScreen() {
   useEffect(() => {
     let active = true;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { ++generation.current; setEvent(null); setHosted(undefined); setTimeout(() => { if (active) void load(); }, 0); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { active = false; ++generation.current; subscription.unsubscribe(); };
   }, [load]);
   const canHost = !!event && campusUpcoming(event, now);

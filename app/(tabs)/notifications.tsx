@@ -213,6 +213,7 @@ export default function NotificationsScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadAndMarkRead().finally(() => setRefreshing(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
 
   // Opening the tab marks everything read. Unread rows keep their blue dot for this visit
@@ -228,6 +229,7 @@ export default function NotificationsScreen() {
           prev.some((n) => !n.isRead) ? prev.map((n) => ({ ...n, isRead: true })) : prev
         );
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUserId])
   );
 

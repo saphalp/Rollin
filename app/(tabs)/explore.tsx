@@ -128,11 +128,13 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     void loadInitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     void loadInitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadMore() {

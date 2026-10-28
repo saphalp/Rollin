@@ -117,6 +117,7 @@ export default function EditActivityScreen() {
 
   useEffect(() => {
     if (id) loadActivity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function pickImage() {

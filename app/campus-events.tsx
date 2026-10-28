@@ -100,6 +100,7 @@ export default function CampusEventsScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => { void reload(past, search.trim()); }, search ? 300 : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { clearTimeout(timer); ++generation.current; };
   }, [past, search, reload]);
 
@@ -109,6 +110,7 @@ export default function CampusEventsScreen() {
       setUniversity(null);
       void reload(filtersRef.current.past, filtersRef.current.search.trim());
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { ++generation.current; subscription.unsubscribe(); };
   }, [reload]);
 
@@ -144,7 +146,7 @@ export default function CampusEventsScreen() {
         .range(offset, offset + PAGE_SIZE);
       if (queryError) throw queryError;
       if (request !== savedGeneration.current) return;
-      const records = (data ?? []) as unknown as Array<{ campus_event_id: string; campus_events: CampusEvent | CampusEvent[] }>;
+      const records = (data ?? []) as unknown as { campus_event_id: string; campus_events: CampusEvent | CampusEvent[] }[];
       const page = records.slice(0, PAGE_SIZE).flatMap(row => {
         const event = Array.isArray(row.campus_events) ? row.campus_events[0] : row.campus_events;
         return event ? [event] : [];
@@ -180,6 +182,7 @@ export default function CampusEventsScreen() {
       setSavedEvents([]); savedOffsetRef.current = 0; setSavedMore(false);
       void refresh();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { active = false; ++savedGeneration.current; subscription.unsubscribe(); };
   }, [refreshSavedIds]);
 

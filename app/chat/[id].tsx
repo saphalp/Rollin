@@ -112,8 +112,37 @@ export default function ChatConversationScreen() {
   }
 
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const isNearBottom = useRef(true);
+  const initialScrollPending = useRef(true);
   const sendingRef = useRef(false);
   const screenFocused = useRef(false);
+
+  // Reset scroll behavior only when opening a different conversation.
+  useEffect(() => {
+    initialScrollPending.current = true;
+    isNearBottom.current = true;
+  }, [id]);
+
+  function handleScroll(event: {
+    nativeEvent: {
+      contentOffset: { y: number };
+      contentSize: { height: number };
+      layoutMeasurement: { height: number };
+    };
+  }) {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    isNearBottom.current = distanceFromBottom <= 100;
+  }
+
+  function handleContentSizeChange() {
+    if (initialScrollPending.current) {
+      initialScrollPending.current = false;
+      scrollRef.current?.scrollToEnd({ animated: false });
+    } else if (isNearBottom.current) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }
 
   const markRead = useCallback(async () => {
     if (!id || !currentUserId || !screenFocused.current) return;
@@ -405,6 +434,10 @@ export default function ChatConversationScreen() {
 
       if (error) throw error;
 
+      // After sending, follow the new message even if we were reading history.
+      isNearBottom.current = true;
+      scrollRef.current?.scrollToEnd({ animated: true });
+
       // Only clear the draft after the database confirms the send.
       // Preserve anything the user typed while the request was pending.
       setInput((current) => current.trim() === trimmed ? "" : current);
@@ -453,7 +486,9 @@ export default function ChatConversationScreen() {
             style={{ backgroundColor: colors.background }}
             contentContainerStyle={styles.messages}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={handleContentSizeChange}
           >
             {messages.map((m) => {
               const senderName =

@@ -10,6 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform, ScrollView, StyleSheet,
   useColorScheme, type ScrollViewInstance
@@ -108,6 +109,7 @@ export default function ChatConversationScreen() {
   }
 
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const sendingRef = useRef(false);
 
   async function load() {
     setLoading(true);
@@ -327,28 +329,40 @@ export default function ChatConversationScreen() {
 
   async function send() {
     const trimmed = input.trim();
-    if (!trimmed || !currentUserId || !id) return;
+    if (sendingRef.current || !trimmed || !currentUserId || !id) return;
 
-    setInput("");
+    // Lock synchronously so rapid taps cannot start multiple inserts.
+    sendingRef.current = true;
+    try {
+      const { data: sent, error } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: id,
+          sender_id: currentUserId,
+          content: trimmed,
+        })
+        .select("id")
+        .single();
 
-    const { data: sent, error } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: id,
-        sender_id: currentUserId,
-        content: trimmed,
-      })
-      .select("id")
-      .single();
+      if (error) throw error;
 
-    if (error) {
+      // Only clear the draft after the database confirms the send.
+      // Preserve anything the user typed while the request was pending.
+      setInput((current) => current.trim() === trimmed ? "" : current);
+
+      // A notification failure must not make a successfully sent message
+      // appear to have failed (which could cause an accidental resend).
+      void supabase.functions.invoke("notify-message", {
+        body: { messageId: sent.id },
+      }).catch((notifyError) => {
+        console.warn("[chat] notification failed:", notifyError);
+      });
+    } catch (error) {
       console.error("[chat] send failed:", error);
-      return;
+      Alert.alert("Message not sent", "Your message is still here. Check your connection and try again.");
+    } finally {
+      sendingRef.current = false;
     }
-
-    void supabase.functions.invoke("notify-message", {
-      body: { messageId: sent.id },
-    });
   }
 
   return (

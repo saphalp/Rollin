@@ -1,5 +1,5 @@
-import { requireVerifiedLogin } from '../_shared/login-verification.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.110.2';
+import { requireVerifiedLogin } from '../_shared/login-verification.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -19,8 +19,10 @@ Deno.serve(async (req: Request) => {
 
     const client = createClient(
       Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authorization } },
-        auth: { persistSession: false, autoRefreshToken: false } },
+      {
+        global: { headers: { Authorization: authorization } },
+        auth: { persistSession: false, autoRefreshToken: false }
+      },
     );
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) return reply({ error: 'Sign in again.' }, 401);
@@ -28,7 +30,7 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => null);
     if (typeof body?.messageId !== 'string' ||
-        !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.messageId)) {
+      !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.messageId)) {
       return reply({ error: 'A valid message ID is required.' }, 400);
     }
 
@@ -40,7 +42,7 @@ Deno.serve(async (req: Request) => {
     // 1. Load the message and make sure the caller sent it.
     const { data: message } = await admin
       .from('messages')
-      .select('id, conversation_id, sender_id, content')
+      .select('id, conversation_id, sender_id, content, type')
       .eq('id', body.messageId)
       .single();
     if (!message || message.sender_id !== user.id) {
@@ -88,10 +90,20 @@ Deno.serve(async (req: Request) => {
       .in('profile_id', recipients);
 
     const pushTokens = [...new Set((tokens ?? []).map((t) => t.expo_push_token))];
+    // Shared activities/posts may have null message content.
+    const fallback = message.type === 'shared_activity' || message.type === 'activity'
+      ? 'Shared an activity'
+      : message.type === 'shared_post' || message.type === 'post'
+        ? 'Shared a post'
+        : 'Sent you a message';
+    const content = typeof message.content === 'string' && message.content.trim()
+      ? message.content
+      : fallback;
+    const preview = content.length > 120 ? content.slice(0, 117) + '...' : content;
     const messages = pushTokens.map((to) => ({
       to,
       title: sender?.full_name ?? 'New message',
-      body: message.content.length > 120 ? message.content.slice(0, 117) + '...' : message.content,
+      body: preview,
       sound: 'default',
       data: { type: 'chat_message', conversationId: message.conversation_id },
     }));

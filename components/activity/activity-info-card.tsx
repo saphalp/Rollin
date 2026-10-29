@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -52,6 +53,9 @@ export function ActivityInfoCard({
   const colors = Colors[useColorScheme() ?? 'light'];
   // Host's star rating from their reviews
   const { average, count } = useReviewSummary(hostId);
+    // About text starts collapsed to 3 lines
+  const [expanded, setExpanded] = useState(false);
+  const isLongDescription = (description?.length ?? 0) > 140;
 
   const initials = hostName
     .trim()
@@ -151,9 +155,21 @@ export function ActivityInfoCard({
           <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
             About the Event
           </AppText>
-          <AppText style={[styles.description, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                   <AppText
+            numberOfLines={expanded ? undefined : 3}
+            style={[styles.description, { color: colors.icon, fontFamily: Fonts?.sans }]}
+          >
             {description}
           </AppText>
+          
+          {/* Only show the toggle when there's more to read */}
+          {isLongDescription && (
+            <TouchableOpacity onPress={() => setExpanded((value) => !value)} hitSlop={8}>
+              <AppText style={[styles.link, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+                {expanded ? 'Show less' : 'Show more...'}
+              </AppText>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
     </View>

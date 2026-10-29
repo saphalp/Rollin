@@ -1,4 +1,5 @@
 import { AppText } from '@/components/text';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { campusDateLabel, type CampusEvent } from '@/lib/home-campus-events';
@@ -9,7 +10,6 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 const PAGE_SIZE = 10;
 
@@ -227,6 +227,16 @@ export default function CampusEventsScreen() {
 
   const activeItems = tab !== 'archived' ? events : savedEvents;
 
+  function openCalendarSubmission() {
+    // The server-derived university is the only trusted affiliation.
+    if (!university) {
+      Alert.alert('University verification required',
+        'Sign in with a verified university email to submit a campus calendar.');
+      return;
+    }
+    router.push('/add-campus-calendar');
+  }
+
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
     <View style={styles.header}>
       <BackButton />
@@ -234,7 +244,16 @@ export default function CampusEventsScreen() {
         <AppText style={[styles.title, { color: colors.text }]}>Campus Events</AppText>
         <AppText style={[styles.subtitle, { color: colors.outline }]}>{university?.short_name ?? 'LA Tech'} · Calendar</AppText>
       </View>
-      <View style={styles.backButton} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add campus calendar"
+        onPress={openCalendarSubmission}
+        hitSlop={8}
+        style={[styles.addCalendarIcon, { backgroundColor: colors.surfaceContainerHigh }]}
+      >
+        <Ionicons name="calendar-outline" size={23} color={colors.tint} />
+        <Ionicons name="add" size={13} color={colors.tint} style={styles.addCalendarPlus} />
+      </Pressable>
     </View>
 
     <FlatList
@@ -309,6 +328,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 15, flexDirection: 'row', alignItems: 'center' },
   backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
+  addCalendarIcon: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  addCalendarPlus: { position: 'absolute', right: 5, top: 5, fontWeight: 'bold' },
   headerTitle: { flex: 1, gap: 4, alignItems: 'center' },
   title: { fontSize: 23, fontWeight: '800', textAlign: 'center' },
   subtitle: { fontSize: 12 },

@@ -5,6 +5,7 @@ import SharedContentBubble from "@/components/chats/SharedContentBubble";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
+import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -80,6 +81,8 @@ export default function ChatConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [muted, setMuted] = useState(false);
+  const [headerName, setHeaderName] = useState<string | null>(null);
+  const [headerAvatar, setHeaderAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id || !currentUserId) return;
@@ -168,27 +171,29 @@ export default function ChatConversationScreen() {
       setOtherUserId(otherId);
     }
 
-    let names: Record<string, string> = {};
-    if (conversation.type === "group") {
-      const { data: participants } = await supabase
-        .from("conversation_participants")
-        .select("user_id")
-        .eq("conversation_id", id);
-
-      const participantUserIds = (participants ?? []).map((p: any) => p.user_id);
-
-      const { data: participantProfiles } = participantUserIds.length > 0
-        ? await supabase.from("profiles").select("id, full_name").in("id", participantUserIds)
-        : { data: [] as any[] };
-
-      const nameById: Record<string, string> = Object.fromEntries(
-        (participantProfiles ?? []).map((p: any) => [p.id, p.full_name ?? "Rollin' User"]),
+    // Resolve header details even when notification/deep-link route params are absent.
+    if (conversation.type === "direct" && otherId) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name, profile_picture")
+        .eq("id", otherId)
+        .maybeSingle();
+      if (profileError) console.warn("[chat] header profile lookup failed:", profileError.message);
+      setHeaderName(profile?.full_name?.trim() || "Rollin' User");
+      setHeaderAvatar(resolveAvatarUri(profile?.profile_picture));
+    } else if (conversation.type === "group" && conversation.activity_id) {
+      const { data: activity, error: activityError } = await supabase
+        .from("activities")
+        .select("title, image_url, category")
+        .eq("id", conversation.activity_id)
+        .maybeSingle();
+      if (activityError) console.warn("[chat] header activity lookup failed:", activityError.message);
+      setHeaderName(activity?.title?.trim() || "Activity chat");
+      setHeaderAvatar(
+        activity?.image_url ||
+        CATEGORY_IMAGES[activity?.category ?? ""] ||
+        CATEGORY_IMAGES.social,
       );
-
-      participantUserIds.forEach((userId: string) => {
-        names[userId] = nameById[userId] ?? "Rollin' User";
-      });
-      setParticipantNames(names);
     }
 
     const { data: messageRows } = await supabase
@@ -200,6 +205,40 @@ export default function ChatConversationScreen() {
       .order("created_at", { ascending: true });
 
     const rows = messageRows ?? [];
+
+    // Resolve historical senders from the messages themselves, not just from
+    // current participants. Users who leave a group may still have old messages.
+    let names: Record<string, string> = {};
+    if (conversation.type === "group") {
+      const senderIds = [...new Set(
+        rows.map((message) => message.sender_id).filter(Boolean),
+      )] as string[];
+
+      if (senderIds.length > 0) {
+        const { data: senderProfiles, error: senderError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", senderIds);
+
+        if (senderError) {
+          console.warn("[chat] sender names lookup failed:", senderError.message);
+        }
+
+        names = Object.fromEntries(
+          (senderProfiles ?? []).map((profile) => [
+            profile.id,
+            profile.full_name?.trim() || "Rollin' User",
+          ]),
+        );
+
+        // A missing/deleted profile should not make a message nameless.
+        senderIds.forEach((senderId) => {
+          if (!names[senderId]) names[senderId] = "Rollin' User";
+        });
+      }
+      setParticipantNames(names);
+    }
+
 
     const postIds = [
       ...new Set(
@@ -333,12 +372,13 @@ export default function ChatConversationScreen() {
         ...prev,
         {
           id: incoming.id,
+          senderId: incoming.sender_id,
           text: incoming.content ?? "",
           fromMe: incoming.sender_id === currentUserId,
           time: formatTime(incoming.created_at),
           senderName:
             incoming.sender_id !== currentUserId
-              ? participantNames[incoming.sender_id]
+              ? participantNames[incoming.sender_id] ?? "Rollin' User"
               : undefined,
           type: "text",
         },
@@ -387,8 +427,8 @@ export default function ChatConversationScreen() {
   return (
     <AppView style={styles.container}>
       <ConversationHeader
-        name={name ?? "Chat"}
-        avatar={{ uri: avatar ?? "" }}
+        name={headerName ?? name ?? "Chat"}
+        avatar={{ uri: headerAvatar ?? avatar ?? "" }}
         muted={muted}
         onToggleMute={toggleMute}
         onPressProfile={

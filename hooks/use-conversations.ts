@@ -78,12 +78,31 @@ export function useConversations() {
         .in("id", conversationIds),
       supabase
         .from("deleted_conversations")
-        .select("conversation_id")
+        .select("conversation_id, deleted_at")
         .eq("user_id", currentUserId),
     ]);
 
+    // A deletion hides the conversation only until a newer message arrives.
+    // Check only deleted chats; leave the regular message-preview query unchanged.
+    const deletedRows = deletedRowsResult.data ?? [];
+    const reopenedIds = new Set<string>();
+    await Promise.all(deletedRows.map(async (row) => {
+      if (!row.deleted_at) return;
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("conversation_id", row.conversation_id)
+        .gt("created_at", row.deleted_at)
+        .limit(1);
+      if (!error && data && data.length > 0) {
+        reopenedIds.add(row.conversation_id);
+      }
+    }));
+
     const deletedIds = new Set(
-      (deletedRowsResult.data ?? []).map((r: any) => r.conversation_id),
+      deletedRows
+        .filter((row) => !reopenedIds.has(row.conversation_id))
+        .map((row) => row.conversation_id),
     );
 
     const conversationRows = (conversationRowsResult.data ?? []).filter(
@@ -107,16 +126,16 @@ export function useConversations() {
     const [otherParticipantRowsResult, activitiesResult, messagesResult] = await Promise.all([
       directIds.length > 0
         ? supabase
-            .from("conversation_participants")
-            .select("conversation_id, user_id")
-            .in("conversation_id", directIds)
-            .neq("user_id", currentUserId)
+          .from("conversation_participants")
+          .select("conversation_id, user_id")
+          .in("conversation_id", directIds)
+          .neq("user_id", currentUserId)
         : Promise.resolve({ data: [] as any[] }),
       activityIds.length > 0
         ? supabase
-            .from("activities")
-            .select("id, title, image_url, category")
-            .in("id", activityIds)
+          .from("activities")
+          .select("id, title, image_url, category")
+          .in("id", activityIds)
         : Promise.resolve({ data: [] as any[] }),
       supabase
         .from("messages")
@@ -199,10 +218,12 @@ export function useConversations() {
 
   const deleteConversation = useCallback(async (conversationId: string) => {
     if (!currentUserId) return;
-    await supabase.from("deleted_conversations").insert({
+    const { error } = await supabase.from("deleted_conversations").upsert({
       user_id: currentUserId,
       conversation_id: conversationId,
-    });
+      deleted_at: new Date().toISOString(),
+    }, { onConflict: "user_id,conversation_id" });
+    if (error) throw error;
     setActiveConversations((prev) => prev.filter((c) => c.id !== conversationId));
     setArchivedConversations((prev) => prev.filter((c) => c.id !== conversationId));
   }, [currentUserId]);

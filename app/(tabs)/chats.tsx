@@ -1,7 +1,7 @@
-import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
+import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,8 +14,8 @@ import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Text } from "react-native-paper";
 
 export default function ChatsScreen() {
@@ -23,6 +23,16 @@ export default function ChatsScreen() {
   const colors = Colors[theme];
   const { activeConversations, archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
   const [refreshing, setRefreshing] = useState(false);
+  const hasFocused = useRef(false);
+
+  // useConversations already loads on mount. Refresh only when returning to Chats.
+  useFocusEffect(useCallback(() => {
+    if (!hasFocused.current) {
+      hasFocused.current = true;
+      return;
+    }
+    void refresh();
+  }, [refresh]));
 
   async function onRefresh() {
     setRefreshing(true);

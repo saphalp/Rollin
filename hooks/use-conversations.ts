@@ -14,6 +14,7 @@ export type ConversationSummary = {
   otherUserId?: string;
   activityId?: string;
   isArchived: boolean;
+  isRead: boolean;
 };
 
 const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
@@ -59,7 +60,7 @@ export function useConversations() {
 
     const { data: participantRows, error: participantError } = await supabase
       .from("conversation_participants")
-      .select("conversation_id")
+      .select("conversation_id, last_read_at")
       .eq("user_id", currentUserId);
 
     if (participantError || !participantRows || participantRows.length === 0) {
@@ -70,6 +71,9 @@ export function useConversations() {
     }
 
     const conversationIds = participantRows.map((r: any) => r.conversation_id);
+    const readAtByConversation = new Map<string, string | null>(
+      participantRows.map((row) => [row.conversation_id, row.last_read_at]),
+    );
 
     const [conversationRowsResult, deletedRowsResult] = await Promise.all([
       supabase
@@ -90,6 +94,7 @@ export function useConversations() {
       content: string | null;
       type: string | null;
       created_at: string;
+      sender_id: string;
     }> = {};
 
     for (let start = 0; start < allConversationRows.length; start += 8) {
@@ -97,7 +102,7 @@ export function useConversations() {
       const results = await Promise.all(batch.map((conversation) =>
         supabase
           .from("messages")
-          .select("conversation_id, content, type, created_at")
+          .select("conversation_id, content, type, created_at, sender_id")
           .eq("conversation_id", conversation.id)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -178,6 +183,11 @@ export function useConversations() {
 
     const summaries: ConversationSummary[] = conversationRows.map((c: any) => {
       const lastMessage = lastMessageByConversation[c.id];
+      const lastReadAt = readAtByConversation.get(c.id);
+      // A conversation is unread only if its latest message came from someone
+      // else and is newer than this participant's own last-read timestamp.
+      const isRead = !lastMessage || lastMessage.sender_id === currentUserId ||
+        (!!lastReadAt && new Date(lastReadAt).getTime() >= new Date(lastMessage.created_at).getTime());
 
       if (c.type === "direct") {
         const other = otherParticipantByConversation[c.id];
@@ -192,6 +202,7 @@ export function useConversations() {
           lastMessageAt: lastMessage?.created_at ?? c.created_at,
           otherUserId: other?.id,
           isArchived: false,
+          isRead,
         };
       }
 
@@ -210,6 +221,7 @@ export function useConversations() {
         lastMessageAt: lastMessage?.created_at ?? c.created_at,
         activityId: c.activity_id,
         isArchived: !!c.is_archived,
+        isRead,
       };
     });
 

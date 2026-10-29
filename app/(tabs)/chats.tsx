@@ -97,7 +97,7 @@ export default function ChatsScreen() {
                   user={conversation.title}
                   avatar={{ uri: conversation.avatarUri }}
                   last_message={conversation.lastMessage}
-                  is_read
+                  is_read={conversation.isRead}
                   time={
                     conversation.lastMessageAt
                       ? formatTime(conversation.lastMessageAt)

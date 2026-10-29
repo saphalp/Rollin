@@ -6,8 +6,8 @@ import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
 import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
 import { supabase } from "@/lib/supabase";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -110,6 +110,21 @@ export default function ChatConversationScreen() {
 
   const scrollRef = useRef<ScrollViewInstance>(null);
   const sendingRef = useRef(false);
+  const screenFocused = useRef(false);
+
+  const markRead = useCallback(async () => {
+    if (!id || !currentUserId || !screenFocused.current) return;
+    const { error } = await supabase.rpc("mark_conversation_read", {
+      p_conversation_id: id,
+    });
+    if (error) console.warn("[chat] mark read failed:", error.message);
+  }, [id, currentUserId]);
+
+  useFocusEffect(useCallback(() => {
+    screenFocused.current = true;
+    if (!loading && currentUserId) void markRead();
+    return () => { screenFocused.current = false; };
+  }, [loading, currentUserId, markRead]));
 
   async function load() {
     setLoading(true);
@@ -303,6 +318,10 @@ export default function ChatConversationScreen() {
   }, [id]);
 
   useMessagesRealtime(id, (incoming) => {
+    // A message visible in the open chat is read, regardless of its type.
+    if (screenFocused.current && currentUserId && incoming.sender_id !== currentUserId) {
+      void markRead();
+    }
     if (incoming.type && incoming.type !== "text") {
       void load();
       return;

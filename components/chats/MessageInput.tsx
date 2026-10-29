@@ -59,7 +59,9 @@ export default function MessageInput({
           ]}
           onSubmitEditing={canSend ? onSend : undefined}
           returnKeyType="send"
-          blurOnSubmit={Platform.OS === "ios" ? false : true}
+          // Android: submit the message without blurring (hiding the keyboard).
+          submitBehavior={Platform.OS === "android" ? "submit" : undefined}
+          blurOnSubmit={Platform.OS === "ios" ? false : undefined}
         />
       </View>
 

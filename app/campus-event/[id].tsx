@@ -1,4 +1,5 @@
 import { AppText } from '@/components/text';
+import { BackButton } from '@/components/ui/back-button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
@@ -12,7 +13,6 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackButton } from '@/components/ui/back-button';
 export default function CampusEventDetailScreen() {
   const params = useLocalSearchParams<{ id: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -27,11 +27,18 @@ export default function CampusEventDetailScreen() {
     try {
       if (!id) throw new Error('Missing event ID.');
       const result = await loadHostableCampusEvent(id);
-      const identity = await supabase.auth.getUser();
-      if (identity.error) throw identity.error;
-      const own = identity.data.user ? await ownHostedActivity(id, identity.data.user.id) : undefined;
       if (request !== generation.current) return;
-      setNow(Date.now()); setEvent(result.event); setUniversity(result.university); setHosted(own); setAboutExpanded(false);
+      // Event details must remain visible even if optional authentication fails.
+      setNow(Date.now()); setEvent(result.event); setUniversity(result.university); setAboutExpanded(false);
+      try {
+        const identity = await supabase.auth.getUser();
+        if (!identity.error && identity.data.user) {
+          const own = await ownHostedActivity(id, identity.data.user.id);
+          if (request === generation.current) setHosted(own);
+        }
+      } catch {
+        // Only the personalized "View Your Activity" button depends on this lookup.
+      }
     } catch (err) { if (request === generation.current) { setEvent(null); setError(err instanceof Error ? err.message : 'Unable to load event.'); } }
     finally { if (request === generation.current) setLoading(false); }
   }, [id]);

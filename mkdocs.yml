@@ -34,6 +34,11 @@ nav:
       - Ride Ratings: features/ride-ratings.md
       - Reviews: features/reviews.md
       - Reporting: features/reporting.md
+      - Activity Announcements: features/activity-announcements.md
+      - Activity Waitlist: features/activity-waitlist.md
+      - Mute Chats and Notification Settings: features/notification-settings.md
+      - Ride Departure Countdown: features/ride-countdown.md
+      - Event Cancellation: features/event-cancellation.md
   - Development:
       - Development Workflow: development-workflow.md
   - Project Reference:

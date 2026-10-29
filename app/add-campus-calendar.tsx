@@ -37,8 +37,12 @@ export default function AddCampusCalendarScreen() {
     return () => { active = false; };
   }, []);
 
-  const matches = !!university && query.trim().length > 0 &&
-    [university.name, university.short_name].some(name => name.toLowerCase().includes(query.trim().toLowerCase()));
+  // Ignore spaces and punctuation, so "latech" and "LA Tech" both match.
+  const normalizeUniversity = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedQuery = normalizeUniversity(query);
+  const matches = !!university && normalizedQuery.length > 0 &&
+    [university.id, university.name, university.short_name]
+      .some(name => normalizeUniversity(name ?? '').includes(normalizedQuery));
   const validUrl = /^https:\/\/[^\s/?#]+(?:\/[^\s]*)?$/i.test(calendarUrl.trim());
 
   async function submitCalendar() {

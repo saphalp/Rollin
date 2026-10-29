@@ -34,10 +34,10 @@ export default function CampusEventsScreen() {
   const [savedLoading, setSavedLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const generation = useRef(0);
-  const filtersRef = useRef({ past, search });
+  const filtersRef = useRef({ tab, search });
   useEffect(() => {
-    filtersRef.current = { past, search };
-  }, [past, search]);
+    filtersRef.current = { tab, search };
+  }, [tab, search]);
   const savedGeneration = useRef(0);
   const saveInFlight = useRef(new Set<string>());
   const fetching = useRef(false);
@@ -99,15 +99,31 @@ export default function CampusEventsScreen() {
   }, [fetchPage]);
 
   useEffect(() => {
-    const timer = setTimeout(() => { void reload(past, search.trim()); }, search ? 300 : 0);
+    // Archived events use their own saved-events query. Do not reload Upcoming
+    // while this tab is active; switching back should trigger a fresh fetch.
+    if (tab === 'archived') {
+      ++generation.current;
+      fetching.current = false;
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void reload(tab === 'past', search.trim());
+    }, search ? 300 : 0);
+
     return () => { clearTimeout(timer); ++generation.current; };
-  }, [past, search, reload]);
+  }, [tab, search, reload]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       ++generation.current;
       setUniversity(null);
-      void reload(filtersRef.current.past, filtersRef.current.search.trim());
+      // Archived has its own query; keep the active-events fetch paused.
+      if (filtersRef.current.tab !== 'archived') {
+        void reload(filtersRef.current.tab === 'past', filtersRef.current.search.trim());
+      }
     });
     return () => { ++generation.current; subscription.unsubscribe(); };
   }, [reload]);

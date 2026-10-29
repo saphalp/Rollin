@@ -11,13 +11,13 @@ const str = (value: unknown) => typeof value === 'string' ? value.trim() : '';
 function trustedModernCampusURL(value: string, officialHosts: string[]): string {
   const u = new URL(value);
   if (u.protocol !== 'https:' || u.hostname !== 'api.calendar.moderncampus.net'
-    || u.username || u.password || u.port || u.hash
-    || !/^\/pubcalendar\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/rss$/i.test(u.pathname)
+    || u.username || u.password || (u.port && u.port !== '443') || u.hash
+    || !/^\/pubcalendar\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/rss\/?$/i.test(u.pathname)
     || u.searchParams.get('hash') !== 'true' || u.searchParams.getAll('url').length !== 1
     || u.searchParams.size !== 2) throw new Error('Unsupported ModernCampus RSS URL');
   const inner = new URL(u.searchParams.get('url')!);
   if (inner.protocol !== 'https:' || !officialHosts.includes(inner.hostname.toLowerCase())
-    || inner.username || inner.password || inner.port) throw new Error('Calendar does not belong to this university');
+    || inner.username || inner.password || (inner.port && inner.port !== '443')) throw new Error('Calendar does not belong to this university');
   return u.href;
 }
 async function loadBoundedRSS(url: string): Promise<string> {
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       try {
         const event = new URL(str(item.link));
         if (event.protocol === 'https:' && permittedHosts.includes(event.hostname.toLowerCase())
-          && !event.username && !event.password && !event.port) verified++;
+          && !event.username && !event.password && (!event.port || event.port === '443')) verified++;
       } catch { /* ignore invalid event */ }
     }
     if (!verified) throw new Error('Feed has no events linked to this university');

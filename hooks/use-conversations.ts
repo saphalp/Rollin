@@ -82,32 +82,49 @@ export function useConversations() {
         .eq("user_id", currentUserId),
     ]);
 
-    // A deletion hides the conversation only until a newer message arrives.
-    // Check only deleted chats; leave the regular message-preview query unchanged.
-    const deletedRows = deletedRowsResult.data ?? [];
-    const reopenedIds = new Set<string>();
-    await Promise.all(deletedRows.map(async (row) => {
-      if (!row.deleted_at) return;
-      const { data, error } = await supabase
-        .from("messages")
-        .select("id")
-        .eq("conversation_id", row.conversation_id)
-        .gt("created_at", row.deleted_at)
-        .limit(1);
-      if (!error && data && data.length > 0) {
-        reopenedIds.add(row.conversation_id);
+    // Fetch only the most recent message per conversation. Limit concurrency so
+    // a user with many chats does not launch hundreds of requests at once.
+    const allConversationRows = conversationRowsResult.data ?? [];
+    const lastMessageByConversation: Record<string, {
+      conversation_id: string;
+      content: string | null;
+      type: string | null;
+      created_at: string;
+    }> = {};
+
+    for (let start = 0; start < allConversationRows.length; start += 8) {
+      const batch = allConversationRows.slice(start, start + 8);
+      const results = await Promise.all(batch.map((conversation) =>
+        supabase
+          .from("messages")
+          .select("conversation_id, content, type, created_at")
+          .eq("conversation_id", conversation.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ));
+      if (results.some((result) => result.error)) {
+        console.error("[chats] latest-message lookup failed", results.find((result) => result.error)?.error);
+        setLoading(false);
+        return;
       }
-    }));
+      results.forEach(({ data }, index) => {
+        if (data) lastMessageByConversation[batch[index].id] = data;
+      });
+    }
 
-    const deletedIds = new Set(
-      deletedRows
-        .filter((row) => !reopenedIds.has(row.conversation_id))
-        .map((row) => row.conversation_id),
+    // Keep the previous deletion behavior: a chat becomes visible again only
+    // when its most recent message is newer than that user's deletion time.
+    const deletedAtById = new Map(
+      (deletedRowsResult.data ?? []).map((row) => [row.conversation_id, row.deleted_at]),
     );
-
-    const conversationRows = (conversationRowsResult.data ?? []).filter(
-      (c: any) => !deletedIds.has(c.id),
-    );
+    const conversationRows = allConversationRows.filter((conversation) => {
+      if (!deletedAtById.has(conversation.id)) return true;
+      const deletedAt = deletedAtById.get(conversation.id);
+      const latest = lastMessageByConversation[conversation.id];
+      return !!deletedAt && !!latest &&
+        new Date(latest.created_at).getTime() > new Date(deletedAt).getTime();
+    });
 
     if (conversationRows.length === 0) {
       setActiveConversations([]);
@@ -116,14 +133,13 @@ export function useConversations() {
       return;
     }
 
-    const remainingIds = conversationRows.map((c: any) => c.id);
     const directIds = conversationRows
       .filter((c: any) => c.type === "direct")
       .map((c: any) => c.id);
     const groupConversations = conversationRows.filter((c: any) => c.type === "group");
     const activityIds = groupConversations.map((c: any) => c.activity_id).filter(Boolean);
 
-    const [otherParticipantRowsResult, activitiesResult, messagesResult] = await Promise.all([
+    const [otherParticipantRowsResult, activitiesResult] = await Promise.all([
       directIds.length > 0
         ? supabase
           .from("conversation_participants")
@@ -137,11 +153,6 @@ export function useConversations() {
           .select("id, title, image_url, category")
           .in("id", activityIds)
         : Promise.resolve({ data: [] as any[] }),
-      supabase
-        .from("messages")
-        .select("conversation_id, content, created_at")
-        .in("conversation_id", remainingIds)
-        .order("created_at", { ascending: false }),
     ]);
 
     const otherParticipantRows = otherParticipantRowsResult.data ?? [];
@@ -165,13 +176,6 @@ export function useConversations() {
       activityById[activity.id] = activity;
     }
 
-    const lastMessageByConversation: Record<string, any> = {};
-    for (const message of messagesResult.data ?? []) {
-      if (!lastMessageByConversation[message.conversation_id]) {
-        lastMessageByConversation[message.conversation_id] = message;
-      }
-    }
-
     const summaries: ConversationSummary[] = conversationRows.map((c: any) => {
       const lastMessage = lastMessageByConversation[c.id];
 
@@ -182,7 +186,9 @@ export function useConversations() {
           type: "direct" as const,
           title: other?.full_name ?? "Rollin' User",
           avatarUri: resolveAvatarUri(other?.profile_picture),
-          lastMessage: lastMessage?.content ?? "Say hello!",
+          lastMessage: lastMessage?.content ??
+            (lastMessage?.type === "activity" ? "Shared an activity" :
+              lastMessage?.type === "post" ? "Shared a post" : "Say hello!"),
           lastMessageAt: lastMessage?.created_at ?? c.created_at,
           otherUserId: other?.id,
           isArchived: false,
@@ -198,7 +204,9 @@ export function useConversations() {
           activity?.image_url ??
           CATEGORY_FALLBACK_IMAGE[activity?.category ?? ""] ??
           CATEGORY_FALLBACK_IMAGE.social,
-        lastMessage: lastMessage?.content ?? "Say hello to the group!",
+        lastMessage: lastMessage?.content ??
+          (lastMessage?.type === "activity" ? "Shared an activity" :
+            lastMessage?.type === "post" ? "Shared a post" : "Say hello to the group!"),
         lastMessageAt: lastMessage?.created_at ?? c.created_at,
         activityId: c.activity_id,
         isArchived: !!c.is_archived,

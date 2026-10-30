@@ -10,25 +10,18 @@ import {
 } from "react-native";
 
 import ChatCards from "@/components/chats/ChatCards";
+import { ChatError } from '@/components/chats/chat-error';
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
 import { Text } from "react-native-paper";
 
 export default function ChatsScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-  const { activeConversations, archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
-  const [refreshing, setRefreshing] = useState(false);
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
-  }
+  const { activeConversations, archivedConversations, loading, refreshing, error, refresh, formatTime, deleteConversation } = useConversations();
 
   function confirmDelete(conversationId: string) {
     Alert.alert(
@@ -39,7 +32,7 @@ export default function ChatsScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => void deleteConversation(conversationId),
+          onPress: () => { void deleteConversation(conversationId).catch(error => Alert.alert('Could not delete conversation', error.message)); },
         },
       ],
     );
@@ -51,7 +44,7 @@ export default function ChatsScreen() {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing && !loading} onRefresh={refresh} />}
       >
         <TourTarget id="chat-heading"><View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}>
@@ -72,9 +65,10 @@ export default function ChatsScreen() {
           )}
         </View></TourTarget>
 
+        <ChatError message={error} onRetry={refresh} />
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : activeConversations.length === 0 ? (
+        ) : activeConversations.length === 0 && !error ? (
           <Text style={[styles.empty, { color: colors.icon, fontFamily: Fonts.sans }]}>
             No conversations yet. Follow someone to message them, or join an
             activity to join its group chat.
@@ -87,7 +81,8 @@ export default function ChatsScreen() {
                   user={conversation.title}
                   avatar={{ uri: conversation.avatarUri }}
                   last_message={conversation.lastMessage}
-                  is_read
+                  is_read={conversation.unreadCount === 0}
+                  unreadCount={conversation.unreadCount}
                   time={
                     conversation.lastMessageAt
                       ? formatTime(conversation.lastMessageAt)

@@ -1,463 +1,148 @@
-import ConversationHeader from "@/components/chats/ConversationHeader";
-import MessageBubble from "@/components/chats/MessageBubble";
-import MessageInput from "@/components/chats/MessageInput";
-import SharedContentBubble from "@/components/chats/SharedContentBubble";
-import { AppView } from "@/components/view";
-import { Colors } from "@/constants/theme";
-import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
-import { supabase } from "@/lib/supabase";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform, ScrollView, StyleSheet,
-  useColorScheme, type ScrollViewInstance
-} from "react-native";
-
-type SharedActivityPreview = {
-  id: string;
-  title: string;
-  hostName: string;
-  imageUrl: string;
-};
-
-type SharedPostPreview = {
-  id: string;
-  activityId: string;
-  posterName: string;
-  caption: string | null;
-  imageUrl: string;
-};
-
-type Message = {
-  id: string;
-  senderId?: string;
-  text: string;
-  fromMe: boolean;
-  time: string;
-  senderName?: string;
-  type: "text" | "activity" | "post";
-  sharedActivity?: SharedActivityPreview;
-  sharedPost?: SharedPostPreview;
-};
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  social: "https://picsum.photos/seed/social/240/240",
-  sports: "https://picsum.photos/seed/sports/240/240",
-  music: "https://picsum.photos/seed/music/240/240",
-  study: "https://picsum.photos/seed/study/240/240",
-  outdoor: "https://picsum.photos/seed/outdoor/240/240",
-  gaming: "https://picsum.photos/seed/gaming/240/240",
-  grocery: "https://picsum.photos/seed/grocery/240/240",
-};
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+import ConversationHeader from '@/components/chats/ConversationHeader';
+import MessageBubble from '@/components/chats/MessageBubble';
+import MessageInput from '@/components/chats/MessageInput';
+import SharedContentBubble from '@/components/chats/SharedContentBubble';
+import { ChatError } from '@/components/chats/chat-error';
+import { AppText } from '@/components/text';
+import { AppView } from '@/components/view';
+import { Colors } from '@/constants/theme';
+import { useChatConversation } from '@/hooks/use-chat-conversation';
+import { useAuthContext } from '@/hooks/use-auth-context';
+import { messageReadLabel } from '@/lib/messaging';
+import { supabase } from '@/lib/supabase';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Pressable,
+  ScrollView, StyleSheet, useColorScheme, type ScrollViewInstance } from 'react-native';
 
 export default function ChatConversationScreen() {
-  const { id, name, avatar, otherUserId: paramOtherUserId } = useLocalSearchParams<{
-    id: string;
-    name?: string;
-    avatar?: string;
-    otherUserId?: string;
-  }>();
-
-  const theme = useColorScheme() ?? "light";
-  const colors = Colors[theme];
-
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [conversationType, setConversationType] = useState<"direct" | "group" | null>(null);
-  const [otherUserId, setOtherUserId] = useState<string | null>(paramOtherUserId ?? null);
-  const [activityId, setActivityId] = useState<string | null>(null);
-  const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [input, setInput] = useState("");
-  const [muted, setMuted] = useState(false);
-
-  useEffect(() => {
-    if (!id || !currentUserId) return;
-    supabase
-      .from("muted_conversations")
-      .select("conversation_id")
-      .eq("conversation_id", id)
-      .eq("user_id", currentUserId)
-      .maybeSingle()
-      .then(({ data }) => setMuted(!!data));
-  }, [id, currentUserId]);
-
-  async function toggleMute() {
-    if (!id || !currentUserId) return;
-    const next = !muted;
-    setMuted(next);
-    const { error } = next
-      ? await supabase
-        .from("muted_conversations")
-        .insert({ conversation_id: id, user_id: currentUserId })
-      : await supabase
-        .from("muted_conversations")
-        .delete()
-        .eq("conversation_id", id)
-        .eq("user_id", currentUserId);
-    if (error) setMuted(!next);
-  }
-
-  const scrollRef = useRef<ScrollViewInstance>(null);
-
-  async function load() {
-    setLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const uid = user?.id ?? null;
-    setCurrentUserId(uid);
-
-    const { data: conversation, error: conversationError } = await supabase
-      .from("conversations")
-      .select("id, type, activity_id")
-      .eq("id", id)
-      .single();
-
-    if (conversationError || !conversation) {
-      setLoading(false);
-      return;
-    }
-
-    setConversationType(conversation.type);
-    if (conversation.activity_id) {
-      setActivityId(conversation.activity_id);
-    }
-
-    let otherId = paramOtherUserId ?? null;
-    if (!otherId && conversation.type === "direct" && uid) {
-      const { data: otherParticipant } = await supabase
-        .from("conversation_participants")
-        .select("user_id")
-        .eq("conversation_id", id)
-        .neq("user_id", uid)
-        .maybeSingle();
-
-      if (otherParticipant?.user_id) {
-        otherId = otherParticipant.user_id;
-      }
-    }
-    if (otherId) {
-      setOtherUserId(otherId);
-    }
-
-    let names: Record<string, string> = {};
-    if (conversation.type === "group") {
-      const { data: participants } = await supabase
-        .from("conversation_participants")
-        .select("user_id")
-        .eq("conversation_id", id);
-
-      const participantUserIds = (participants ?? []).map((p: any) => p.user_id);
-
-      const { data: participantProfiles } = participantUserIds.length > 0
-        ? await supabase.from("profiles").select("id, full_name").in("id", participantUserIds)
-        : { data: [] as any[] };
-
-      const nameById: Record<string, string> = Object.fromEntries(
-        (participantProfiles ?? []).map((p: any) => [p.id, p.full_name ?? "Rollin' User"]),
-      );
-
-      participantUserIds.forEach((userId: string) => {
-        names[userId] = nameById[userId] ?? "Rollin' User";
-      });
-      setParticipantNames(names);
-    }
-
-    const { data: messageRows } = await supabase
-      .from("messages")
-      .select(
-        "id, sender_id, content, type, shared_activity_id, shared_post_id, created_at",
-      )
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: true });
-
-    const rows = messageRows ?? [];
-
-    const postIds = [
-      ...new Set(
-        rows.filter((m: any) => m.type === "post").map((m: any) => m.shared_post_id),
-      ),
-    ] as string[];
-
-    const { data: sharedPhotos } =
-      postIds.length > 0
-        ? await supabase
-          .from("activity_photos")
-          .select("id, activity_id, user_id, image_path, caption")
-          .in("id", postIds)
-        : { data: [] as any[] };
-
-    const photoById: Record<string, any> = Object.fromEntries(
-      (sharedPhotos ?? []).map((p: any) => [p.id, p]),
-    );
-
-    const activityIds = [
-      ...new Set([
-        ...rows
-          .filter((m: any) => m.type === "activity")
-          .map((m: any) => m.shared_activity_id),
-        ...(sharedPhotos ?? []).map((p: any) => p.activity_id),
-      ]),
-    ] as string[];
-
-    const { data: sharedActivities } =
-      activityIds.length > 0
-        ? await supabase
-          .from("activities")
-          .select("id, title, image_url, category, host_id")
-          .in("id", activityIds)
-        : { data: [] as any[] };
-
-    const activityById: Record<string, any> = Object.fromEntries(
-      (sharedActivities ?? []).map((a: any) => [a.id, a]),
-    );
-
-    const sharedProfileIds = [
-      ...new Set([
-        ...(sharedActivities ?? []).map((a: any) => a.host_id),
-        ...(sharedPhotos ?? []).map((p: any) => p.user_id),
-      ]),
-    ].filter(Boolean) as string[];
-
-    const { data: sharedProfiles } =
-      sharedProfileIds.length > 0
-        ? await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", sharedProfileIds)
-        : { data: [] as any[] };
-
-    const sharedNameById: Record<string, string> = Object.fromEntries(
-      (sharedProfiles ?? []).map((p: any) => [p.id, p.full_name ?? "Rollin' User"]),
-    );
-
-    function activityImage(activity: any) {
-      return (
-        activity?.image_url ??
-        CATEGORY_IMAGES[activity?.category ?? ""] ??
-        "https://picsum.photos/seed/activity/240/240"
-      );
-    }
-
-    setMessages(
-      rows.map((m: any) => {
-        let sharedActivity: SharedActivityPreview | undefined;
-        let sharedPost: SharedPostPreview | undefined;
-
-        if (m.type === "activity" && m.shared_activity_id) {
-          const activity = activityById[m.shared_activity_id];
-          sharedActivity = {
-            id: m.shared_activity_id,
-            title: activity?.title ?? "An activity",
-            hostName: sharedNameById[activity?.host_id] ?? "Rollin' User",
-            imageUrl: activityImage(activity),
-          };
-        }
-
-        if (m.type === "post" && m.shared_post_id) {
-          const photo = photoById[m.shared_post_id];
-          sharedPost = {
-            id: m.shared_post_id,
-            activityId: photo?.activity_id,
-            posterName: sharedNameById[photo?.user_id] ?? "Rollin' User",
-            caption: photo?.caption ?? null,
-            imageUrl: photo
-              ? supabase.storage.from("activity-photos").getPublicUrl(photo.image_path)
-                .data.publicUrl
-              : "https://picsum.photos/seed/post/240/240",
-          };
-        }
-
-        return {
-          id: m.id,
-          senderId: m.sender_id,
-          text: m.content ?? "",
-          fromMe: m.sender_id === uid,
-          time: formatTime(m.created_at),
-          senderName: m.sender_id !== uid ? names[m.sender_id] : undefined,
-          type: m.type ?? "text",
-          sharedActivity,
-          sharedPost,
-        };
-      }),
-    );
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    if (id) load();
-  }, [id]);
-
-  useMessagesRealtime(id, (incoming) => {
-    if (incoming.type && incoming.type !== "text") {
-      void load();
-      return;
-    }
-
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === incoming.id)) return prev;
-      return [
-        ...prev,
-        {
-          id: incoming.id,
-          text: incoming.content ?? "",
-          fromMe: incoming.sender_id === currentUserId,
-          time: formatTime(incoming.created_at),
-          senderName:
-            incoming.sender_id !== currentUserId
-              ? participantNames[incoming.sender_id]
-              : undefined,
-          type: "text",
-        },
-      ];
-    });
-  });
-
-  async function send() {
-    const trimmed = input.trim();
-    if (!trimmed || !currentUserId || !id) return;
-
-    setInput("");
-
-    const { data: sent, error } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: id,
-        sender_id: currentUserId,
-        content: trimmed,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("[chat] send failed:", error);
-      return;
-    }
-
-    void supabase.functions.invoke("notify-message", {
-      body: { messageId: sent.id },
-    });
-  }
-
-  return (
-    <AppView style={styles.container}>
-      <ConversationHeader
-        name={name ?? "Chat"}
-        avatar={{ uri: avatar ?? "" }}
-        muted={muted}
-        onToggleMute={toggleMute}
-        onPressProfile={
-          otherUserId
-            ? () => router.push(`/profile/${otherUserId}`)
-            : activityId
-              ? () => router.push(`/activity/${activityId}`)
-              : undefined
-        }
-      />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.flex}
-        keyboardVerticalOffset={0}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : (
-          <ScrollView
-            ref={scrollRef}
-            style={{ backgroundColor: colors.background }}
-            contentContainerStyle={styles.messages}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-          >
-            {messages.map((m) => {
-              const senderName =
-                conversationType === "group" ? m.senderName : undefined;
-
-              if (m.type === "activity" && m.sharedActivity) {
-                return (
-                  <SharedContentBubble
-                    key={m.id}
-                    kind="activity"
-                    fromMe={m.fromMe}
-                    time={m.time}
-                    senderName={senderName}
-                    title={m.sharedActivity.title}
-                    hostName={m.sharedActivity.hostName}
-                    imageUrl={m.sharedActivity.imageUrl}
-                    onPress={() =>
-                      router.push(`/activity/${m.sharedActivity!.id}`)
-                    }
-                  />
-                );
-              }
-
-              if (m.type === "post" && m.sharedPost) {
-                return (
-                  <SharedContentBubble
-                    key={m.id}
-                    kind="post"
-                    fromMe={m.fromMe}
-                    time={m.time}
-                    senderName={senderName}
-                    posterName={m.sharedPost.posterName}
-                    caption={m.sharedPost.caption}
-                    imageUrl={m.sharedPost.imageUrl}
-                    onPress={() =>
-                      router.push(`/post/${m.sharedPost!.id}`)
-                    }
-                  />
-                );
-              }
-
-              return (
-                <MessageBubble
-                  key={m.id}
-                  text={m.text}
-                  fromMe={m.fromMe}
-                  time={m.time}
-                  senderName={senderName}
-                  onPressSender={
-                    !m.fromMe && m.senderId
-                      ? () => router.push(`/profile/${m.senderId}`)
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </ScrollView>
-        )}
-
-        <MessageInput value={input} onChangeText={setInput} onSend={send} />
-      </KeyboardAvoidingView>
-    </AppView>
-  );
+  const params = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
+  const { claims } = useAuthContext();
+  // A different account or chat gets a fresh composer and scroll position.
+  return <Conversation key={`${claims?.sub}:${params.id}`} {...params} />;
 }
 
+function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?: string }) {
+  const colors = Colors[useColorScheme() ?? 'light'];
+  const chat = useChatConversation(id);
+  const [input, setInput] = useState('');
+  const [muted, setMuted] = useState(false);
+  const [muteBusy, setMuteBusy] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const atBottom = useRef(true);
+  const latest = chat.messages.at(-1);
+  const latestRef = useRef(chat);
+  useEffect(() => { latestRef.current = chat; }, [chat]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (chat.userId) {
+      void supabase.from('muted_conversations').select('conversation_id').eq('conversation_id', id)
+        .eq('user_id', chat.userId).maybeSingle().then(({ data }) => { if (active) setMuted(!!data); });
+    }
+    return () => { active = false; };
+  }, [id, chat.userId]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', next => {
+      const current = latestRef.current;
+      const last = current.messages.at(-1);
+      if (next === 'active' && atBottom.current && last) void current.markRead(last.id);
+    });
+    return () => subscription.remove();
+  }, []);
+
+  async function toggleMute() {
+    if (!chat.userId || muteBusy) return;
+    setMuteBusy(true);
+    const { error } = muted
+      ? await supabase.from('muted_conversations').delete().eq('conversation_id', id).eq('user_id', chat.userId)
+      : await supabase.from('muted_conversations').insert({ conversation_id: id, user_id: chat.userId });
+    if (error) Alert.alert('Could not update notifications', 'Please try again.');
+    else setMuted(!muted);
+    setMuteBusy(false);
+  }
+  function markVisibleRead() {
+    if (atBottom.current && latest) void chat.markRead(latest.id);
+  }
+  async function send() {
+    if (await chat.send(input)) {
+      setInput(''); atBottom.current = true;
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }
+  function loadOlder() { atBottom.current = false; void chat.loadOlder(); }
+
+  return <AppView style={styles.container}>
+    {/* Include the custom header so keyboard measurements start at the screen origin. */}
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+    <ConversationHeader name={name ?? 'Chat'} avatar={{ uri: avatar ?? '' }} muted={muted} onToggleMute={toggleMute}
+      onPressProfile={chat.info?.otherUserId ? () => router.push(`/profile/${chat.info!.otherUserId}`)
+        : chat.info?.activity_id ? () => router.push(`/activity/${chat.info!.activity_id}`) : undefined} />
+      <ChatError message={chat.error} onRetry={chat.refresh} />
+      <ChatError message={chat.readError} onRetry={markVisibleRead} />
+      {chat.loading ? <ActivityIndicator color={colors.tint} style={styles.container} /> :
+        <ScrollView ref={scrollRef} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.messages}
+          keyboardShouldPersistTaps="handled"
+          onLayout={() => {
+            if (atBottom.current) scrollRef.current?.scrollToEnd({ animated: false });
+          }}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }} scrollEventThrottle={100}
+          onContentSizeChange={() => {
+            if (atBottom.current) { scrollRef.current?.scrollToEnd({ animated: false }); markVisibleRead(); }
+          }}
+          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
+            atBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40;
+            markVisibleRead();
+          }}>
+          <ChatError message={chat.historyError} onRetry={loadOlder} />
+          {chat.loaded && chat.hasOlder && chat.messages.length > 0 && (
+            <Pressable onPress={loadOlder} disabled={chat.loadingOlder} accessibilityRole="button" style={styles.historyButton}>
+              <AppText style={{ color: colors.tint, fontWeight: '700' }}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</AppText>
+            </Pressable>
+          )}
+          {chat.loaded && !chat.messages.length && <AppText style={styles.notice}>No messages yet. Say hello!</AppText>}
+          {chat.messages.map((message, index) => {
+            const fromMe = message.sender_id === chat.userId;
+            const senderName = !fromMe && chat.info?.type === 'group' ? message.senderName : undefined;
+            const read = chat.userId && chat.info ? messageReadLabel(message, chat.userId, chat.info.type, chat.info.receipts) : undefined;
+            const time = new Date(message.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + (read ? ` · ${read}` : '');
+            const date = new Date(message.created_at).toLocaleDateString();
+            const previousDate = index ? new Date(chat.messages[index - 1].created_at).toLocaleDateString() : '';
+            return <Fragment key={message.id}>
+              {date !== previousDate && <AppText style={[styles.date, { color: colors.icon }]}>{new Date(message.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</AppText>}
+              {message.type === 'activity' && message.sharedActivity ?
+                <SharedContentBubble kind="activity" fromMe={fromMe} time={time} senderName={senderName}
+                  title={message.sharedActivity.title} hostName={message.sharedActivity.hostName} imageUrl={message.sharedActivity.imageUrl}
+                  onPress={() => router.push(`/activity/${message.sharedActivity!.id}`)} /> :
+              message.type === 'post' && message.sharedPost ?
+                <SharedContentBubble kind="post" fromMe={fromMe} time={time} senderName={senderName}
+                  posterName={message.sharedPost.posterName} caption={message.sharedPost.caption} imageUrl={message.sharedPost.imageUrl}
+                  onPress={() => router.push(`/post/${message.sharedPost!.id}`)} /> :
+                <MessageBubble text={message.type === 'text' ? message.content ?? '' : 'This shared content is no longer available.'}
+                  fromMe={fromMe} time={time} senderName={senderName}
+                  onPressSender={!fromMe ? () => router.push(`/profile/${message.sender_id}`) : undefined} />}
+            </Fragment>;
+          })}
+        </ScrollView>}
+      <ChatError message={chat.sendError} onRetry={() => void send()} />
+      {chat.info?.is_archived ? <AppText style={styles.notice}>This conversation is archived. You can still read its history.</AppText> :
+        <MessageInput value={input} onChangeText={setInput} onSend={() => void send()}
+          keyboardVisible={keyboardVisible}
+          disabled={!chat.loaded || !!chat.error || chat.sending} sending={chat.sending} />}
+    </KeyboardAvoidingView>
+  </AppView>;
+}
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  flex: {
-    flex: 1,
-  },
-  loader: {
-    flex: 1,
-  },
-  messages: {
-    paddingVertical: 12,
-    gap: 4,
-  },
+  container: { flex: 1 }, messages: { paddingVertical: 12, gap: 4 },
+  historyButton: { alignSelf: 'center', padding: 14 },
+  date: { textAlign: 'center', fontSize: 12, paddingVertical: 8 },
+  notice: { textAlign: 'center', padding: 20 },
 });

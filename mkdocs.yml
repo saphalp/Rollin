@@ -46,6 +46,7 @@ nav:
   - Project Reference:
       - Design System: design-system.md
       - Privacy Policy: privacy-policy.md
+      - Delete Your Account: account-deletion.md
 
 markdown_extensions:
   - toc:

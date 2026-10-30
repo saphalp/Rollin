@@ -89,15 +89,11 @@ function formatMessageDay(iso: string): string {
 }
 
 export default function ChatConversationScreen() {
-  const { id, name, avatar, otherUserId: paramOtherUserId } = useLocalSearchParams<{
-    id: string;
-    name?: string;
-    avatar?: string;
-    otherUserId?: string;
-  }>();
-
-  const theme = useColorScheme() ?? "light";
-  const colors = Colors[theme];
+  const params = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
+  const { claims } = useAuthContext();
+  // A different account or chat gets a fresh composer and scroll position.
+  return <Conversation key={`${claims?.sub}:${params.id}`} {...params} />;
+}
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [conversationType, setConversationType] = useState<"direct" | "group" | null>(null);
@@ -591,8 +587,10 @@ export default function ChatConversationScreen() {
   }
 
   useEffect(() => {
-    if (id) load();
-  }, [id]);
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useMessagesRealtime(id, (incoming) => {
     // A message visible in the open chat is read, regardless of its type.
@@ -628,6 +626,8 @@ export default function ChatConversationScreen() {
       void load();
       return;
     }
+    return () => { active = false; };
+  }, [id, chat.userId]);
 
     setMessages((prev) => {
       if (prev.some((m) => m.id === incoming.id)) return prev;
@@ -648,8 +648,22 @@ export default function ChatConversationScreen() {
         },
       ];
     });
-  });
+    return () => subscription.remove();
+  }, []);
 
+  async function toggleMute() {
+    if (!chat.userId || muteBusy) return;
+    setMuteBusy(true);
+    const { error } = muted
+      ? await supabase.from('muted_conversations').delete().eq('conversation_id', id).eq('user_id', chat.userId)
+      : await supabase.from('muted_conversations').insert({ conversation_id: id, user_id: chat.userId });
+    if (error) Alert.alert('Could not update notifications', 'Please try again.');
+    else setMuted(!muted);
+    setMuteBusy(false);
+  }
+  function markVisibleRead() {
+    if (atBottom.current && latest) void chat.markRead(latest.id);
+  }
   async function send() {
     const trimmed = input.trim();
     if (sendingRef.current || !trimmed || !currentUserId || !id) return;
@@ -964,7 +978,6 @@ export default function ChatConversationScreen() {
     </AppView>
   );
 }
-
 const styles = StyleSheet.create({
   pinBanner: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
   pinTitle: { fontSize: 12, fontWeight: "700", marginBottom: 2 },

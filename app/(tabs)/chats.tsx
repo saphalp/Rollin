@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import ChatCards from "@/components/chats/ChatCards";
+import { ChatError } from '@/components/chats/chat-error';
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
@@ -169,7 +170,7 @@ export default function ChatsScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => void deleteConversation(conversationId),
+          onPress: () => { void deleteConversation(conversationId).catch(error => Alert.alert('Could not delete conversation', error.message)); },
         },
       ],
     );

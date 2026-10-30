@@ -53,8 +53,124 @@ The first step was to decide the database schema.
 | `components/notification-row.tsx` | Renders a standard read or unread notification |
 | `components/follow-request-row.tsx` | Renders follow-request accept and reject actions |
 | `components/activity-join-request-row.tsx` | Renders activity-join request accept and reject actions |
-| `hooks/use-conversations.ts` | Builds conversation summaries and loads their latest messages |
-| `hooks/use-messages-realtime.ts` | Subscribes to new messages for the active conversation |
+| `hooks/use-conversations.ts` | Refreshes conversation summaries, unread counts, archives, and per-user deletion |
+| `hooks/use-chat-conversation.ts` | Loads message history, catches up after reconnect, sends messages, and acknowledges reads |
+| `services/messaging-service.ts` | Authenticated chat queries, shared-content previews, subscriptions, and read/write requests |
+| `lib/messaging.ts` | Message ordering, deduplication, preview text, and read-label formatting |
 | `hooks/use-notification-realtime.ts` | Subscribes to new notifications for the signed-in user |
 | `hooks/use-unread-notifications.ts` | Tracks whether the signed-in user has unread notifications, for the header bell's red dot |
 | `services/ride-notifications-service.ts` | Configures and sends local notifications used by live rides |
+
+## Live conversations and read status (Sprint 6)
+
+The active and archived conversation lists show the latest message preview, its timestamp,
+and the number of unread incoming messages. Newest conversations move to the top. Shared
+activities and posts have readable previews even when their message content is empty.
+Unread counts above 99 display as `99+`.
+
+Focused chat screens subscribe to messages, conversation membership, archive state,
+per-user deletions, and read positions. Changes trigger a short debounced refresh. The
+screens also refresh on focus, foregrounding, and reconnect, with a 30-second foreground
+fallback for missed events (including filtered deletes). Silent refreshes keep existing
+content visible; failures show a Retry action instead of pretending the list is empty.
+Subscriptions, timers, and pending reads are cleaned up when leaving the screen or
+switching accounts.
+
+### Read behavior
+
+- Read position belongs to the account and conversation and persists across devices.
+- Opening a chat at its latest messages acknowledges everything through that displayed
+  message. It does not require scrolling through every earlier message in the history.
+- Incoming messages are acknowledged while the chat is focused, the app is in the
+  foreground, and the user is at the bottom. Scrolling through older history does not
+  automatically acknowledge new messages arriving below it.
+- The server accepts a real message ID, looks up its timestamp, and moves the read
+  position forward atomically. Device clocks and older in-flight requests cannot rewind it.
+- Unread counts exclude the user's own messages and messages sent before their current
+  conversation membership began. Existing incoming history after joining initially counts
+  as unread until the conversation is opened; no historical reads are fabricated.
+- Sent messages display **Sent**, then **Read** for a direct chat or **Read by N** for a
+  group. Read means the recipient opened the conversation through that message; it is
+  not proof they read every word. These labels also apply to shared activities/posts.
+- Only current, email-verified conversation members can see its read positions. Only the
+  authenticated caller's position can be advanced. Leaving removes that membership's
+  read state.
+
+### History, sending, and errors
+
+The newest 50 messages load first, with **Load older messages** for earlier pages.
+Paging uses the timestamp and message ID together, including PostgreSQL microseconds,
+so equal timestamps do not drop messages. Reconnect catches up through every newer
+page. Messages from the send response and subsequent Realtime refreshes deduplicate by ID.
+Older-history loading preserves the scroll position instead of forcing it to the bottom.
+Date separators distinguish messages sent on different days.
+
+The chat adjusts for the keyboard on both Android and iOS. Message history shrinks
+while the composer stays above the keyboard; the extra bottom safe-area spacing is
+used only when the keyboard is closed. When already viewing the newest messages,
+the history stays at the bottom as the keyboard opens or the composer grows.
+
+The composer blocks duplicate taps while sending. Text clears only after a successful
+database response and stays available for retry after failure. A successful send appears
+without waiting for the Realtime echo; push-notification delivery does not determine
+whether the message was sent. As with other network writes, an ambiguous connection
+failure can require checking the history before retrying to avoid sending the same text
+twice. This is not an offline send queue.
+
+Archived group chats remain available for history, with the composer hidden. Deletion
+still hides the conversation only for the current user. A failed deletion leaves it in
+the list and shows an error. Muting still controls notifications separately from read state.
+
+Shared-content lookups continue to use the caller's normal Supabase permissions. If the
+shared activity or post is unavailable, the message displays an unavailable-content notice
+instead of inventing a working preview.
+
+### One-time Supabase setup
+
+Apply `supabase/migrations/20261029120000_chat_read_status.sql` **before running this
+updated chat UI**. It depends on the existing email-login verification functions and the
+archive/delete schema from `20261027130000_conversation_archive_delete.sql`.
+
+1. Open the correct Rollin Supabase project's **SQL Editor** and create a new query.
+2. Paste the complete contents of `20261029120000_chat_read_status.sql` and run it.
+3. Confirm the query succeeds. The script is transactional and can be run again safely.
+4. Restart the app and test with two signed-in accounts.
+
+The script creates `conversation_read_state` with RLS enabled, three RPC functions,
+and a message-order index. It adds the five chat tables to `supabase_realtime` if that
+publication exists and the tables are not already included. It preserves existing chat
+access policies and requires verified email-login sessions for the new operations.
+No new secret, Edge Function deployment, paid service, or dependency is required.
+If the publication does not exist in a non-Supabase test database, the application still
+has its polling fallback. Do not run every pending migration blindly just for this feature.
+
+### Validation
+
+Automated tests:
+
+```sh
+node --test scripts/test-messaging.cjs scripts/test-messaging-db.cjs
+```
+
+The database tests use isolated PGlite, never the live Supabase project. If it is not
+installed locally, install it outside the app's dependencies:
+
+```sh
+npm install --prefix .expo/login-security-validation --no-package-lock --ignore-scripts @electric-sql/pglite@0.5.9
+```
+
+Two-account acceptance checks after applying the SQL:
+
+1. Keep B on the Chats tab. Send messages from A. B's preview, time, list order, and count
+   should update without pulling to refresh. A's own message does not add to A's count.
+2. Open the conversation on B. Its unread count clears and A sees Read. Repeat in a group
+   and check Read by N.
+3. Background B or scroll it into older history. Send another message from A. It should
+   remain unread until B returns to the foreground and reaches the bottom.
+4. Create more than 50 messages. Load older pages, return from the background after a
+   burst of messages, and check that history has no missing or duplicate messages.
+5. Disable networking and try sending. The text should remain with a visible error.
+   Restore networking and retry. Also test a failed history refresh and list refresh.
+6. Archive a group and delete a conversation for B. Verify archive/history and deletion
+   behavior, and that A's conversation remains. Sign out and switch accounts; the other
+   account's cached messages must not appear.

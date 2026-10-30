@@ -67,6 +67,7 @@ Allow users to create activities for other students to join and discover activit
 1. Shows hero image, title, host (tappable → host profile), date, time, location, capacity, ride sharing badge.
 2. "Who's joining" collapsible section lists attendees (avatar + name, tappable → their profile).
 3. Non-hosts can join public activities or request to join private activities. Hosts can edit the activity and access ride options when ride sharing is enabled.
+4. Before a join/request, [schedule conflict warnings](schedule-conflicts.md) compare the start time with joined and hosted activities within 60 minutes. Users can go back or continue; leaving never triggers the warning.
 
 ## Interface Details
 

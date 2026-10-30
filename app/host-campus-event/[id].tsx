@@ -1,6 +1,7 @@
 import { DateTimeField } from '@/components/post/date-time-field';
 import { LocationAutocompleteField, type PlaceSelection } from '@/components/post/location-autocomplete-field';
 import { AppText } from '@/components/text';
+import { BackButton } from '@/components/ui/back-button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { defaultMeetingLocal, hostCampusEvent, loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
@@ -11,7 +12,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackButton } from '@/components/ui/back-button';
 const categories = ['social', 'sports', 'music', 'study', 'outdoor', 'gaming'];
 
 // host_campus_event expects wall-clock time in the event's time zone:
@@ -35,6 +35,7 @@ export default function HostCampusEventScreen() {
   const colors = Colors[useColorScheme() ?? 'light']; const insets = useSafeAreaInsets();
   const [event, setEvent] = useState<CampusEvent | null>(null); const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  const [publishError, setPublishError] = useState('');
   const [location, setLocation] = useState(''); const [meeting, setMeeting] = useState('');
   const [officialLocationMissing, setOfficialLocationMissing] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<PlaceSelection | null>(null);
@@ -42,6 +43,7 @@ export default function HostCampusEventScreen() {
   const [sharing, setSharing] = useState(false); const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [description, setDescription] = useState(''); const [aboutExpanded, setAboutExpanded] = useState(false); const [busy, setBusy] = useState(false);
   const busyRef = useRef(false); const generation = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
   const meetingDate = parseMeeting(meeting);
   const currentPickerDate = () => parseMeeting(meeting) ?? new Date();
   useEffect(() => {
@@ -80,10 +82,11 @@ export default function HostCampusEventScreen() {
   }, [id]);
   async function publish() {
     if (busyRef.current || !event || !userId) return;
+    setPublishError('');
     if (!location.trim() || !parseMeeting(meeting.trim()) || !/^\d+$/.test(capacity) || Number(capacity) < 1 || Number(capacity) > 10000) {
-      setError('Choose a meeting location, a valid date and time, and capacity from 1 to 10000.'); return;
+      setPublishError('Choose a meeting location, a valid date and time, and capacity from 1 to 10000.'); return;
     }
-    busyRef.current = true; setBusy(true); setError('');
+    busyRef.current = true; setBusy(true); setPublishError('');
     const request = generation.current; const eventSnapshot = event; const owner = userId;
     try {
       // Prefer the exact coordinates selected by the existing Post autocomplete.
@@ -102,12 +105,12 @@ export default function HostCampusEventScreen() {
       if (request !== generation.current) return;
       Alert.alert('Activity created', 'Your hosted event is now a regular activity.');
       router.replace(`/activity/${activityId}`);
-    } catch (err) { if (request === generation.current) setError(err instanceof Error ? err.message : 'Unable to host. Please retry.'); }
+    } catch (err) { if (request === generation.current) setPublishError(err instanceof Error ? err.message : 'Unable to host. Please retry.'); }
     finally { busyRef.current = false; setBusy(false); }
   }
   const input = (label: string, value: string, onChangeText: (value: string) => void, multiline = false) => <View style={styles.field}><AppText>{label}</AppText><TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} editable={!busy} multiline={multiline} autoCapitalize="none" autoCorrect={false} maxLength={multiline ? 10000 : label.startsWith('Meeting location') || label.startsWith('Meeting address') ? 500 : 50} keyboardType={label === 'Maximum attendees' ? 'number-pad' : 'default'} style={[styles.input, { color: colors.text, borderColor: colors.outlineVariant }]} /></View>;
   return <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+    <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
       <BackButton disabled={busy} fallbackHref="/campus-events" />
       <AppText style={styles.title}>Host Event</AppText>
       {loading && <ActivityIndicator />}
@@ -203,8 +206,13 @@ export default function HostCampusEventScreen() {
           </Pressable>
         </View>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => void publish()} style={[styles.publish, { backgroundColor: colors.tint, opacity: busy ? 0.5 : 1 }]}><AppText style={{ color: colors.onImageOverlay, fontWeight: '700' }}>{busy ? 'Creating…' : 'Host Event'}</AppText></Pressable>
+        {!!publishError && (
+          <View style={styles.publishError} onLayout={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+            <AppText accessibilityRole="alert" style={{ color: colors.error }}>{publishError}</AppText>
+          </View>
+        )}
       </>}
     </ScrollView>
   </View>;
 }
-const styles = StyleSheet.create({ aboutBox: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 10 }, aboutHeading: { fontSize: 20, fontWeight: '700' }, aboutPreview: { fontSize: 15, lineHeight: 23 }, aboutEditor: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, minHeight: 170, maxHeight: 170 }, aboutToggle: { alignSelf: 'flex-start', paddingVertical: 4 }, screen: { flex: 1 }, content: { padding: 20, gap: 18 }, backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 25, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, field: { gap: 8 }, input: { padding: 12, borderWidth: 1, borderRadius: 12, fontSize: 15 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, dateTimeRow: { flexDirection: 'row', gap: 12 }, dateTimeItem: { flex: 1, minWidth: 0 }, sectionTitle: { fontSize: 17, fontWeight: '700' }, chip: { padding: 10, borderWidth: 1, borderRadius: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, publish: { padding: 16, borderRadius: 28, alignItems: 'center' } });
+const styles = StyleSheet.create({ aboutBox: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 10 }, aboutHeading: { fontSize: 20, fontWeight: '700' }, aboutPreview: { fontSize: 15, lineHeight: 23 }, aboutEditor: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, minHeight: 170, maxHeight: 170 }, aboutToggle: { alignSelf: 'flex-start', paddingVertical: 4 }, screen: { flex: 1 }, content: { padding: 20, gap: 18 }, backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 25, fontWeight: '700' }, heading: { fontSize: 20, fontWeight: '700' }, field: { gap: 8 }, input: { padding: 12, borderWidth: 1, borderRadius: 12, fontSize: 15 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, dateTimeRow: { flexDirection: 'row', gap: 12 }, dateTimeItem: { flex: 1, minWidth: 0 }, sectionTitle: { fontSize: 17, fontWeight: '700' }, chip: { padding: 10, borderWidth: 1, borderRadius: 20 }, toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, publish: { padding: 16, borderRadius: 28, alignItems: 'center' }, publishError: { paddingVertical: 8 } });

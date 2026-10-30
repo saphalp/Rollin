@@ -3,6 +3,18 @@ import { XMLParser, XMLValidator } from 'npm:fast-xml-parser@4.5.3';
 import { array, liveWhaleItem, locationFromOfficialHTML, modernCampusItem, uniqueRows, type EventRow, type SourceConfig, type UniversityConfig } from './adapters.ts';
 
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+// Compare approved feed URLs after safe URL parsing, not raw query-string ordering.
+// This does not relax the independent approved-status and university checks.
+function canonicalFeedURL(value: string): string | null {
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:' || u.username || u.password || u.port || u.hash) return null;
+    u.searchParams.sort();
+    return u.href;
+  } catch { return null; }
+}
+
 function feedURL(value: string, source: SourceConfig): string {
   const u = new URL(value);
   if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')
@@ -92,7 +104,7 @@ async function fetchOfficialEventHTML(link: string, campus: UniversityConfig): P
   return null;
 }
 
-async function excludeOtherSourceEvents(db: any, rows: EventRow[], campus: UniversityConfig, source: SourceConfig) {
+async function excludeOtherSourceEvents(db: any, rows: EventRow[], campus: UniversityConfig, source: SourceConfig, enabledSourceIds: Set<string>) {
   const blocked = new Set<string>();
   const ids = [...new Set(rows.map(row => row.source_id))];
   for (let offset = 0; offset < ids.length; offset += 200) {
@@ -102,7 +114,7 @@ async function excludeOtherSourceEvents(db: any, rows: EventRow[], campus: Unive
       .in('source_id', ids.slice(offset, offset + 200));
     if (error) throw error;
     for (const existing of data ?? []) {
-      if (existing.source_config_id != null && existing.source_config_id !== source.id) {
+      if (existing.source_config_id != null && existing.source_config_id !== source.id && enabledSourceIds.has(existing.source_config_id)) {
         blocked.add(existing.source_id);
       }
     }
@@ -164,6 +176,7 @@ Deno.serve(async (req) => {
     // Newly activated submission-backed sources must remain approved.
     // Older built-in LA Tech/ULM sources have no submission_id and remain supported.
     const sources = (sourceResult.data ?? []) as (SourceConfig & { submission_id?: string | null })[];
+    const enabledSourceIds = new Set(sources.map(source => source.id));
     const linkedIds = [...new Set(sources.map(s => s.submission_id).filter((id): id is string => !!id))];
     const approved = new Map<string, { university_id: string; calendar_url: string; status: string }>();
     if (linkedIds.length) {
@@ -176,7 +189,7 @@ Deno.serve(async (req) => {
     for (const source of sources) {
       if (source.submission_id) {
         const submission = approved.get(source.submission_id);
-        if (!submission || submission.status !== 'approved' || submission.university_id !== source.university_id || submission.calendar_url !== source.feed_url) {
+        if (!submission || submission.status !== 'approved' || submission.university_id !== source.university_id || !canonicalFeedURL(submission.calendar_url) || canonicalFeedURL(submission.calendar_url) !== canonicalFeedURL(source.feed_url)) {
           results.push({ source: source.id, campus: source.university_id, success: false, error: 'Source submission is not currently approved or no longer matches the registered URL' });
           continue;
         }
@@ -184,7 +197,7 @@ Deno.serve(async (req) => {
       const campus = (campusResult.data as UniversityConfig[]).find(u => u.id === source.university_id); if (!campus) continue;
       try {
         const result = await importSource(source, campus);
-        const deduped = await excludeOtherSourceEvents(db, result.rows, campus, source);
+        const deduped = await excludeOtherSourceEvents(db, result.rows, campus, source, enabledSourceIds);
         const locationStats = deduped.rows.length ? await enrichLocations(db, deduped.rows, campus)
           : { locations_checked: 0, locations_recovered: 0, locations_remaining: 0 };
         if (deduped.rows.length) {

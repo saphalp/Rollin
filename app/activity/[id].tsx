@@ -6,6 +6,7 @@ import { openReport } from "@/components/report/overflow-menu";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
+import { BackButton } from '@/components/ui/back-button';
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
@@ -15,6 +16,7 @@ import { recordActivityView } from "@/lib/featured-activities";
 import { openEventMap } from "@/lib/open-event-map";
 import { supabase } from "@/lib/supabase";
 import { hasReviewedHost } from "@/services/reviews-service";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,7 +30,6 @@ import {
 } from "react-native";
 import { Menu } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BackButton } from '@/components/ui/back-button';
 
 const CATEGORY_IMAGES: Record<string, string> = {
   social: "https://picsum.photos/seed/social/900/500",
@@ -193,6 +194,10 @@ export default function ActivityDetailScreen() {
   const [hostReviewed, setHostReviewed] =
     useState(false);
 
+  // Optional link to the official campus event behind a hosted activity.
+  const [campusOrigin, setCampusOrigin] =
+    useState<{ id: string; university: string } | null>(null);
+
   const [boosted, setBoosted] =
     useState(false);
 
@@ -286,6 +291,40 @@ export default function ActivityDetailScreen() {
       act as ActivityDetail;
 
     setActivity(activityData);
+    setCampusOrigin(null);
+    // This lookup is optional: failure should never block the activity page.
+    void (async () => {
+      try {
+        const { data: link, error: linkError } = await supabase
+          .from("activities")
+          .select("source_campus_event_id")
+          .eq("id", activityData.id)
+          .maybeSingle();
+
+        if (linkError || !link?.source_campus_event_id) return;
+        const { data: sourceEvent, error: eventError } = await supabase
+          .from("campus_events")
+          .select("id, campus")
+          .eq("id", link.source_campus_event_id)
+          .maybeSingle();
+
+        if (eventError || !sourceEvent) return;
+        const { data: sourceUniversity } = await supabase
+          .from("universities")
+          .select("short_name, name")
+          .eq("id", sourceEvent.campus)
+          .maybeSingle();
+
+        setCampusOrigin({
+          id: sourceEvent.id,
+          university: sourceUniversity?.short_name
+            || sourceUniversity?.name
+            || sourceEvent.campus.toUpperCase(),
+        });
+      } catch {
+        // Ordinary activities and missing optional links need no badge.
+      }
+    })();
     setCurrentUserId(user?.id ?? null);
     if (user && user.id !== activityData.host_id) void recordActivityView(activityData.id);
 
@@ -845,7 +884,7 @@ export default function ActivityDetailScreen() {
             <BackButton variant="floating" />
 
             <View style={styles.heroRightGroup}>
-              
+
 
               <TouchableOpacity
                 onPress={() =>
@@ -867,168 +906,168 @@ export default function ActivityDetailScreen() {
               </TouchableOpacity>
 
               <Menu
-                  visible={menuVisible}
-                  onDismiss={() =>
-                    setMenuVisible(false)
-                  }
-                  anchor={
-                    <TouchableOpacity
-                      onPress={() =>
-                        setMenuVisible(true)
+                visible={menuVisible}
+                onDismiss={() =>
+                  setMenuVisible(false)
+                }
+                anchor={
+                  <TouchableOpacity
+                    onPress={() =>
+                      setMenuVisible(true)
+                    }
+                    style={[
+                      styles.backButton,
+                      {
+                        backgroundColor:
+                          colors.background,
+                      },
+                    ]}
+                  >
+                    <IconSymbol
+                      name="ellipsis"
+                      size={20}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+                }
+                contentStyle={{
+                  backgroundColor:
+                    colors.cardBackground,
+                }}
+              >
+                {isHost ? (
+                  <>
+                    <Menu.Item
+                      leadingIcon="pencil"
+                      title="Edit Activity"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        router.push(
+                          `/activity/edit/${activity.id}`,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+                    <Menu.Item
+                      leadingIcon="bullhorn-outline"
+                      title="Send Announcement"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        router.push(
+                          `/activity/announce/${activity.id}`,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+
+                    <Menu.Item
+                      leadingIcon={
+                        boosted
+                          ? "check-circle-outline"
+                          : "rocket-launch-outline"
                       }
-                      style={[
-                        styles.backButton,
-                        {
-                          backgroundColor:
-                            colors.background,
-                        },
-                      ]}
-                    >
-                      <IconSymbol
-                        name="ellipsis"
-                        size={20}
-                        color={colors.text}
-                      />
-                    </TouchableOpacity>
-                  }
-                  contentStyle={{
-                    backgroundColor:
-                      colors.cardBackground,
-                  }}
-                >
-                  {isHost ? (
-                    <>
+                      title={
+                        boosted
+                          ? "Boosted"
+                          : "Boost Activity"
+                      }
+                      disabled={boosted}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        handleBoostActivity();
+                      }}
+                      titleStyle={{
+                        color: boosted
+                          ? colors.outline
+                          : colors.tint,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+                    {/* Host can cancel an upcoming event that isn't already cancelled */}
+                    {activity.status !== "cancelled" && !isPast && (
                       <Menu.Item
-                        leadingIcon="pencil"
-                        title="Edit Activity"
+                        leadingIcon="cancel"
+                        title="Cancel Event"
                         onPress={() => {
                           setMenuVisible(false);
-                          router.push(
-                            `/activity/edit/${activity.id}`,
-                          );
+                          router.push(`/activity/cancel/${activity.id}`);
                         }}
                         titleStyle={{
-                          color: colors.text,
+                          color: colors.error,
                           fontFamily: Fonts?.sans,
                         }}
                       />
+                    )}
 
-                      <Menu.Item
-                        leadingIcon="bullhorn-outline"
-                        title="Send Announcement"
-                        onPress={() => {
-                          setMenuVisible(false);
-                          router.push(
-                            `/activity/announce/${activity.id}`,
-                          );
-                        }}
-                        titleStyle={{
-                          color: colors.text,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-
-
+                    <Menu.Item
+                      leadingIcon="trash-can-outline"
+                      title="Delete Activity"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        deleteActivity();
+                      }}
+                      titleStyle={{
+                        color: colors.error,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {canReviewHost && (
                       <Menu.Item
                         leadingIcon={
-                          boosted
+                          hostReviewed
                             ? "check-circle-outline"
-                            : "rocket-launch-outline"
+                            : "star-outline"
                         }
                         title={
-                          boosted
-                            ? "Boosted"
-                            : "Boost Activity"
+                          hostReviewed
+                            ? "Host Reviewed"
+                            : "Review Host"
                         }
-                        disabled={boosted}
+                        disabled={hostReviewed}
                         onPress={() => {
                           setMenuVisible(false);
-                          handleBoostActivity();
+                          setReviewSheetVisible(true);
                         }}
                         titleStyle={{
-                          color: boosted
+                          color: hostReviewed
                             ? colors.outline
-                            : colors.tint,
+                            : colors.text,
                           fontFamily: Fonts?.sans,
                         }}
                       />
+                    )}
 
-                      {/* Host can cancel an upcoming event that isn't already cancelled */}
-                      {activity.status !== "cancelled" && !isPast && (
-                        <Menu.Item
-                          leadingIcon="cancel"
-                          title="Cancel Event"
-                          onPress={() => {
-                            setMenuVisible(false);
-                            router.push(`/activity/cancel/${activity.id}`);
-                          }}
-                          titleStyle={{
-                            color: colors.error,
-                            fontFamily: Fonts?.sans,
-                          }}
-                        />
-                      )}
-
-                      <Menu.Item
-                        leadingIcon="trash-can-outline"
-                        title="Delete Activity"
-                        onPress={() => {
-                          setMenuVisible(false);
-                          deleteActivity();
-                        }}
-                        titleStyle={{
-                          color: colors.error,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      {canReviewHost && (
-                        <Menu.Item
-                          leadingIcon={
-                            hostReviewed
-                              ? "check-circle-outline"
-                              : "star-outline"
-                          }
-                          title={
-                            hostReviewed
-                              ? "Host Reviewed"
-                              : "Review Host"
-                          }
-                          disabled={hostReviewed}
-                          onPress={() => {
-                            setMenuVisible(false);
-                            setReviewSheetVisible(true);
-                          }}
-                          titleStyle={{
-                            color: hostReviewed
-                              ? colors.outline
-                              : colors.text,
-                            fontFamily: Fonts?.sans,
-                          }}
-                        />
-                      )}
-
-                      <Menu.Item
-                        leadingIcon="flag-outline"
-                        title="Report Activity"
-                        onPress={() => {
-                          setMenuVisible(false);
-                          openReport(
-                            "activity",
-                            activity.id,
-                            activity.title,
-                          );
-                        }}
-                        titleStyle={{
-                          color: colors.error,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-                    </>
-                  )}
-                </Menu>
+                    <Menu.Item
+                      leadingIcon="flag-outline"
+                      title="Report Activity"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        openReport(
+                          "activity",
+                          activity.id,
+                          activity.title,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.error,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+                  </>
+                )}
+              </Menu>
             </View>
           </View>
         </View>
@@ -1059,6 +1098,32 @@ export default function ActivityDetailScreen() {
                 </AppText>
               ) : null}
             </View>
+          )}
+
+          {/* Campus identification is only shown for linked hosted events. */}
+          {campusOrigin && (
+            <TouchableOpacity
+              accessibilityRole="link"
+              accessibilityLabel={`View original ${campusOrigin.university} campus event`}
+              onPress={() => router.push(`/campus-event/${campusOrigin.id}`)}
+              style={[
+                styles.campusOrigin,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
+              <View style={[styles.campusBadge, { backgroundColor: colors.tint }]}>
+                <AppText style={{ color: colors.onImageOverlay, fontWeight: "700" }}>
+                  {campusOrigin.university}
+                </AppText>
+              </View>
+              <AppText style={{ flex: 1, color: colors.tint, fontWeight: "600" }}>
+                View original campus event
+              </AppText>
+              <Ionicons name="chevron-forward" size={18} color={colors.tint} />
+            </TouchableOpacity>
           )}
 
           {/* Title, host, when/where, spots, about */}
@@ -1111,7 +1176,7 @@ export default function ActivityDetailScreen() {
             </View>
           )}
 
-          
+
 
           {/* Attendees */}
           {activity.ride_sharing && !isPast && (
@@ -1622,6 +1687,19 @@ export default function ActivityDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  campusOrigin: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  campusBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
   container: {
     flex: 1,
   },
@@ -1696,12 +1774,12 @@ const styles = StyleSheet.create({
   },
 
   statusBlock: {
-    flex: 1, 
+    flex: 1,
     gap: 2,
   },
 
   statusLabel: {
-    fontSize: 12, 
+    fontSize: 12,
     lineHeight: 16,
   },
 

@@ -7,11 +7,49 @@ import { supabase } from '@/lib/supabase';
 import { getCurrentUniversity, type University } from '@/lib/university';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PAGE_SIZE = 10;
+
+type CampusEventCardProps = {
+  item: CampusEvent;
+  bookmarked: boolean;
+  saving: boolean;
+  onToggleSaved: (event: CampusEvent) => void;
+};
+
+const CampusEventCard = memo(function CampusEventCard({ item, bookmarked, saving, onToggleSaved }: CampusEventCardProps) {
+  const colors = Colors[useColorScheme() ?? 'light'];
+  return <Pressable accessibilityRole="button" onPress={() => router.push(`/campus-event/${item.id}`)} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
+    {/* Only show the picture if the feed supplied one. The event text remains compact otherwise. */}
+    {item.image_url ? <View style={styles.imageArea}>
+      <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
+      <View style={styles.imageShade} pointerEvents="none" />
+    </View> : null}
+    <View style={styles.cardBody}>
+      <View style={styles.cardTopRow}>
+        <AppText style={[styles.eventTitle, { color: colors.text }]} numberOfLines={3}>{item.title}</AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={bookmarked ? 'Remove saved event' : 'Save event'}
+          accessibilityState={{ disabled: saving, selected: bookmarked }}
+          disabled={saving}
+          onPress={e => { e.stopPropagation(); onToggleSaved(item); }}
+          hitSlop={8}
+          style={[styles.bookmark, { backgroundColor: colors.surfaceContainerHigh }]}
+        >
+          <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={21} color={colors.tint} />
+        </Pressable>
+      </View>
+      <View style={styles.details}>
+        <View style={styles.detailRow}><Ionicons name="calendar-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]}>{campusDateLabel(item)}</AppText></View>
+        <View style={styles.detailRow}><Ionicons name="location-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]} numberOfLines={2}>{[item.location, item.room].filter(Boolean).join(' · ') || 'Location not provided'}</AppText></View>
+      </View>
+    </View>
+  </Pressable>;
+});
 
 export default function CampusEventsScreen() {
   const colors = Colors[useColorScheme() ?? 'light'];
@@ -34,10 +72,10 @@ export default function CampusEventsScreen() {
   const [savedLoading, setSavedLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const generation = useRef(0);
-  const filtersRef = useRef({ past, search });
+  const filtersRef = useRef({ tab, search });
   useEffect(() => {
-    filtersRef.current = { past, search };
-  }, [past, search]);
+    filtersRef.current = { tab, search };
+  }, [tab, search]);
   const savedGeneration = useRef(0);
   const saveInFlight = useRef(new Set<string>());
   const fetching = useRef(false);
@@ -99,15 +137,31 @@ export default function CampusEventsScreen() {
   }, [fetchPage]);
 
   useEffect(() => {
-    const timer = setTimeout(() => { void reload(past, search.trim()); }, search ? 300 : 0);
+    // Archived events use their own saved-events query. Do not reload Upcoming
+    // while this tab is active; switching back should trigger a fresh fetch.
+    if (tab === 'archived') {
+      ++generation.current;
+      fetching.current = false;
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void reload(tab === 'past', search.trim());
+    }, search ? 300 : 0);
+
     return () => { clearTimeout(timer); ++generation.current; };
-  }, [past, search, reload]);
+  }, [tab, search, reload]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       ++generation.current;
       setUniversity(null);
-      void reload(filtersRef.current.past, filtersRef.current.search.trim());
+      // Archived has its own query; keep the active-events fetch paused.
+      if (filtersRef.current.tab !== 'archived') {
+        void reload(filtersRef.current.tab === 'past', filtersRef.current.search.trim());
+      }
     });
     return () => { ++generation.current; subscription.unsubscribe(); };
   }, [reload]);
@@ -220,6 +274,22 @@ export default function CampusEventsScreen() {
     }
   }
 
+  // Keep the bookmark handler stable while preserving its latest state.
+  const toggleSavedRef = useRef(toggleSaved);
+  toggleSavedRef.current = toggleSaved;
+  const handleToggleSaved = useCallback((item: CampusEvent) => {
+    void toggleSavedRef.current(item);
+  }, []);
+
+  const renderEvent = useCallback(({ item }: { item: CampusEvent }) => (
+    <CampusEventCard
+      item={item}
+      bookmarked={savedIds.has(item.id)}
+      saving={savingIds.has(item.id)}
+      onToggleSaved={handleToggleSaved}
+    />
+  ), [savedIds, savingIds, handleToggleSaved]);
+
   function loadMore() {
     if (fetching.current || loading || loadingMore || !hasMore || !university) return;
     void fetchPage(university.id, pageOffset.current, generation.current, 'append', past, search.trim());
@@ -290,36 +360,11 @@ export default function CampusEventsScreen() {
         ? <ActivityIndicator style={styles.empty} color={colors.tint} />
         : <View style={styles.empty}><Ionicons name={tab === 'archived' ? 'bookmark-outline' : 'calendar-outline'} size={30} color={colors.outline} /><AppText style={{ color: colors.outline }}>{tab === 'archived' ? 'No archived events yet. Bookmark an event to keep it here.' : 'No campus events found.'}</AppText></View>}
       ListFooterComponent={(tab !== 'archived' ? hasMore : savedMore) ? <Pressable accessibilityRole="button" disabled={tab !== 'archived' ? (loadingMore || loading) : savedLoading} onPress={() => { if (tab !== 'archived') loadMore(); else void loadSaved(false); }} style={[styles.loadMore, { borderColor: colors.tint }]}>{(tab !== 'archived' ? loadingMore : savedLoading) ? <ActivityIndicator color={colors.tint} /> : <AppText style={{ color: colors.tint, fontWeight: '700' }}>Load 10 more  ↓</AppText>}</Pressable> : undefined}
-      renderItem={({ item }) => {
-        const bookmarked = savedIds.has(item.id);
-        return <Pressable accessibilityRole="button" onPress={() => router.push(`/campus-event/${item.id}`)} style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}>
-          {/* Only show the picture if the feed supplied one. The event text remains compact otherwise. */}
-          {item.image_url ? <View style={styles.imageArea}>
-            <Image source={{ uri: item.image_url }} style={styles.cardImage} resizeMode="cover" />
-            <View style={styles.imageShade} pointerEvents="none" />
-          </View> : null}
-          <View style={styles.cardBody}>
-            <View style={styles.cardTopRow}>
-              <AppText style={[styles.eventTitle, { color: colors.text }]} numberOfLines={3}>{item.title}</AppText>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={bookmarked ? 'Remove saved event' : 'Save event'}
-                accessibilityState={{ disabled: savingIds.has(item.id), selected: bookmarked }}
-                disabled={savingIds.has(item.id)}
-                onPress={e => { e.stopPropagation(); void toggleSaved(item); }}
-                hitSlop={8}
-                style={[styles.bookmark, { backgroundColor: colors.surfaceContainerHigh }]}
-              >
-                <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={21} color={colors.tint} />
-              </Pressable>
-            </View>
-            <View style={styles.details}>
-              <View style={styles.detailRow}><Ionicons name="calendar-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]}>{campusDateLabel(item)}</AppText></View>
-              <View style={styles.detailRow}><Ionicons name="location-outline" size={16} color={colors.outline} /><AppText style={[styles.detail, { color: colors.text }]} numberOfLines={2}>{[item.location, item.room].filter(Boolean).join(' · ') || 'Location not provided'}</AppText></View>
-            </View>
-          </View>
-        </Pressable>;
-      }}
+      renderItem={renderEvent}
+      initialNumToRender={6}
+      maxToRenderPerBatch={5}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
     />
   </View>;
 }

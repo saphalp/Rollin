@@ -14,25 +14,31 @@ interface MessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
+  disabled?: boolean;
+  sending?: boolean;
+  keyboardVisible?: boolean;
 }
 
 export default function MessageInput({
   value,
   onChangeText,
   onSend,
+  disabled = false,
+  sending = false,
+  keyboardVisible = false,
 }: MessageInputProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const canSend = value.trim().length > 0;
+  const canSend = !disabled && value.trim().length > 0;
 
   return (
     <View
       style={[
         styles.container,
         {
-          paddingBottom: insets.bottom + 8,
+          paddingBottom: (keyboardVisible ? 0 : insets.bottom) + 8,
           backgroundColor: colors.background,
           borderTopColor: colors.outlineVariant,
         },
@@ -48,6 +54,7 @@ export default function MessageInput({
         ]}
       >
         <TextInput
+          editable={!disabled}
           value={value}
           onChangeText={onChangeText}
           placeholder="Message"
@@ -64,6 +71,8 @@ export default function MessageInput({
       </View>
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={sending ? 'Sending message' : 'Send message'}
         onPress={onSend}
         disabled={!canSend}
         hitSlop={6}
@@ -87,6 +96,7 @@ export default function MessageInput({
 
 const styles = StyleSheet.create({
   container: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,

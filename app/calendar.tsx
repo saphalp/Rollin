@@ -28,6 +28,7 @@ const planColor = (plan: CalendarPlan) => plan.kind === 'ride' ? RIDE_COLOR : pl
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_RANGE = Array.from({ length: 11 }, (_, i) => CURRENT_YEAR - 5 + i);
+const TODAY = new Date().toISOString().slice(0, 10);
 
 export default function CalendarScreen() {
   const colors = Colors[useColorScheme() ?? 'light'];
@@ -100,6 +101,39 @@ export default function CalendarScreen() {
             markedDates={markedDates}
             onDayPress={day => setSelectedDate(day.dateString === selectedDate ? null : day.dateString)}
             onMonthChange={month => setDisplayDate(month.dateString)}
+            dayComponent={({ date, state, marking, onPress }: any) => {
+              if (!date) return null;
+              const isToday = date.dateString === TODAY;
+              const isSelected = date.dateString === selectedDate;
+              const isDisabled = state === 'disabled';
+              const dots: { key: string; color: string }[] = marking?.dots ?? [];
+
+              const bgColor = isSelected ? colors.tint : 'transparent';
+              const textColor = isSelected
+                ? '#fff'
+                : isToday
+                ? colors.tint
+                : isDisabled
+                ? colors.outlineVariant
+                : colors.text;
+
+              return (
+                <TouchableOpacity onPress={() => onPress(date)} style={styles.dayCell} activeOpacity={0.7}>
+                  <View style={[styles.dayCircle, { backgroundColor: bgColor }]}>
+                    <AppText style={[styles.dayNum, { color: textColor, fontWeight: isToday || isSelected ? '700' : '400' }]}>
+                      {date.day}
+                    </AppText>
+                  </View>
+                  {dots.length > 0 && (
+                    <View style={styles.dayDots}>
+                      {dots.slice(0, 3).map((dot) => (
+                        <View key={dot.key} style={[styles.dayDot, { backgroundColor: isSelected ? '#fff' : dot.color }]} />
+                      ))}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
             renderArrow={(direction) => (
               <View style={[styles.arrowBtn, { backgroundColor: colors.tint + '18' }]}>
                 <Ionicons
@@ -132,10 +166,8 @@ export default function CalendarScreen() {
             }}
             theme={{
               backgroundColor: colors.background, calendarBackground: colors.background,
-              textSectionTitleColor: colors.icon, dayTextColor: colors.text, todayTextColor: '#fff',
-              todayBackgroundColor: colors.tint,
-              selectedDayBackgroundColor: colors.tint, selectedDayTextColor: '#fff', monthTextColor: colors.text,
-              arrowColor: colors.tint, selectedDotColor: '#fff',
+              textSectionTitleColor: colors.icon, dayTextColor: colors.text,
+              monthTextColor: colors.text, arrowColor: colors.tint,
             }}
           />
           <View style={styles.legend}>
@@ -276,4 +308,10 @@ const styles = StyleSheet.create({
   yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
   yearRowText: { fontSize: 17 },
   yearSheetCancel: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, alignItems: 'center' },
+  // Day cell
+  dayCell: { alignItems: 'center', paddingVertical: 4, width: '100%' },
+  dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  dayNum: { fontSize: 14, lineHeight: 18 },
+  dayDots: { flexDirection: 'row', gap: 2.5, marginTop: 2 },
+  dayDot: { width: 5, height: 5, borderRadius: 2.5 },
 });

@@ -93,6 +93,7 @@ export default function ChatConversationScreen() {
   const [otherUserId, setOtherUserId] = useState<string | null>(paramOtherUserId ?? null);
   const [activityId, setActivityId] = useState<string | null>(null);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+  const [senderAvatars, setSenderAvatars] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
@@ -251,38 +252,34 @@ export default function ChatConversationScreen() {
 
     const rows = messageRows ?? [];
 
-    // Resolve historical senders from the messages themselves, not just from
-    // current participants. Users who leave a group may still have old messages.
+    // Look up message senders from history, including people who left the chat.
+    // This also works for direct chats and gives each sender their own avatar.
+    const senderIds = [...new Set(
+      rows.map((message) => message.sender_id).filter(Boolean),
+    )] as string[];
     let names: Record<string, string> = {};
-    if (conversation.type === "group") {
-      const senderIds = [...new Set(
-        rows.map((message) => message.sender_id).filter(Boolean),
-      )] as string[];
+    const avatars: Record<string, string> = {};
 
-      if (senderIds.length > 0) {
-        const { data: senderProfiles, error: senderError } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", senderIds);
+    if (senderIds.length > 0) {
+      const { data: senderProfiles, error: senderError } = await supabase
+        .from("profiles")
+        .select("id, full_name, profile_picture")
+        .in("id", senderIds);
 
-        if (senderError) {
-          console.warn("[chat] sender names lookup failed:", senderError.message);
-        }
-
-        names = Object.fromEntries(
-          (senderProfiles ?? []).map((profile) => [
-            profile.id,
-            profile.full_name?.trim() || "Rollin' User",
-          ]),
-        );
-
-        // A missing/deleted profile should not make a message nameless.
-        senderIds.forEach((senderId) => {
-          if (!names[senderId]) names[senderId] = "Rollin' User";
-        });
+      if (senderError) {
+        console.warn("[chat] sender profiles lookup failed:", senderError.message);
       }
-      setParticipantNames(names);
+
+      for (const profile of senderProfiles ?? []) {
+        names[profile.id] = profile.full_name?.trim() || "Rollin' User";
+        avatars[profile.id] = resolveAvatarUri(profile.profile_picture);
+      }
+      for (const senderId of senderIds) {
+        if (!names[senderId]) names[senderId] = "Rollin' User";
+      }
     }
+    setSenderAvatars(avatars);
+    if (conversation.type === "group") setParticipantNames(names);
 
 
     const postIds = [
@@ -407,6 +404,26 @@ export default function ChatConversationScreen() {
     if (screenFocused.current && currentUserId && incoming.sender_id !== currentUserId) {
       void markRead();
     }
+    // If this person has not appeared in the loaded history, fetch their avatar.
+    if (incoming.sender_id && incoming.sender_id !== currentUserId && !senderAvatars[incoming.sender_id]) {
+      void supabase.from("profiles")
+        .select("id, full_name, profile_picture")
+        .eq("id", incoming.sender_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          setSenderAvatars((prev) => ({
+            ...prev,
+            [data.id]: resolveAvatarUri(data.profile_picture),
+          }));
+          if (conversationType === "group") {
+            setParticipantNames((prev) => ({
+              ...prev,
+              [data.id]: data.full_name?.trim() || "Rollin' User",
+            }));
+          }
+        });
+    }
     if (incoming.type && incoming.type !== "text") {
       void load();
       return;
@@ -513,6 +530,12 @@ export default function ChatConversationScreen() {
               const senderName =
                 conversationType === "group" ? m.senderName : undefined;
 
+              const nextMessage = messages[index + 1];
+              const showSenderAvatar = !m.fromMe && !!m.senderId && (
+                !nextMessage || nextMessage.senderId !== m.senderId ||
+                messageDay(nextMessage.createdAt) !== messageDay(m.createdAt)
+              );
+
               const previous = messages[index - 1];
               const showDate = !previous || messageDay(previous.createdAt) !== messageDay(m.createdAt);
               const dateDivider = showDate ? (
@@ -532,6 +555,11 @@ export default function ChatConversationScreen() {
                       fromMe={m.fromMe}
                       time={m.time}
                       senderName={senderName}
+                      onPressSender={
+                        !m.fromMe && m.senderId
+                          ? () => router.push(`/profile/${m.senderId}`)
+                          : undefined
+                      }
                       title={m.sharedActivity.title}
                       hostName={m.sharedActivity.hostName}
                       imageUrl={m.sharedActivity.imageUrl}
@@ -550,6 +578,11 @@ export default function ChatConversationScreen() {
                       fromMe={m.fromMe}
                       time={m.time}
                       senderName={senderName}
+                      onPressSender={
+                        !m.fromMe && m.senderId
+                          ? () => router.push(`/profile/${m.senderId}`)
+                          : undefined
+                      }
                       posterName={m.sharedPost.posterName}
                       caption={m.sharedPost.caption}
                       imageUrl={m.sharedPost.imageUrl}
@@ -567,6 +600,8 @@ export default function ChatConversationScreen() {
                     fromMe={m.fromMe}
                     time={m.time}
                     senderName={senderName}
+                    avatarUri={m.senderId ? senderAvatars[m.senderId] : undefined}
+                    showAvatar={showSenderAvatar}
                     onPressSender={
                       !m.fromMe && m.senderId
                         ? () => router.push(`/profile/${m.senderId}`)

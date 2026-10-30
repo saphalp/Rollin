@@ -10,15 +10,16 @@ type SharedContentBubbleProps = {
   fromMe: boolean;
   time: string;
   senderName?: string;
+  onPressSender?: () => void;
   imageUrl: string;
   onPress: () => void;
 } & (
-  | { kind: "activity"; title: string; hostName: string }
-  | { kind: "post"; posterName: string; caption: string | null }
-);
+    | { kind: "activity"; title: string; hostName: string }
+    | { kind: "post"; posterName: string; caption: string | null }
+  );
 
 export default function SharedContentBubble(props: SharedContentBubbleProps) {
-  const { fromMe, time, senderName, imageUrl, onPress, kind } = props;
+  const { fromMe, time, senderName, onPressSender, imageUrl, onPress, kind } = props;
 
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -41,11 +42,19 @@ export default function SharedContentBubble(props: SharedContentBubbleProps) {
         ]}
       >
         {senderName && (
-          <Text
-            style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+          <TouchableOpacity
+            disabled={!onPressSender}
+            onPress={onPressSender}
+            activeOpacity={0.7}
+            accessibilityRole={onPressSender ? "button" : undefined}
+            accessibilityLabel={onPressSender ? `View ${senderName}'s profile` : undefined}
           >
-            {senderName}
-          </Text>
+            <Text
+              style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+            >
+              {senderName}
+            </Text>
+          </TouchableOpacity>
         )}
 
         <TouchableOpacity activeOpacity={0.9} onPress={onPress}>

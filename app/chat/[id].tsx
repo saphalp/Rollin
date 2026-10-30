@@ -8,12 +8,12 @@ import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform, ScrollView, StyleSheet,
+  Platform, ScrollView, StyleSheet, Text, View,
   useColorScheme, type ScrollViewInstance
 } from "react-native";
 
@@ -38,6 +38,7 @@ type Message = {
   text: string;
   fromMe: boolean;
   time: string;
+  createdAt: string;
   senderName?: string;
   type: "text" | "activity" | "post";
   sharedActivity?: SharedActivityPreview;
@@ -59,6 +60,21 @@ function formatTime(iso: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// Compare local calendar days, not UTC dates, so midnight is correct for the user.
+function messageDay(iso: string): string {
+  return new Date(iso).toDateString();
+}
+
+function formatMessageDay(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function ChatConversationScreen() {
@@ -370,6 +386,7 @@ export default function ChatConversationScreen() {
           text: m.content ?? "",
           fromMe: m.sender_id === uid,
           time: formatTime(m.created_at),
+          createdAt: m.created_at,
           senderName: m.sender_id !== uid ? names[m.sender_id] : undefined,
           type: m.type ?? "text",
           sharedActivity,
@@ -405,6 +422,7 @@ export default function ChatConversationScreen() {
           text: incoming.content ?? "",
           fromMe: incoming.sender_id === currentUserId,
           time: formatTime(incoming.created_at),
+          createdAt: incoming.created_at,
           senderName:
             incoming.sender_id !== currentUserId
               ? participantNames[incoming.sender_id] ?? "Rollin' User"
@@ -486,63 +504,76 @@ export default function ChatConversationScreen() {
             style={{ backgroundColor: colors.background }}
             contentContainerStyle={styles.messages}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             onScroll={handleScroll}
             scrollEventThrottle={16}
             onContentSizeChange={handleContentSizeChange}
           >
-            {messages.map((m) => {
+            {messages.map((m, index) => {
               const senderName =
                 conversationType === "group" ? m.senderName : undefined;
 
+              const previous = messages[index - 1];
+              const showDate = !previous || messageDay(previous.createdAt) !== messageDay(m.createdAt);
+              const dateDivider = showDate ? (
+                <View style={styles.dateDivider}>
+                  <Text style={[styles.dateLabel, { color: colors.icon, backgroundColor: colors.surfaceContainerHigh }]}>
+                    {formatMessageDay(m.createdAt)}
+                  </Text>
+                </View>
+              ) : null;
+
               if (m.type === "activity" && m.sharedActivity) {
                 return (
-                  <SharedContentBubble
-                    key={m.id}
-                    kind="activity"
-                    fromMe={m.fromMe}
-                    time={m.time}
-                    senderName={senderName}
-                    title={m.sharedActivity.title}
-                    hostName={m.sharedActivity.hostName}
-                    imageUrl={m.sharedActivity.imageUrl}
-                    onPress={() =>
-                      router.push(`/activity/${m.sharedActivity!.id}`)
-                    }
-                  />
+                  <Fragment key={m.id}>
+                    {dateDivider}
+                    <SharedContentBubble
+                      kind="activity"
+                      fromMe={m.fromMe}
+                      time={m.time}
+                      senderName={senderName}
+                      title={m.sharedActivity.title}
+                      hostName={m.sharedActivity.hostName}
+                      imageUrl={m.sharedActivity.imageUrl}
+                      onPress={() => router.push(`/activity/${m.sharedActivity!.id}`)}
+                    />
+                  </Fragment>
                 );
               }
 
               if (m.type === "post" && m.sharedPost) {
                 return (
-                  <SharedContentBubble
-                    key={m.id}
-                    kind="post"
-                    fromMe={m.fromMe}
-                    time={m.time}
-                    senderName={senderName}
-                    posterName={m.sharedPost.posterName}
-                    caption={m.sharedPost.caption}
-                    imageUrl={m.sharedPost.imageUrl}
-                    onPress={() =>
-                      router.push(`/post/${m.sharedPost!.id}`)
-                    }
-                  />
+                  <Fragment key={m.id}>
+                    {dateDivider}
+                    <SharedContentBubble
+                      kind="post"
+                      fromMe={m.fromMe}
+                      time={m.time}
+                      senderName={senderName}
+                      posterName={m.sharedPost.posterName}
+                      caption={m.sharedPost.caption}
+                      imageUrl={m.sharedPost.imageUrl}
+                      onPress={() => router.push(`/post/${m.sharedPost!.id}`)}
+                    />
+                  </Fragment>
                 );
               }
 
               return (
-                <MessageBubble
-                  key={m.id}
-                  text={m.text}
-                  fromMe={m.fromMe}
-                  time={m.time}
-                  senderName={senderName}
-                  onPressSender={
-                    !m.fromMe && m.senderId
-                      ? () => router.push(`/profile/${m.senderId}`)
-                      : undefined
-                  }
-                />
+                <Fragment key={m.id}>
+                  {dateDivider}
+                  <MessageBubble
+                    text={m.text}
+                    fromMe={m.fromMe}
+                    time={m.time}
+                    senderName={senderName}
+                    onPressSender={
+                      !m.fromMe && m.senderId
+                        ? () => router.push(`/profile/${m.senderId}`)
+                        : undefined
+                    }
+                  />
+                </Fragment>
               );
             })}
           </ScrollView>
@@ -567,5 +598,17 @@ const styles = StyleSheet.create({
   messages: {
     paddingVertical: 12,
     gap: 4,
+  },
+  dateDivider: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  dateLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    overflow: "hidden",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
 });

@@ -4,18 +4,25 @@ import MessageInput from "@/components/chats/MessageInput";
 import SharedContentBubble from "@/components/chats/SharedContentBubble";
 import { AppView } from "@/components/view";
 import { Colors } from "@/constants/theme";
+import { useConversations } from "@/hooks/use-conversations";
 import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   PanResponder,
-  Platform, ScrollView, StyleSheet, Text, View,
+  Platform,
+  Pressable,
+  ScrollView, StyleSheet, Text, TextInput,
+  View,
   useColorScheme, type ScrollViewInstance
 } from "react-native";
 
@@ -45,6 +52,8 @@ type Message = {
   type: "text" | "activity" | "post";
   sharedActivity?: SharedActivityPreview;
   sharedPost?: SharedPostPreview;
+  replyToMessageId?: string | null;
+  deletedForEveryone?: boolean;
 };
 
 const CATEGORY_IMAGES: Record<string, string> = {
@@ -97,7 +106,82 @@ export default function ChatConversationScreen() {
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const [senderAvatars, setSenderAvatars] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<Message[]>([]);
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [changingMessage, setChangingMessage] = useState(false);
+  const visibleMessages = useMemo(() => messages.filter((m) => !hiddenIds.includes(m.id)), [messages, hiddenIds]);
+  const pinnedMessage = visibleMessages.find((m) => m.id === pinnedId && !m.deletedForEveryone);
   const [reactionsByMessage, setReactionsByMessage] = useState<Record<string, { emoji: string; user_id: string }[]>>({});
+  const messageById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const refreshPinAndHidden = useCallback(async () => {
+    if (!id || !currentUserId) return;
+    const [pins, hidden] = await Promise.all([
+      supabase.from("conversation_pins").select("message_id").eq("conversation_id", id).maybeSingle(),
+      supabase.from("hidden_chat_messages").select("message_id").eq("conversation_id", id).eq("user_id", currentUserId),
+    ]);
+    if (pins.error) console.warn("[chat] load pin failed:", pins.error.message);
+    else setPinnedId(pins.data?.message_id ?? null);
+    if (hidden.error) console.warn("[chat] load hidden messages failed:", hidden.error.message);
+    else setHiddenIds((hidden.data ?? []).map((row) => row.message_id));
+  }, [id, currentUserId]);
+
+  useEffect(() => { void refreshPinAndHidden(); }, [refreshPinAndHidden]);
+
+  useEffect(() => {
+    if (!id || !currentUserId) return;
+    const channel = supabase.channel(`chat-pin-delete-${id}-${currentUserId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversation_pins", filter: `conversation_id=eq.${id}` }, () => { void refreshPinAndHidden(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "hidden_chat_messages", filter: `user_id=eq.${currentUserId}` }, () => { void refreshPinAndHidden(); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` }, () => { void load(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, currentUserId, refreshPinAndHidden]);
+
+  async function pinOrUnpin(message: Message) {
+    if (!id || changingMessage) return;
+    setChangingMessage(true);
+    try {
+      const wasPinned = pinnedId === message.id;
+      const { error } = wasPinned
+        ? await supabase.rpc("unpin_chat_message", { p_conversation_id: id })
+        : await supabase.rpc("pin_chat_message", { p_message_id: message.id });
+      if (error) throw error;
+      setPinnedId(wasPinned ? null : message.id);
+    } catch (error) {
+      console.error("[chat] pin failed:", error);
+      Alert.alert("Could not change pin", "Please check your connection and try again.");
+    } finally { setChangingMessage(false); }
+  }
+
+  function confirmDeleteMessage(message: Message) {
+    const options: { text: string; style?: "cancel" | "destructive"; onPress?: () => void }[] = [
+      { text: "Delete for me", style: "destructive", onPress: () => { void deleteMessage(message, false); } },
+    ];
+    if (message.fromMe) options.push({ text: "Delete for everyone", style: "destructive", onPress: () => { void deleteMessage(message, true); } });
+    options.push({ text: "Cancel", style: "cancel" });
+    Alert.alert("Delete message", message.fromMe ? "Choose who can no longer see this message." : "Remove this message from your chat only?", options);
+  }
+
+  async function deleteMessage(message: Message, forEveryone: boolean) {
+    if (changingMessage) return;
+    setChangingMessage(true);
+    try {
+      const { error } = await supabase.rpc("delete_chat_message", { p_message_id: message.id, p_for_everyone: forEveryone });
+      if (error) throw error;
+      if (forEveryone) {
+        setMessages((previous) => previous.map((m) => m.id === message.id ? { ...m, text: "", type: "text", sharedActivity: undefined, sharedPost: undefined, deletedForEveryone: true } : m));
+      } else {
+        setHiddenIds((previous) => previous.includes(message.id) ? previous : [...previous, message.id]);
+      }
+      if (pinnedId === message.id) setPinnedId(null);
+      if (replyingTo?.id === message.id) setReplyingTo(null);
+      void refreshPinAndHidden();
+    } catch (error) {
+      console.error("[chat] delete failed:", error);
+      Alert.alert("Could not delete message", "Please try again.");
+    } finally { setChangingMessage(false); }
+  }
+
   const reactionMessageIds = messages.map((m) => m.id).join(",");
   const reactionIdsRef = useRef<string[]>([]);
   reactionIdsRef.current = messages.map((m) => m.id);
@@ -139,6 +223,54 @@ export default function ChatConversationScreen() {
 
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  const [forwarding, setForwarding] = useState(false);
+  const forwardingRef = useRef(false);
+  const [forwardQuery, setForwardQuery] = useState("");
+  const [forwardedTo, setForwardedTo] = useState<string[]>([]);
+  const [forwardingTo, setForwardingTo] = useState<string | null>(null);
+  const { activeConversations, refresh: refreshForwardConversations } = useConversations();
+
+  function beginForward(message: Message) {
+    setForwardingMessage(message);
+    setForwardQuery("");
+    setForwardedTo([]);
+    void refreshForwardConversations();
+  }
+
+  async function forwardTo(conversationId: string) {
+    if (!forwardingMessage || !currentUserId || forwardingRef.current || forwardedTo.includes(conversationId)) return;
+    forwardingRef.current = true;
+    setForwarding(true);
+    setForwardingTo(conversationId);
+    try {
+      // Forwarded text is a new message; the original stays unchanged.
+      const { data, error } = await supabase.from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: `↪ Forwarded message\n${forwardingMessage.text}`,
+        })
+        .select("id").single();
+      if (error) throw error;
+      setForwardedTo((previous) => [...previous, conversationId]);
+      if (data?.id) {
+        void supabase.functions.invoke("notify-message", { body: { messageId: data.id } })
+          .catch((error) => console.warn("[chat] forward notification failed:", error));
+      }
+    } catch (error) {
+      console.error("[chat] forward failed:", error);
+      Alert.alert("Could not forward", "Please check the conversation and try again.");
+    } finally {
+      forwardingRef.current = false;
+      setForwarding(false);
+      setForwardingTo(null);
+    }
+  }
+  const filteredForwardConversations = activeConversations.filter((conversation) =>
+    conversation.title.toLocaleLowerCase().includes(forwardQuery.trim().toLocaleLowerCase()),
+  );
   const [muted, setMuted] = useState(false);
   const [headerName, setHeaderName] = useState<string | null>(null);
   const [headerAvatar, setHeaderAvatar] = useState<string | null>(null);
@@ -232,8 +364,9 @@ export default function ChatConversationScreen() {
   useFocusEffect(useCallback(() => {
     screenFocused.current = true;
     if (!loading && currentUserId) void markRead();
+    if (currentUserId) void refreshPinAndHidden();
     return () => { screenFocused.current = false; };
-  }, [loading, currentUserId, markRead]));
+  }, [loading, currentUserId, markRead, refreshPinAndHidden]));
 
   async function load() {
     setLoading(true);
@@ -305,7 +438,7 @@ export default function ChatConversationScreen() {
     const { data: messageRows } = await supabase
       .from("messages")
       .select(
-        "id, sender_id, content, type, shared_activity_id, shared_post_id, created_at",
+        "id, sender_id, content, type, shared_activity_id, shared_post_id, reply_to_message_id, created_at, deleted_for_everyone",
       )
       .eq("conversation_id", id)
       .order("created_at", { ascending: true });
@@ -448,6 +581,8 @@ export default function ChatConversationScreen() {
           type: m.type ?? "text",
           sharedActivity,
           sharedPost,
+          replyToMessageId: m.reply_to_message_id,
+          deletedForEveryone: !!m.deleted_for_everyone,
         };
       }),
     );
@@ -484,6 +619,11 @@ export default function ChatConversationScreen() {
           }
         });
     }
+    // Reload linked replies so the quoted message is resolved from the database.
+    if ((incoming as typeof incoming & { reply_to_message_id?: string | null }).reply_to_message_id) {
+      void load();
+      return;
+    }
     if (incoming.type && incoming.type !== "text") {
       void load();
       return;
@@ -516,6 +656,7 @@ export default function ChatConversationScreen() {
 
     // Lock synchronously so rapid taps cannot start multiple inserts.
     sendingRef.current = true;
+    const replyId = replyingTo?.id ?? null;
     try {
       const { data: sent, error } = await supabase
         .from("messages")
@@ -523,6 +664,7 @@ export default function ChatConversationScreen() {
           conversation_id: id,
           sender_id: currentUserId,
           content: trimmed,
+          ...(replyId ? { reply_to_message_id: replyId } : {}),
         })
         .select("id")
         .single();
@@ -536,6 +678,7 @@ export default function ChatConversationScreen() {
       // Only clear the draft after the database confirms the send.
       // Preserve anything the user typed while the request was pending.
       setInput((current) => current.trim() === trimmed ? "" : current);
+      setReplyingTo((current) => current?.id === replyId ? null : current);
 
       // A notification failure must not make a successfully sent message
       // appear to have failed (which could cause an accidental resend).
@@ -568,6 +711,19 @@ export default function ChatConversationScreen() {
         }
       />
 
+      {pinnedMessage && (
+        <View style={[styles.pinBanner, { backgroundColor: colors.surfaceContainerHigh, borderBottomColor: colors.outlineVariant }]}>
+          <Ionicons name="pin" size={17} color={colors.tint} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.pinTitle, { color: colors.tint }]}>Pinned message</Text>
+            <Text numberOfLines={1} style={{ color: colors.text }}>{pinnedMessage.text || "Shared message"}</Text>
+          </View>
+          <Pressable onPress={() => { void pinOrUnpin(pinnedMessage); }} accessibilityLabel="Unpin message" hitSlop={8}>
+            <Ionicons name="close" size={20} color={colors.icon} />
+          </Pressable>
+        </View>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
@@ -590,17 +746,17 @@ export default function ChatConversationScreen() {
               style={{ transform: [{ translateX: swipeOffset }] }}
               {...swipeResponder.panHandlers}
             >
-              {messages.map((m, index) => {
+              {visibleMessages.map((m, index) => {
                 const senderName =
                   conversationType === "group" ? m.senderName : undefined;
 
-                const nextMessage = messages[index + 1];
+                const nextMessage = visibleMessages[index + 1];
                 const showSenderAvatar = !m.fromMe && !!m.senderId && (
                   !nextMessage || nextMessage.senderId !== m.senderId ||
                   messageDay(nextMessage.createdAt) !== messageDay(m.createdAt)
                 );
 
-                const previous = messages[index - 1];
+                const previous = visibleMessages[index - 1];
                 const showDate = !previous || messageDay(previous.createdAt) !== messageDay(m.createdAt);
                 const dateDivider = showDate ? (
                   <View style={styles.dateDivider}>
@@ -609,6 +765,17 @@ export default function ChatConversationScreen() {
                     </Text>
                   </View>
                 ) : null;
+
+                if (m.deletedForEveryone) {
+                  return (
+                    <Fragment key={m.id}>
+                      {dateDivider}
+                      <View style={[styles.deletedRow, { justifyContent: m.fromMe ? "flex-end" : "flex-start" }]}>
+                        <Text style={[styles.deletedText, { color: colors.icon, borderColor: colors.outlineVariant }]}>This message was deleted</Text>
+                      </View>
+                    </Fragment>
+                  );
+                }
 
                 if (m.type === "activity" && m.sharedActivity) {
                   return (
@@ -677,6 +844,18 @@ export default function ChatConversationScreen() {
                         senderName={senderName}
                         avatarUri={m.senderId ? senderAvatars[m.senderId] : undefined}
                         showAvatar={showSenderAvatar}
+                        replyPreview={m.replyToMessageId ? (() => {
+                          const target = messageById.get(m.replyToMessageId);
+                          return {
+                            senderName: target?.fromMe ? "You" : target?.senderName ?? "Rollin' User",
+                            text: target?.deletedForEveryone ? "This message was deleted" : target?.text || (target?.type === "activity" ? "Shared an activity" : target?.type === "post" ? "Shared a post" : "Original message unavailable"),
+                          };
+                        })() : undefined}
+                        onReply={() => setReplyingTo(m)}
+                        onForward={() => beginForward(m)}
+                        onPin={() => { void pinOrUnpin(m); }}
+                        isPinned={pinnedId === m.id}
+                        onDelete={() => confirmDeleteMessage(m)}
                         reactions={(() => {
                           const all = reactionsByMessage[m.id] ?? [];
                           return [...new Set(all.map((r) => r.emoji))].map((emoji) => ({
@@ -700,13 +879,110 @@ export default function ChatConversationScreen() {
           </ScrollView>
         )}
 
-        <MessageInput value={input} onChangeText={setInput} onSend={send} />
+        <Modal
+          visible={!!forwardingMessage}
+          transparent
+          animationType="slide"
+          onRequestClose={() => { if (!forwarding) setForwardingMessage(null); }}
+        >
+          <View style={styles.forwardBackdrop}>
+            <View style={[styles.forwardSheet, { backgroundColor: colors.background }]}>
+              <View style={[styles.forwardHeader, { borderBottomColor: colors.outlineVariant }]}>
+                <Pressable onPress={() => { if (!forwarding) setForwardingMessage(null); }} disabled={forwarding} accessibilityRole="button">
+                  <Text style={[styles.headerLink, { color: colors.tint }]}>Done</Text>
+                </Pressable>
+                <Text style={[styles.forwardTitle, { color: colors.text }]}>Send to</Text>
+                <Pressable onPress={() => Alert.alert("Create group", "Group creation from forwarding isn't available yet.")} accessibilityRole="button">
+                  <Text style={[styles.headerLink, { color: colors.tint }]}>Create group</Text>
+                </Pressable>
+              </View>
+              <View style={[styles.forwardSearch, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Ionicons name="search" size={20} color={colors.icon} />
+                <TextInput
+                  value={forwardQuery}
+                  onChangeText={setForwardQuery}
+                  placeholder="Search"
+                  placeholderTextColor={colors.icon}
+                  style={[styles.forwardSearchInput, { color: colors.text }]}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  accessibilityLabel="Search conversations to forward to"
+                />
+                {forwardQuery.length > 0 && (
+                  <Pressable onPress={() => setForwardQuery("")} accessibilityLabel="Clear search">
+                    <Ionicons name="close-circle" size={19} color={colors.icon} />
+                  </Pressable>
+                )}
+              </View>
+              <ScrollView style={styles.forwardList} contentContainerStyle={{ paddingBottom: 30 }} keyboardShouldPersistTaps="handled">
+                {filteredForwardConversations.map((conversation) => {
+                  const sent = forwardedTo.includes(conversation.id);
+                  const busy = forwardingTo === conversation.id;
+                  return (
+                    <View key={conversation.id} style={[styles.forwardTarget, { borderBottomColor: colors.outlineVariant }]}>
+                      {conversation.avatarUri ? (
+                        <Image source={{ uri: conversation.avatarUri }} style={styles.forwardAvatar} />
+                      ) : (
+                        <View style={[styles.forwardAvatar, styles.forwardAvatarFallback, { backgroundColor: colors.surfaceContainerHigh }]}>
+                          <Ionicons name="people" size={24} color={colors.icon} />
+                        </View>
+                      )}
+                      <Text numberOfLines={1} style={[styles.forwardName, { color: colors.text }]}>{conversation.title}</Text>
+                      <Pressable
+                        disabled={forwarding || sent}
+                        onPress={() => { void forwardTo(conversation.id); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Send forwarded message to ${conversation.title}`}
+                        style={[styles.forwardSend, { backgroundColor: sent ? colors.surfaceContainerHigh : colors.tint }]}
+                      >
+                        {busy ? <ActivityIndicator color={colors.onPrimary} size="small" /> : (
+                          <Text style={{ fontWeight: "700", color: sent ? colors.icon : colors.onPrimary }}>{sent ? "Sent" : "Send"}</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  );
+                })}
+                {filteredForwardConversations.length === 0 && (
+                  <Text style={{ color: colors.icon, padding: 22, textAlign: "center" }}>No matching conversations</Text>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <MessageInput
+          value={input}
+          onChangeText={setInput}
+          onSend={send}
+          replyingTo={replyingTo ? {
+            senderName: replyingTo.fromMe ? "yourself" : replyingTo.senderName ?? headerName ?? name ?? "user",
+            text: replyingTo.text || (replyingTo.type === "activity" ? "Shared an activity" : "Shared a post"),
+          } : null}
+          onCancelReply={() => setReplyingTo(null)}
+        />
       </KeyboardAvoidingView>
     </AppView>
   );
 }
 
 const styles = StyleSheet.create({
+  pinBanner: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
+  pinTitle: { fontSize: 12, fontWeight: "700", marginBottom: 2 },
+  deletedRow: { flexDirection: "row", paddingHorizontal: 15, marginTop: 10 },
+  deletedText: { fontSize: 13, fontStyle: "italic", padding: 12, borderRadius: 16, borderWidth: 1 },
+  forwardBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+  forwardSheet: { height: "91%", borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden" },
+  forwardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 17, paddingTop: 20, paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth },
+  forwardTitle: { fontSize: 19, fontWeight: "700" },
+  headerLink: { fontSize: 15, fontWeight: "600" },
+  forwardSearch: { minHeight: 45, borderRadius: 13, marginHorizontal: 16, marginTop: 16, marginBottom: 9, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 10 },
+  forwardSearchInput: { flex: 1, paddingVertical: 10, fontSize: 16 },
+  forwardList: { flex: 1, paddingHorizontal: 16 },
+  forwardTarget: { flexDirection: "row", alignItems: "center", minHeight: 82, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  forwardAvatar: { width: 52, height: 52, borderRadius: 26 },
+  forwardAvatarFallback: { justifyContent: "center", alignItems: "center" },
+  forwardName: { flex: 1, fontSize: 16, fontWeight: "600" },
+  forwardSend: { minWidth: 67, height: 38, borderRadius: 12, justifyContent: "center", alignItems: "center", paddingHorizontal: 10 },
   swipeMessageRow: {
     width: "100%",
     position: "relative",

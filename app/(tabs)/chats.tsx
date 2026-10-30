@@ -34,6 +34,8 @@ export default function ChatsScreen() {
   const [friends, setFriends] = useState<FriendResult[]>([]);
   const [searchingFriends, setSearchingFriends] = useState(false);
   const [friendSearchError, setFriendSearchError] = useState(false);
+  const [openingFriendId, setOpeningFriendId] = useState<string | null>(null);
+  const openingFriendRef = useRef(false);
   const searchTerm = search.trim();
   const filteredConversations = useMemo(() =>
     activeConversations.filter((conversation) =>
@@ -106,6 +108,56 @@ export default function ChatsScreen() {
     setRefreshing(true);
     await refresh();
     setRefreshing(false);
+  }
+
+  // Reuse the same RPC as the Message button in components/profile/UserProfile.
+  // Supabase returns an existing direct chat or creates it if necessary.
+  async function openFriendChat(friend: FriendResult) {
+    if (openingFriendRef.current) return;
+    openingFriendRef.current = true;
+    setOpeningFriendId(friend.id);
+
+    try {
+      const { data: conversationId, error } = await supabase.rpc(
+        "get_or_create_direct_conversation",
+        { other_user_id: friend.id },
+      );
+      if (error) throw error;
+      if (!conversationId) throw new Error("Could not open this conversation.");
+
+      router.push({
+        pathname: "/chat/[id]",
+        params: {
+          id: conversationId,
+          name: friend.full_name?.trim() || "Rollin' User",
+          avatar: resolveAvatarUri(friend.profile_picture),
+          otherUserId: friend.id,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message :
+        (error && typeof error === "object" && "message" in error
+          ? String(error.message) : "");
+      const code = error && typeof error === "object" && "code" in error
+        ? String(error.code) : "";
+
+      if (code === "P0001" && message.includes("follow this user")) {
+        Alert.alert(
+          "Follow required",
+          "You need to follow this person before you can message them.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "View profile", onPress: () => router.push(`/profile/${friend.id}`) },
+          ],
+        );
+      } else {
+        console.error("[chats] open friend conversation failed:", error);
+        Alert.alert("Could not open chat", message || "Please try again.");
+      }
+    } finally {
+      openingFriendRef.current = false;
+      setOpeningFriendId(null);
+    }
   }
 
   function confirmDelete(conversationId: string) {
@@ -223,18 +275,21 @@ export default function ChatsScreen() {
                   <Pressable
                     key={friend.id}
                     style={styles.friendRow}
-                    onPress={() => router.push(`/profile/${friend.id}`)}
+                    onPress={() => void openFriendChat(friend)}
+                    disabled={openingFriendId !== null}
                     accessibilityRole="button"
-                    accessibilityLabel={`View ${friend.full_name ?? "user"}'s profile`}
+                    accessibilityLabel={`Message ${friend.full_name ?? "user"}`}
                   >
                     <Image source={{ uri: resolveAvatarUri(friend.profile_picture) }} style={styles.friendAvatar} />
                     <View style={styles.friendText}>
                       <Text style={[styles.friendName, { color: colors.text, fontFamily: Fonts.sans }]}>
                         {friend.full_name?.trim() || "Rollin' User"}
                       </Text>
-                      <Text style={{ color: colors.icon }}>View profile to message</Text>
+                      <Text style={{ color: colors.icon }}>Tap to message</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={colors.icon} />
+                    {openingFriendId === friend.id
+                      ? <ActivityIndicator color={colors.tint} size="small" />
+                      : <Ionicons name="chatbubble-outline" size={20} color={colors.icon} />}
                   </Pressable>
                 ))}
                 {!searchingFriends && !friendSearchError && newFriends.length === 0 && (

@@ -1,4 +1,5 @@
 import { Colors, Fonts } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, useColorScheme, View } from "react-native";
@@ -16,6 +17,12 @@ interface MessageBubbleProps {
   groupedWithPrevious?: boolean;
   reactions?: { emoji: string; count: number; mine: boolean }[];
   onReact?: (emoji: string) => void;
+  onReply?: () => void;
+  onForward?: () => void;
+  onPin?: () => void;
+  onDelete?: () => void;
+  isPinned?: boolean;
+  replyPreview?: { senderName: string; text: string };
 }
 
 export default function MessageBubble({
@@ -30,8 +37,15 @@ export default function MessageBubble({
   groupedWithPrevious = false,
   reactions = [],
   onReact,
+  onReply,
+  onForward,
+  onPin,
+  onDelete,
+  isPinned = false,
+  replyPreview,
 }: MessageBubbleProps) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [moreVisible, setMoreVisible] = useState(false);
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
@@ -71,7 +85,7 @@ export default function MessageBubble({
         )}
         <View style={[styles.messageColumn, fromMe ? styles.columnMe : styles.columnThem, reactions.length > 0 && styles.withReaction]}>
           <Pressable
-            onLongPress={() => setMenuVisible(true)}
+            onLongPress={() => { setMoreVisible(false); setMenuVisible(true); }}
             delayLongPress={350}
             accessibilityHint="Long press to open message actions"
             style={[
@@ -84,6 +98,12 @@ export default function MessageBubble({
               },
             ]}
           >
+            {replyPreview && (
+              <View style={[styles.replyQuote, { borderLeftColor: colors.tint, backgroundColor: colors.background }]}>
+                <Text numberOfLines={1} style={[styles.replyAuthor, { color: colors.tint }]}>{replyPreview.senderName}</Text>
+                <Text numberOfLines={2} style={[styles.replyText, { color: colors.text }]}>{replyPreview.text}</Text>
+              </View>
+            )}
             {senderName && (
               <Pressable onPress={onPressSender} disabled={!onPressSender} hitSlop={6}>
                 <Text
@@ -130,29 +150,76 @@ export default function MessageBubble({
         visible={menuVisible}
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => setMenuVisible(false)}
+        onRequestClose={() => { setMenuVisible(false); setMoreVisible(false); }}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuVisible(false)} accessibilityLabel="Close message actions" />
-          <View style={[styles.actionPanel, { backgroundColor: colors.surfaceContainerHigh }]}>
-            {onReact && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => { setMenuVisible(false); setMoreVisible(false); }}
+            accessibilityLabel="Close message actions"
+          />
+          <View style={[styles.menuStack, fromMe ? styles.stackRight : styles.stackLeft]}>
+            {!moreVisible && onReact && (
               <View style={styles.reactionChoices}>
                 {reactionChoices.map((emoji) => (
-                  <Pressable key={emoji} onPress={() => chooseReaction(emoji)} accessibilityRole="button" accessibilityLabel={`React ${emoji}`} style={styles.reactionChoice}>
+                  <Pressable
+                    key={emoji}
+                    style={styles.reactionChoice}
+                    accessibilityRole="button"
+                    accessibilityLabel={`React ${emoji}`}
+                    onPress={() => chooseReaction(emoji)}
+                  >
                     <Text style={styles.reactionEmoji}>{emoji}</Text>
                   </Pressable>
                 ))}
               </View>
             )}
-            <Text numberOfLines={3} style={[styles.selectedMessage, { color: colors.text }]}>{text}</Text>
-            <Pressable
-              style={styles.actionRow}
-              onPress={() => { void copyMessage(); }}
-              accessibilityRole="button"
-              accessibilityLabel="Copy message"
-            >
-              <Text style={[styles.actionLabel, { color: colors.text, fontFamily: Fonts.sans }]}>Copy</Text>
-            </Pressable>
+            {(
+              <View style={styles.selectedMessageWrap}>
+                <Text numberOfLines={3} style={styles.selectedMessage}>{text}</Text>
+              </View>
+            )}
+            <View style={styles.actionPanel}>
+              {moreVisible ? (
+                <>
+                  <Pressable style={styles.actionRow} disabled={!onPin} onPress={() => { setMoreVisible(false); setMenuVisible(false); onPin?.(); }}>
+                    <Text style={styles.actionLabel}>{isPinned ? "Unpin" : "Pin"}</Text>
+                    <Ionicons name={isPinned ? "pin" : "pin-outline"} size={19} color="#e8e8e8" />
+                  </Pressable>
+                  <Pressable style={styles.actionRow} onPress={() => { setMoreVisible(false); setMenuVisible(false); onForward?.(); }} disabled={!onForward}>
+                    <Text style={styles.actionLabel}>Forward</Text>
+                    <Ionicons name="arrow-redo-outline" size={19} color="#e8e8e8" />
+                  </Pressable>
+                  <Pressable style={styles.actionRow} disabled={!onDelete} onPress={() => { setMoreVisible(false); setMenuVisible(false); onDelete?.(); }}>
+                    <Text style={[styles.actionLabel, { color: "#ff7777" }]}>Delete</Text>
+                    <Ionicons name="trash-outline" size={19} color="#ff7777" />
+                  </Pressable>
+                  <Pressable style={[styles.actionRow, styles.lastAction]} onPress={() => setMoreVisible(false)} accessibilityRole="button" accessibilityLabel="More message options">
+                    <Text style={styles.actionLabel}>More</Text>
+                    <Ionicons name="ellipsis-horizontal-circle-outline" size={19} color="#e8e8e8" />
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  {onReply && (
+                    <Pressable style={styles.actionRow} onPress={() => { setMenuVisible(false); onReply(); }}>
+                      <Text style={styles.actionLabel}>Reply</Text>
+                      <Ionicons name="arrow-undo-outline" size={19} color="#e8e8e8" />
+                    </Pressable>
+                  )}
+                  <Pressable style={styles.actionRow} onPress={() => { void copyMessage(); }}>
+                    <Text style={styles.actionLabel}>Copy</Text>
+                    <Ionicons name="copy-outline" size={19} color="#e8e8e8" />
+                  </Pressable>
+                  {onForward && (
+                    <Pressable style={[styles.actionRow, styles.lastAction]} onPress={() => setMoreVisible(true)}>
+                      <Text style={styles.actionLabel}>More</Text>
+                      <Ionicons name="ellipsis-horizontal-circle-outline" size={19} color="#e8e8e8" />
+                    </Pressable>
+                  )}
+                </>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -161,9 +228,16 @@ export default function MessageBubble({
 }
 
 const styles = StyleSheet.create({
-  reactionChoices: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 8 },
-  reactionChoice: { padding: 3 },
-  reactionEmoji: { fontSize: 24 },
+  replyQuote: { borderLeftWidth: 3, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 5 },
+  replyAuthor: { fontSize: 11, fontWeight: "700" },
+  replyText: { fontSize: 12, lineHeight: 16 },
+  reactionChoices: {
+    width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-around",
+    paddingHorizontal: 8, paddingVertical: 10, borderRadius: 32,
+    backgroundColor: "#333335", marginBottom: 10,
+  },
+  reactionChoice: { paddingHorizontal: 1, paddingVertical: 2 },
+  reactionEmoji: { fontSize: 27 },
   // Messenger-style badge: overlap only the bubble's bottom edge.
   // The column reserves space underneath so the badge does not cover text.
   reactionSummary: {
@@ -182,34 +256,25 @@ const styles = StyleSheet.create({
   },
   reactionSummaryText: { fontSize: 13, lineHeight: 18 },
   modalRoot: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 28,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    flex: 1, justifyContent: "center", paddingHorizontal: 16,
+    backgroundColor: "rgba(0,0,0,0.82)",
   },
-  actionPanel: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 18,
-    padding: 12,
+  menuStack: { width: "100%", maxWidth: 365 },
+  stackRight: { alignSelf: "flex-end" },
+  stackLeft: { alignSelf: "flex-start" },
+  selectedMessageWrap: {
+    alignSelf: "flex-start", maxWidth: "92%", marginBottom: 10,
+    borderRadius: 17, backgroundColor: "#323234", paddingHorizontal: 15, paddingVertical: 12,
   },
-  selectedMessage: {
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    fontSize: 15,
-  },
+  selectedMessage: { color: "#f4f4f4", fontSize: 15, lineHeight: 21 },
+  actionPanel: { width: "78%", maxWidth: 300, borderRadius: 16, overflow: "hidden", backgroundColor: "#252527" },
   actionRow: {
-    minHeight: 48,
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(127,127,127,0.4)",
+    minHeight: 51, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#555558",
   },
-  actionLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  lastAction: { borderBottomWidth: 0 },
+  actionLabel: { fontSize: 16, fontWeight: "500", color: "#f5f5f5" },
+  disabledLabel: { fontSize: 15, color: "#888" },
   row: {
     flexDirection: "row",
     alignItems: "flex-end",

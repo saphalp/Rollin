@@ -1,7 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -11,15 +12,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ConversationHeader from "@/components/chats/ConversationHeader";
 import { PostImageCarousel } from "@/components/explore/post-image-carousel";
+import { OverflowMenu } from "@/components/report/overflow-menu";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePostLike } from "@/hooks/use-post-like";
-import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
-import { supabase } from "@/lib/supabase";
+import { subscribeAccountChanges } from "@/lib/account-center";
+import { loadExplorePost } from "@/services/activity-posts-service";
 
 type PostDetail = {
   id: string;
@@ -53,71 +56,37 @@ export default function PostDetailScreen() {
 
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const userId = useAuthContext().claims?.sub;
 
-  async function load() {
-    setLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const uid = user?.id ?? null;
-
-    const { data: row, error } = await supabase
-      .from("activity_photos")
-      .select("id, user_id, caption, created_at")
-      .eq("id", id)
-      .single();
-
-    if (error || !row) {
-      setLoading(false);
-      return;
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    let controller: AbortController | null = null;
+    async function load() {
+      controller?.abort();
+      const request = new AbortController(); controller = request;
+      setPost(null); setError(''); setLoading(true);
+      try {
+        const result = id && userId ? await loadExplorePost(id, request.signal) : null;
+        if (active && !request.signal.aborted) setPost(result);
+      } catch {
+        if (active && !request.signal.aborted) setError('Could not load this post. Please try again.');
+      } finally {
+        if (active && !request.signal.aborted) setLoading(false);
+      }
     }
-
-    const [{ data: profile }, { data: images }, { data: likes }, { data: myLike }] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("full_name, profile_picture")
-          .eq("id", row.user_id)
-          .single(),
-        supabase
-          .from("activity_photo_images")
-          .select("image_path, position")
-          .eq("post_id", row.id)
-          .order("position", { ascending: true }),
-        supabase.from("post_likes").select("post_id").eq("post_id", row.id),
-        uid
-          ? supabase
-              .from("post_likes")
-              .select("post_id")
-              .eq("post_id", row.id)
-              .eq("user_id", uid)
-              .maybeSingle()
-          : Promise.resolve({ data: null as { post_id: string } | null }),
-      ]);
-
-    setPost({
-      id: row.id,
-      userId: row.user_id,
-      userName: profile?.full_name ?? "Rollin' User",
-      avatarUrl: resolveAvatarUri(profile?.profile_picture),
-      caption: row.caption,
-      createdAt: row.created_at,
-      imageUrls: (images ?? []).map(
-        (image: any) =>
-          supabase.storage.from("activity-photos").getPublicUrl(image.image_path)
-            .data.publicUrl,
-      ),
-      likeCount: likes?.length ?? 0,
-      likedByMe: !!myLike,
+    const refresh = () => { void load(); };
+    refresh();
+    const unsubscribe = subscribeAccountChanges(refresh);
+    const app = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh();
+      else { controller?.abort(); setPost(null); }
     });
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    if (id) void load();
-  }, [id]);
+    return () => { active = false; controller?.abort(); unsubscribe(); app.remove(); setPost(null); };
+  // Retry reloads the focused post and its current permissions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, userId, attempt]));
 
   if (loading) {
     return (
@@ -130,7 +99,15 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <AppView style={[styles.centered, { paddingTop: insets.top }]}>
-        <AppText style={{ color: colors.outline }}>Post not found.</AppText>
+        <AppText accessibilityRole={error ? 'alert' : undefined} style={{ color: colors.text }}>
+          {error || 'This post is unavailable or private.'}
+        </AppText>
+        {!!error && <TouchableOpacity accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} style={{ padding: 16 }}>
+          <AppText style={{ color: colors.tint }}>Retry</AppText>
+        </TouchableOpacity>}
+        <TouchableOpacity accessibilityRole="button" onPress={() => router.back()} style={{ padding: 16 }}>
+          <AppText style={{ color: colors.tint }}>Go back</AppText>
+        </TouchableOpacity>
       </AppView>
     );
   }
@@ -142,6 +119,8 @@ function PostDetailView({ post }: { post: PostDetail }) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
+  const { profile } = useAuthContext();
+  const isOwnPost = profile?.id === post.userId;
 
   const { liked, count, toggle } = usePostLike(
     post.id,
@@ -156,6 +135,15 @@ function PostDetailView({ post }: { post: PostDetail }) {
         name={post.userName}
         avatar={{ uri: post.avatarUrl }}
         subtitle={timeAgo(post.createdAt)}
+        right={
+          isOwnPost ? undefined : (
+            <OverflowMenu
+              iconSize={24}
+              anchorStyle={styles.menuButton}
+              report={{ type: "post", id: post.id }}
+            />
+          )
+        }
       />
 
       <ScrollView
@@ -243,6 +231,9 @@ const styles = StyleSheet.create({
   },
   carousel: {
     borderRadius: 0,
+  },
+  menuButton: {
+    padding: 4,
   },
   body: {
     padding: 16,

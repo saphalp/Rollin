@@ -8,6 +8,7 @@ import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { getProfilePictureUrl } from "@/lib/profile/get-profile-picture";
 
 export default function Header() {
@@ -16,6 +17,7 @@ export default function Header() {
 
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const hasUnread = useUnreadNotifications();
 
   useEffect(() => {
     async function loadProfilePicture() {
@@ -64,8 +66,20 @@ export default function Header() {
         <TourTarget id="header-calendar"><TouchableOpacity style={styles.tourIcon} hitSlop={8} onPress={() => router.push('/calendar')}>
           <IconSymbol name="calendar" size={24} color={colors.text} style={styles.tourGlyph} />
         </TouchableOpacity></TourTarget>
-        <TourTarget id="header-notifications"><TouchableOpacity style={styles.tourIcon} hitSlop={8} onPress={() => router.push('/(tabs)/notifications')}>
+        <TourTarget id="header-notifications"><TouchableOpacity
+          style={styles.tourIcon}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={hasUnread ? "Notifications, unread" : "Notifications"}
+          onPress={() => router.push('/notifications')}
+        >
           <IconSymbol name="bell.fill" size={24} color={colors.text} style={styles.tourGlyph} />
+          {hasUnread && (
+            <View
+              pointerEvents="none"
+              style={[styles.unreadDot, { backgroundColor: colors.error, borderColor: colors.background }]}
+            />
+          )}
         </TouchableOpacity></TourTarget>
       </View>
     </View>
@@ -75,6 +89,15 @@ export default function Header() {
 const styles = StyleSheet.create({
   tourIcon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
   tourGlyph: { lineHeight: 24, includeFontPadding: false },
+  unreadDot: {
+    position: "absolute",
+    top: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+  },
   container: {
     flex: 1,
   },

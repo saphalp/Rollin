@@ -1,10 +1,10 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BackButton } from '@/components/ui/back-button';
 
 type OfferRideHeaderProps = {
   onBack: () => void;
@@ -32,14 +32,7 @@ export function OfferRideHeader({
         },
       ]}
     >
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Go back to rides"
-        onPress={onBack}
-        style={[styles.backButton, { backgroundColor: colors.surfaceContainer, borderColor: colors.outlineVariant }]}
-      >
-        <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text} />
-      </TouchableOpacity>
+      <BackButton onPress={onBack} accessibilityLabel="Go back to rides" />
 
       <View style={styles.headerTitleContainer}>
         <AppText numberOfLines={1} style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>

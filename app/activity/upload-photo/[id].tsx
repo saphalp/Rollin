@@ -21,6 +21,7 @@ import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useUploadActivityPhoto } from "@/hooks/use-upload-activity-photo";
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 const MAX_PHOTOS = 10;
 
@@ -92,15 +93,7 @@ export default function UploadActivityPhotoScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={goBack}
-          style={[
-            styles.backButton,
-            { backgroundColor: colors.surfaceContainerHigh },
-          ]}
-        >
-          <IconSymbol name="chevron.left" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton onPress={goBack} />
 
         <AppText
           style={[
@@ -251,13 +244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",

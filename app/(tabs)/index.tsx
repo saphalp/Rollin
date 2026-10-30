@@ -145,6 +145,7 @@ export default function HomeScreen() {
       if (AppState.currentState === 'active') void fetchActivities();
     }, 5 * 60_000);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       active = false; ++generation.current; subscription.unsubscribe();
       foreground.remove(); clearInterval(refresh);
     };
@@ -167,7 +168,7 @@ export default function HomeScreen() {
 
     setSavedIds((prev) => {
       const next = new Set(prev);
-      isSaved ? next.delete(activityId) : next.add(activityId);
+      if (isSaved) { next.delete(activityId); } else { next.add(activityId); }
       return next;
     });
 
@@ -179,7 +180,7 @@ export default function HomeScreen() {
       console.error('toggleSave error:', error);
       setSavedIds((prev) => {
         const next = new Set(prev);
-        isSaved ? next.add(activityId) : next.delete(activityId);
+        if (isSaved) { next.add(activityId); } else { next.delete(activityId); }
         return next;
       });
     }
@@ -264,10 +265,14 @@ export default function HomeScreen() {
         ) : (
           <>
             {/* Featured */}
-            <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
-              Featured
-            </AppText>
-            <FeaturedCarousel activities={featured} onPress={openActivity} />
+            {featured.length > 0 && (
+              <>
+                <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                  Featured
+                </AppText>
+                <FeaturedCarousel activities={featured} onPress={openActivity} />
+              </>
+            )}
 
             {/* Recommended */}
             {recommended.length > 0 && (

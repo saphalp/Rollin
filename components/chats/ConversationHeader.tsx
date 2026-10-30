@@ -1,6 +1,6 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
-import { router } from "expo-router";
+import type { ReactNode } from "react";
 import {
   ImageSourcePropType,
   Pressable,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Avatar, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from '@/components/ui/back-button';
 
 interface ConversationHeaderProps {
   name: string;
@@ -18,6 +19,7 @@ interface ConversationHeaderProps {
   muted?: boolean;
   onToggleMute?: () => void;
   onPressProfile?: () => void;
+  right?: ReactNode;
 }
 
 export default function ConversationHeader({
@@ -27,6 +29,7 @@ export default function ConversationHeader({
   muted = false,
   onToggleMute,
   onPressProfile,
+  right,
 }: ConversationHeaderProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -43,16 +46,7 @@ export default function ConversationHeader({
         },
       ]}
     >
-      <Pressable
-        onPress={() => router.back()}
-        hitSlop={12}
-        style={({ pressed }) => [
-          styles.backButton,
-          { opacity: pressed ? 0.6 : 1 },
-        ]}
-      >
-        <IconSymbol name="chevron.left" size={26} color={colors.text} />
-      </Pressable>
+      <BackButton />
 
       <Pressable
         onPress={onPressProfile}
@@ -99,6 +93,7 @@ export default function ConversationHeader({
           />
         </Pressable>
       )}
+      {right}
     </View>
   );
 }

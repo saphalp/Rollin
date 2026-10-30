@@ -1,5 +1,4 @@
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +9,7 @@ import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
 type SettingKey = 'chat_messages' | 'activity_updates' | 'ride_updates' | 'follow_requests';
 
@@ -130,9 +130,7 @@ export default function NotificationSettingsScreen() {
   return (
     <AppView style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.outlineVariant }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surfaceContainerHigh }]}>
-          <IconSymbol name="chevron.left" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton />
         <AppText style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>Notifications</AppText>
         <View style={styles.backButton} />
       </View>
@@ -239,7 +237,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  backButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: BACK_BUTTON_SIZE, height: BACK_BUTTON_SIZE },
   headerTitle: { fontSize: 17, fontWeight: '600' },
   list: { paddingHorizontal: 16 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },

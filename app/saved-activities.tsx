@@ -3,19 +3,20 @@ import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Reanimated, { Extrapolation, interpolate, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { BackButton } from '@/components/ui/back-button';
 
 type SavedActivity = {
   id: string;
@@ -60,40 +61,61 @@ type SwipeableRowProps = {
   colors: typeof Colors.light;
 };
 
+function RightAction({
+  dragX,
+  onPress,
+}: {
+  dragX: SharedValue<number>;
+  onPress: () => void;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      dragX.value,
+      [-80, 0],
+      [1, 0.8],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [{ scale }],
+    };
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Reanimated.View style={[animatedStyle, { alignItems: 'center', gap: 4 }]}>
+        <IconSymbol name="bookmark.fill" size={20} color="#fff" />
+        <AppText style={styles.deleteText}>Remove</AppText>
+      </Reanimated.View>
+    </TouchableOpacity>
+  );
+}
+
 function SwipeableRow({ item, onRemove, colors }: SwipeableRowProps) {
-  const swipeableRef = useRef<Swipeable>(null);
+  const swipeableRef = useRef<SwipeableMethods>(null);
 
   const renderRightActions = (
-    _progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
+    _progress: SharedValue<number>,
+    translation: SharedValue<number>,
   ) => {
-    const scale = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [1, 0.8],
-      extrapolate: 'clamp',
-    });
-
     return (
-      <TouchableOpacity
-        style={styles.deleteAction}
+      <RightAction
+        dragX={translation}
         onPress={() => {
           swipeableRef.current?.close();
           onRemove(item.id);
         }}
-        activeOpacity={0.85}
-      >
-        <Animated.View style={{ transform: [{ scale }], alignItems: 'center', gap: 4 }}>
-          <IconSymbol name="bookmark.fill" size={20} color="#fff" />
-          <AppText style={styles.deleteText}>Remove</AppText>
-        </Animated.View>
-      </TouchableOpacity>
+      />
     );
   };
 
   const categoryColor = CATEGORY_COLORS[item.category] ?? colors.tint;
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       ref={swipeableRef}
       renderRightActions={renderRightActions}
       rightThreshold={40}
@@ -145,7 +167,7 @@ function SwipeableRow({ item, onRemove, colors }: SwipeableRowProps) {
         </View>
         <IconSymbol name="chevron.right" size={16} color={colors.outlineVariant} />
       </TouchableOpacity>
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 }
 
@@ -210,7 +232,7 @@ export default function SavedActivitiesScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Saved Activities', headerBackTitle: 'Back', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Saved Activities', headerShown: true, headerBackVisible: false, headerLeft: () => <BackButton /> }} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {loading ? (
           <View style={styles.loader}>

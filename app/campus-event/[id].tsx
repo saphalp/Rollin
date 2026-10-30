@@ -1,4 +1,5 @@
 import { AppText } from '@/components/text';
+import { BackButton } from '@/components/ui/back-button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { loadHostableCampusEvent, ownHostedActivity } from '@/lib/campus-hosting';
@@ -26,11 +27,18 @@ export default function CampusEventDetailScreen() {
     try {
       if (!id) throw new Error('Missing event ID.');
       const result = await loadHostableCampusEvent(id);
-      const identity = await supabase.auth.getUser();
-      if (identity.error) throw identity.error;
-      const own = identity.data.user ? await ownHostedActivity(id, identity.data.user.id) : undefined;
       if (request !== generation.current) return;
-      setNow(Date.now()); setEvent(result.event); setUniversity(result.university); setHosted(own); setAboutExpanded(false);
+      // Event details must remain visible even if optional authentication fails.
+      setNow(Date.now()); setEvent(result.event); setUniversity(result.university); setAboutExpanded(false);
+      try {
+        const identity = await supabase.auth.getUser();
+        if (!identity.error && identity.data.user) {
+          const own = await ownHostedActivity(id, identity.data.user.id);
+          if (request === generation.current) setHosted(own);
+        }
+      } catch {
+        // Only the personalized "View Your Activity" button depends on this lookup.
+      }
     } catch (err) { if (request === generation.current) { setEvent(null); setError(err instanceof Error ? err.message : 'Unable to load event.'); } }
     finally { if (request === generation.current) setLoading(false); }
   }, [id]);
@@ -45,7 +53,7 @@ export default function CampusEventDetailScreen() {
   const canExpandAbout = about.length > 160;
   return <View style={[styles.screen, { backgroundColor: colors.background }]}>
     <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />} contentContainerStyle={{ paddingBottom: 20 }}>
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 12 }}><Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/campus-events')} style={styles.backButton}><Ionicons name="chevron-back" size={26} color={colors.tint} /></Pressable></View>
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 12 }}><BackButton fallbackHref="/campus-events" /></View>
       {loading && !event ? <ActivityIndicator /> : null}
       {!!error && <View style={styles.content}><AppText accessibilityRole="alert" style={{ color: colors.error }}>{error}</AppText><Pressable onPress={() => void load()}><AppText>Retry</AppText></Pressable></View>}
       {event && <>

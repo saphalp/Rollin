@@ -13,6 +13,30 @@ Codes expire after ten minutes and are single-use. Five wrong guesses invalidate
 
 **Back to login** signs out only this device. Existing signup-confirmation and password-reset emails retain their current Supabase templates. A signup that creates a new session also reaches the login-code screen. Password recovery remains accessible, then signs out after changing the password.
 
+## Turning the login code on or off
+
+One database switch decides whether fresh logins need the emailed code. It's on by default.
+Apply `supabase/migrations/20261030130000_login_code_toggle.sql` once (after the two
+login-email migrations), then flip it in the Supabase SQL editor:
+
+```sql
+-- Password (or Google) sign-in only:
+update login_security.settings set require_login_code = false;
+-- Require the emailed code again:
+update login_security.settings set require_login_code = true;
+```
+
+- **Off:** `login_email_verified()` approves any live Auth session, so the app skips **Verify
+  your login** and the API, RLS and Edge Function checks all pass without a code. Signing out
+  or revoking a session still blocks it.
+- **On:** a session needs a verified code, exactly as described above. Sessions that signed in
+  while the switch was off were never verified: their requests are blocked right away, and
+  the app shows the code screen on its next launch or sign-in.
+- No app release or redeploy is needed. The app asks the server on sign-in and launch, so a
+  change applies to the next sign-in, relaunch, or session refresh. A device that is open at
+  the moment of the switch keeps its current screen until then.
+- The switch lives in the private `login_security` schema: clients can't read or change it.
+
 ## Security scope
 
 This is custom email verification for access to Rollin, not Supabase native MFA/AAL2. Supabase issues an AAL1 session after the primary sign-in. Approval is stored on the server against that session ID and current email; neither client storage nor editable user metadata can approve it.

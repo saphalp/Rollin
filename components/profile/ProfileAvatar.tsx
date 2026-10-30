@@ -10,12 +10,10 @@ import { selectProfileImage } from "@/lib/profile/select-profile-image";
 import { uploadProfilePicture } from "@/lib/profile/upload-profile-picture";
 
 type ProfileAvatarProps = {
-  verified?: boolean;
   editable?: boolean;
 };
 
 export default function ProfileAvatar({
-  verified = false,
   editable = false,
 }: ProfileAvatarProps) {
   const [selectedImage, setSelectedImage] =
@@ -109,9 +107,9 @@ export default function ProfileAvatar({
     <View>
       <AvatarCard
         avatarImg={{ uri: displayedImage }}
-        verified={verified}
         editable={editable}
         onEditPress={handleSelectImage}
+        viewable={displayedImage !== FALLBACK_AVATAR}
       />
 
       {selectedImage && (

@@ -44,3 +44,12 @@ Screens generally use:
 
 Forms should remain scrollable while the keyboard is open.
 
+
+## Back Navigation
+
+Every screen uses the shared `BackButton` (`components/ui/back-button.tsx`): a blue (`tint`) chevron with no text label. Don't hand-roll a back button or rely on the native header's default back button.
+
+- Custom headers render `<BackButton />`. By default it goes back, or replaces to `fallbackHref` (default `/(tabs)`) when there is no history; pass `onPress` to run your own back logic.
+- Native Stack headers set `headerBackVisible: false` and `headerLeft: () => <BackButton />` so iOS doesn't show a "Back" label and Android doesn't show its arrow.
+- Over photos or maps, use `variant="floating"` for a round card background that stays readable on the image.
+- To center a header title, size the empty spacer on the right with `BACK_BUTTON_SIZE`.

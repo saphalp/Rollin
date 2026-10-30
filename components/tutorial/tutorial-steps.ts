@@ -15,7 +15,7 @@ export const TUTORIAL_STEPS: readonly TourStep[] = [
   { target: 'home-categories', route: '/', title: 'Turn discovery into a plan', description: 'Categories narrow the feed. Open an activity to join or request access, or bookmark it for later.' },
   { target: 'tab-explore', route: '/', destination: '/explore', title: 'Try it: open Explore tab', description: 'Tap the highlighted Explore tab.' },
   { anchor: 'tab-explore', route: '/explore', title: 'Explore: see the community', description: 'Explore shows photos and posts from activities. See what people have been doing and discover shared experiences.' },
-  { target: 'explore-heading', route: '/explore', title: 'Follow a shared experience', description: 'Browse activity photos and captions. Open a post or profile to learn more about the people behind it.' },
+  { target: 'explore-first-post', route: '/explore', title: 'Follow a shared experience', description: 'Browse activity photos and captions. Open a post or profile to learn more about the people behind it.' },
   { target: 'header-calendar', route: '/explore', destination: '/calendar', title: 'Try it: open calendar icon', description: 'Tap the highlighted calendar icon.' },
   { anchor: 'calendar-grid-and-legend', placement: 'below', route: '/calendar', title: 'Calendar: put plans in context', description: 'See activities and rides together. Filter your plans below the calendar, or browse the upcoming agenda.' },
   { target: 'calendar-grid-and-legend', route: '/calendar', title: 'Read the plan markers', description: 'Amber marks activities you host, blue marks other activities, and green marks your rides. Tap a date to see its plans.' },

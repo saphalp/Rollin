@@ -9,6 +9,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -96,7 +97,7 @@ function LoopingCarousel({
   // [last, ...items, first]: a clone at each end so swiping past either edge wraps around.
   const slides = [activities[n - 1], ...activities, activities[0]];
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const offset = useRef(interval);
   const dragging = useRef(false);
   const positioned = useRef(false);

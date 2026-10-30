@@ -1,4 +1,4 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { IconSymbol, type IconSymbolName } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
 import { StyleSheet, useColorScheme, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -7,6 +7,7 @@ interface ProfileInfoProps {
   name: string;
   university: string;
   major: string;
+  isEduVerified?: boolean;
   isVerifiedDriver?: boolean;
 }
 
@@ -14,6 +15,7 @@ export default function ProfileInfo({
   name,
   university,
   major,
+  isEduVerified = false,
   isVerifiedDriver = false,
 }: ProfileInfoProps) {
   const scheme = useColorScheme() ?? "light";
@@ -44,14 +46,34 @@ export default function ProfileInfo({
         </Text>
       </View>
 
-      {isVerifiedDriver && (
-        <View style={[styles.driverBadge, { backgroundColor: colors.primaryContainer }]}>
-          <IconSymbol name="car.fill" size={13} color={colors.onPrimary} />
-          <Text style={[styles.driverBadgeText, { color: colors.onPrimary, fontFamily: Fonts.sans }]}>
-            Verified Driver
-          </Text>
+      {(isEduVerified || isVerifiedDriver) && (
+        <View style={styles.badgeRow}>
+          {isEduVerified && (
+            <VerificationBadge icon="checkmark.seal.fill" label=".edu Verified" />
+          )}
+          {isVerifiedDriver && (
+            <VerificationBadge icon="car.fill" label="Verified Driver" />
+          )}
         </View>
       )}
+    </View>
+  );
+}
+
+function VerificationBadge({ icon, label }: { icon: IconSymbolName; label: string }) {
+  const scheme = useColorScheme() ?? "light";
+  const colors = Colors[scheme];
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={label}
+      style={[styles.badge, { backgroundColor: colors.verifiedContainer }]}
+    >
+      <IconSymbol name={icon} size={14} color={colors.onVerifiedContainer} />
+      <Text style={[styles.badgeText, { color: colors.onVerifiedContainer, fontFamily: Fonts.sans }]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -84,17 +106,24 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     opacity: 0.6,
   },
-  driverBadge: {
+  badgeRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
     marginTop: 4,
   },
-  driverBadgeText: {
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeText: {
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: "700",
   },
 });

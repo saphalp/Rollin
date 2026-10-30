@@ -1,20 +1,26 @@
 import { ActivityInfoCard } from "@/components/activity/activity-info-card";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
+import { ActivityPostsSection } from "@/components/activity/activity-posts-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { ScheduleConflictDialog } from "@/components/activity/schedule-conflict-dialog";
+import { openReport } from "@/components/report/overflow-menu";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
 import { AppText } from "@/components/text";
+import { BackButton } from '@/components/ui/back-button';
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useScheduleConflict } from "@/hooks/use-schedule-conflict";
 import { recordActivityView } from "@/lib/featured-activities";
 import { openEventMap } from "@/lib/open-event-map";
 import { supabase } from "@/lib/supabase";
 import { hasReviewedHost } from "@/services/reviews-service";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -171,6 +177,8 @@ export default function ActivityDetailScreen() {
 
   const [rsvpLoading, setRsvpLoading] =
     useState(false);
+  const rsvpInFlight = useRef(false);
+  const scheduleConflict = useScheduleConflict(id, currentUserId);
 
   const [rideOptionsVisible, setRideOptionsVisible] =
     useState(false);
@@ -186,6 +194,10 @@ export default function ActivityDetailScreen() {
 
   const [hostReviewed, setHostReviewed] =
     useState(false);
+
+  // Optional link to the official campus event behind a hosted activity.
+  const [campusOrigin, setCampusOrigin] =
+    useState<{ id: string; university: string } | null>(null);
 
   const [boosted, setBoosted] =
     useState(false);
@@ -203,6 +215,7 @@ export default function ActivityDetailScreen() {
     if (id) {
       void load();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Each attendee gets one host review per activity, so the menu item turns off once it's posted.
@@ -279,6 +292,40 @@ export default function ActivityDetailScreen() {
       act as ActivityDetail;
 
     setActivity(activityData);
+    setCampusOrigin(null);
+    // This lookup is optional: failure should never block the activity page.
+    void (async () => {
+      try {
+        const { data: link, error: linkError } = await supabase
+          .from("activities")
+          .select("source_campus_event_id")
+          .eq("id", activityData.id)
+          .maybeSingle();
+
+        if (linkError || !link?.source_campus_event_id) return;
+        const { data: sourceEvent, error: eventError } = await supabase
+          .from("campus_events")
+          .select("id, campus")
+          .eq("id", link.source_campus_event_id)
+          .maybeSingle();
+
+        if (eventError || !sourceEvent) return;
+        const { data: sourceUniversity } = await supabase
+          .from("universities")
+          .select("short_name, name")
+          .eq("id", sourceEvent.campus)
+          .maybeSingle();
+
+        setCampusOrigin({
+          id: sourceEvent.id,
+          university: sourceUniversity?.short_name
+            || sourceUniversity?.name
+            || sourceEvent.campus.toUpperCase(),
+        });
+      } catch {
+        // Ordinary activities and missing optional links need no badge.
+      }
+    })();
     setCurrentUserId(user?.id ?? null);
     if (user && user.id !== activityData.host_id) void recordActivityView(activityData.id);
 
@@ -448,11 +495,13 @@ export default function ActivityDetailScreen() {
   async function toggleRsvp() {
     if (
       !activity ||
-      !currentUserId
+      !currentUserId ||
+      rsvpInFlight.current
     ) {
       return;
     }
 
+    rsvpInFlight.current = true;
     setRsvpLoading(true);
 
     try {
@@ -508,6 +557,8 @@ export default function ActivityDetailScreen() {
       /*
        * Join activity.
        */
+      if (!await scheduleConflict.confirmSchedule()) return;
+
       const { error } =
         await supabase
           .from("rsvps")
@@ -546,6 +597,7 @@ export default function ActivityDetailScreen() {
         "Something went wrong.",
       );
     } finally {
+      rsvpInFlight.current = false;
       setRsvpLoading(false);
     }
   }
@@ -587,44 +639,33 @@ export default function ActivityDetailScreen() {
   async function handleRequestToJoin() {
     if (
       !activity ||
-      !currentUserId
+      !currentUserId ||
+      myRequestStatus === "pending" ||
+      rsvpInFlight.current
     ) {
       return;
     }
 
+    rsvpInFlight.current = true;
     setRsvpLoading(true);
-
-    const { error } =
-      await supabase
-        .from(
-          "activity_join_requests",
-        )
-        .upsert(
-          {
-            activity_id:
-              activity.id,
-            requester_id:
-              currentUserId,
-            status: "pending",
-          },
-          {
-            onConflict:
-              "activity_id,requester_id",
-          },
-        );
-
-    if (error) {
+    try {
+      if (!await scheduleConflict.confirmSchedule()) return;
+      const { error } = await supabase.from("activity_join_requests").upsert(
+        { activity_id: activity.id, requester_id: currentUserId, status: "pending" },
+        { onConflict: "activity_id,requester_id" },
+      );
+      if (error) throw error;
+      setMyRequestStatus("pending");
+    } catch (error) {
       Alert.alert(
         "Could not send request",
-        error.message,
+        error && typeof error === "object" && "message" in error && typeof error.message === "string"
+          ? error.message : "Could not send your join request. Please try again.",
       );
-    } else {
-      setMyRequestStatus(
-        "pending",
-      );
+    } finally {
+      rsvpInFlight.current = false;
+      setRsvpLoading(false);
     }
-
-    setRsvpLoading(false);
   }
 
   async function handleBoostActivity() {
@@ -841,27 +882,10 @@ export default function ActivityDetailScreen() {
               },
             ]}
           >
-            <TouchableOpacity
-              onPress={() =>
-                router.back()
-              }
-              style={[
-                styles.backButton,
-                {
-                  backgroundColor:
-                    colors.background,
-                },
-              ]}
-            >
-              <IconSymbol
-                name="chevron.left"
-                size={20}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <BackButton variant="floating" />
 
             <View style={styles.heroRightGroup}>
-              
+
 
               <TouchableOpacity
                 onPress={() =>
@@ -882,150 +906,169 @@ export default function ActivityDetailScreen() {
                 />
               </TouchableOpacity>
 
-              {(isHost || canReviewHost) && (
-                <Menu
-                  visible={menuVisible}
-                  onDismiss={() =>
-                    setMenuVisible(false)
-                  }
-                  anchor={
-                    <TouchableOpacity
-                      onPress={() =>
-                        setMenuVisible(true)
+              <Menu
+                visible={menuVisible}
+                onDismiss={() =>
+                  setMenuVisible(false)
+                }
+                anchor={
+                  <TouchableOpacity
+                    onPress={() =>
+                      setMenuVisible(true)
+                    }
+                    style={[
+                      styles.backButton,
+                      {
+                        backgroundColor:
+                          colors.background,
+                      },
+                    ]}
+                  >
+                    <IconSymbol
+                      name="ellipsis"
+                      size={20}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+                }
+                contentStyle={{
+                  backgroundColor:
+                    colors.cardBackground,
+                }}
+              >
+                {isHost ? (
+                  <>
+                    <Menu.Item
+                      leadingIcon="pencil"
+                      title="Edit Activity"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        router.push(
+                          `/activity/edit/${activity.id}`,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+                    <Menu.Item
+                      leadingIcon="bullhorn-outline"
+                      title="Send Announcement"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        router.push(
+                          `/activity/announce/${activity.id}`,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.text,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+
+                    <Menu.Item
+                      leadingIcon={
+                        boosted
+                          ? "check-circle-outline"
+                          : "rocket-launch-outline"
                       }
-                      style={[
-                        styles.backButton,
-                        {
-                          backgroundColor:
-                            colors.background,
-                        },
-                      ]}
-                    >
-                      <IconSymbol
-                        name="ellipsis"
-                        size={20}
-                        color={colors.text}
-                      />
-                    </TouchableOpacity>
-                  }
-                  contentStyle={{
-                    backgroundColor:
-                      colors.cardBackground,
-                  }}
-                >
-                  {isHost ? (
-                    <>
+                      title={
+                        boosted
+                          ? "Boosted"
+                          : "Boost Activity"
+                      }
+                      disabled={boosted}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        handleBoostActivity();
+                      }}
+                      titleStyle={{
+                        color: boosted
+                          ? colors.outline
+                          : colors.tint,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+
+                    {/* Host can cancel an upcoming event that isn't already cancelled */}
+                    {activity.status !== "cancelled" && !isPast && (
                       <Menu.Item
-                        leadingIcon="pencil"
-                        title="Edit Activity"
+                        leadingIcon="cancel"
+                        title="Cancel Event"
                         onPress={() => {
                           setMenuVisible(false);
-                          router.push(
-                            `/activity/edit/${activity.id}`,
-                          );
-                        }}
-                        titleStyle={{
-                          color: colors.text,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-
-                      <Menu.Item
-                        leadingIcon="bullhorn-outline"
-                        title="Send Announcement"
-                        onPress={() => {
-                          setMenuVisible(false);
-                          router.push(
-                            `/activity/announce/${activity.id}`,
-                          );
-                        }}
-                        titleStyle={{
-                          color: colors.text,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-
-
-                      <Menu.Item
-                        leadingIcon={
-                          boosted
-                            ? "check-circle-outline"
-                            : "rocket-launch-outline"
-                        }
-                        title={
-                          boosted
-                            ? "Boosted"
-                            : "Boost Activity"
-                        }
-                        disabled={boosted}
-                        onPress={() => {
-                          setMenuVisible(false);
-                          handleBoostActivity();
-                        }}
-                        titleStyle={{
-                          color: boosted
-                            ? colors.outline
-                            : colors.tint,
-                          fontFamily: Fonts?.sans,
-                        }}
-                      />
-
-                      {/* Host can cancel an upcoming event that isn't already cancelled */}
-                      {activity.status !== "cancelled" && !isPast && (
-                        <Menu.Item
-                          leadingIcon="cancel"
-                          title="Cancel Event"
-                          onPress={() => {
-                            setMenuVisible(false);
-                            router.push(`/activity/cancel/${activity.id}`);
-                          }}
-                          titleStyle={{
-                            color: colors.error,
-                            fontFamily: Fonts?.sans,
-                          }}
-                        />
-                      )}
-
-                      <Menu.Item
-                        leadingIcon="trash-can-outline"
-                        title="Delete Activity"
-                        onPress={() => {
-                          setMenuVisible(false);
-                          deleteActivity();
+                          router.push(`/activity/cancel/${activity.id}`);
                         }}
                         titleStyle={{
                           color: colors.error,
                           fontFamily: Fonts?.sans,
                         }}
                       />
-                    </>
-                  ) : (
+                    )}
+
                     <Menu.Item
-                      leadingIcon={
-                        hostReviewed
-                          ? "check-circle-outline"
-                          : "star-outline"
-                      }
-                      title={
-                        hostReviewed
-                          ? "Host Reviewed"
-                          : "Review Host"
-                      }
-                      disabled={hostReviewed}
+                      leadingIcon="trash-can-outline"
+                      title="Delete Activity"
                       onPress={() => {
                         setMenuVisible(false);
-                        setReviewSheetVisible(true);
+                        deleteActivity();
                       }}
                       titleStyle={{
-                        color: hostReviewed
-                          ? colors.outline
-                          : colors.text,
+                        color: colors.error,
                         fontFamily: Fonts?.sans,
                       }}
                     />
-                  )}
-                </Menu>
-              )}
+                  </>
+                ) : (
+                  <>
+                    {canReviewHost && (
+                      <Menu.Item
+                        leadingIcon={
+                          hostReviewed
+                            ? "check-circle-outline"
+                            : "star-outline"
+                        }
+                        title={
+                          hostReviewed
+                            ? "Host Reviewed"
+                            : "Review Host"
+                        }
+                        disabled={hostReviewed}
+                        onPress={() => {
+                          setMenuVisible(false);
+                          setReviewSheetVisible(true);
+                        }}
+                        titleStyle={{
+                          color: hostReviewed
+                            ? colors.outline
+                            : colors.text,
+                          fontFamily: Fonts?.sans,
+                        }}
+                      />
+                    )}
+
+                    <Menu.Item
+                      leadingIcon="flag-outline"
+                      title="Report Activity"
+                      onPress={() => {
+                        setMenuVisible(false);
+                        openReport(
+                          "activity",
+                          activity.id,
+                          activity.title,
+                        );
+                      }}
+                      titleStyle={{
+                        color: colors.error,
+                        fontFamily: Fonts?.sans,
+                      }}
+                    />
+                  </>
+                )}
+              </Menu>
             </View>
           </View>
         </View>
@@ -1056,6 +1099,32 @@ export default function ActivityDetailScreen() {
                 </AppText>
               ) : null}
             </View>
+          )}
+
+          {/* Campus identification is only shown for linked hosted events. */}
+          {campusOrigin && (
+            <TouchableOpacity
+              accessibilityRole="link"
+              accessibilityLabel={`View original ${campusOrigin.university} campus event`}
+              onPress={() => router.push(`/campus-event/${campusOrigin.id}`)}
+              style={[
+                styles.campusOrigin,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            >
+              <View style={[styles.campusBadge, { backgroundColor: colors.tint }]}>
+                <AppText style={{ color: colors.onImageOverlay, fontWeight: "700" }}>
+                  {campusOrigin.university}
+                </AppText>
+              </View>
+              <AppText style={{ flex: 1, color: colors.tint, fontWeight: "600" }}>
+                View original campus event
+              </AppText>
+              <Ionicons name="chevron-forward" size={18} color={colors.tint} />
+            </TouchableOpacity>
           )}
 
           {/* Title, host, when/where, spots, about */}
@@ -1108,12 +1177,14 @@ export default function ActivityDetailScreen() {
             </View>
           )}
 
-          
+
 
           {/* Attendees */}
           {activity.ride_sharing && !isPast && (
             <ActivityRidesSection key={activity.id} activityId={activity.id} />
           )}
+
+          <ActivityPostsSection key={`posts-${activity.id}`} activityId={activity.id} />
 
           {attendees.length > 0 && (
             <View
@@ -1573,6 +1644,14 @@ export default function ActivityDetailScreen() {
         )}
       </View>
 
+      <ScheduleConflictDialog
+        warning={scheduleConflict.warning}
+        userId={currentUserId}
+        privateRequest={activity.event_type === "private"}
+        onGoBack={scheduleConflict.goBack}
+        onContinue={scheduleConflict.continueJoining}
+      />
+
       <RideOptionsSheet
         visible={rideOptionsVisible}
         activityId={activity.id}
@@ -1611,6 +1690,19 @@ export default function ActivityDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  campusOrigin: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  campusBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
   container: {
     flex: 1,
   },
@@ -1685,12 +1777,12 @@ const styles = StyleSheet.create({
   },
 
   statusBlock: {
-    flex: 1, 
+    flex: 1,
     gap: 2,
   },
 
   statusLabel: {
-    fontSize: 12, 
+    fontSize: 12,
     lineHeight: 16,
   },
 

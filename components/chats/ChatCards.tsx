@@ -13,8 +13,10 @@ interface ChatCardProps {
   avatar: ImageSourcePropType;
   last_message: string;
   is_read: boolean;
+  unreadCount?: number;
   time: string;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export default function ChatCards({
@@ -22,17 +24,20 @@ export default function ChatCards({
   avatar,
   last_message,
   is_read,
+  unreadCount = 0,
   time,
   onPress,
+  onLongPress,
 }: ChatCardProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const unread = !is_read;
+  const unread = unreadCount > 0 || !is_read;
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       android_ripple={{ color: colors.outlineVariant }}
       style={({ pressed }) => [
         styles.card,
@@ -85,9 +90,12 @@ export default function ChatCards({
             {last_message}
           </Text>
           {unread && (
-            <View
-              style={[styles.unreadDot, { backgroundColor: colors.tint }]}
-            />
+            <View accessibilityLabel={`${unreadCount} unread messages`}
+              style={[styles.unreadDot, { backgroundColor: colors.tint }]}>
+              <Text style={{ color: colors.onPrimary, fontSize: 12, fontWeight: '700' }}>
+                {unreadCount > 99 ? '99+' : unreadCount || ''}
+              </Text>
+            </View>
           )}
         </View>
       </View>
@@ -133,8 +141,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    minWidth: 24,
+    minHeight: 24,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

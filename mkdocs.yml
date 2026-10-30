@@ -26,18 +26,27 @@ nav:
       - First-login Tutorial: features/first-login-tutorial.md
       - User Profiles and Connections: features/user-profiles-and-connections.md
       - Activity Creation and Discovery: features/activity-creation-and-discovery.md
+      - Explore Posts on Activities: features/activity-explore-posts.md
       - Calendar Export: features/calendar-export.md
       - Calendar and Agenda: features/calendar-agenda.md
+      - Schedule Conflict Warnings: features/schedule-conflicts.md
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md
       - Ride Ratings: features/ride-ratings.md
       - Reviews: features/reviews.md
+      - Reporting: features/reporting.md
+      - Activity Announcements: features/activity-announcements.md
+      - Activity Waitlist: features/activity-waitlist.md
+      - Mute Chats and Notification Settings: features/notification-settings.md
+      - Ride Departure Countdown: features/ride-countdown.md
+      - Event Cancellation: features/event-cancellation.md
   - Development:
       - Development Workflow: development-workflow.md
   - Project Reference:
       - Design System: design-system.md
       - Privacy Policy: privacy-policy.md
+      - Delete Your Account: account-deletion.md
 
 markdown_extensions:
   - toc:

@@ -1,5 +1,6 @@
 import { ActivityInfoCard } from "@/components/activity/activity-info-card";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
+import { ActivityPostsSection } from "@/components/activity/activity-posts-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
 import { ScheduleConflictDialog } from "@/components/activity/schedule-conflict-dialog";
 import { openReport } from "@/components/report/overflow-menu";
@@ -1117,6 +1118,8 @@ export default function ActivityDetailScreen() {
           {activity.ride_sharing && !isPast && (
             <ActivityRidesSection key={activity.id} activityId={activity.id} />
           )}
+
+          <ActivityPostsSection key={`posts-${activity.id}`} activityId={activity.id} />
 
           {attendees.length > 0 && (
             <View

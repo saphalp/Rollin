@@ -144,6 +144,42 @@ No new secret, Edge Function deployment, paid service, or dependency is required
 If the publication does not exist in a non-Supabase test database, the application still
 has its polling fallback. Do not run every pending migration blindly just for this feature.
 
+### Message actions and chat search
+
+Long-pressing a message opens actions: react, reply, copy, forward, pin, and delete. They
+sit on top of the conversation layer above rather than replacing it. Reads and sends still
+go through `useChatConversation` and `messaging-service`.
+
+- **Reply:** `sendChatMessage` stores `reply_to_message_id`. The quote resolves from loaded
+  history, and shows "Original message unavailable" if the original isn't loaded.
+- **Delete:** "for me" hides the message through `hidden_chat_messages`. "For everyone" (sender
+  only) sets `messages.deleted_for_everyone`. Both go through the `delete_chat_message` RPC.
+- **Pin:** one pinned message per conversation (`conversation_pins`, through
+  `pin_chat_message` / `unpin_chat_message`), shown as a banner under the header.
+- **Reactions:** one per person per message (`message_reactions`). Picking the same
+  reaction again removes it.
+- **Forward:** sends the text as a new message to another active conversation.
+- **Display:** sender avatars on each run of messages, Today/Yesterday date dividers, and a
+  swipe-left gesture that reveals timestamps. The read receipt shows once, under your most
+  recent message.
+- **Header:** the title and avatar come from `loadChatInfo`, so a chat opened from a
+  notification still has a header.
+
+The Chats tab search filters existing conversations and, after two characters, also finds
+people to start a new direct message with.
+
+Deleting a conversation hides it only until a newer message arrives
+(`20261030120000_reopen_deleted_conversations.sql`). Deleting it again refreshes `deleted_at`.
+
+Relevant files: `hooks/use-chat-actions.ts`, `services/chat-actions-service.ts`,
+`components/chats/ForwardSheet.tsx`, `components/chats/MessageBubble.tsx`.
+
+> The `message_reactions`, `conversation_pins`, and `hidden_chat_messages` tables, the
+> `messages.reply_to_message_id` / `deleted_for_everyone` columns, and the `pin_chat_message`,
+> `unpin_chat_message`, and `delete_chat_message` RPCs were created in the Supabase dashboard
+> and have no migration in this repo yet. Export them with `supabase db pull` before setting
+> up a new environment.
+
 ### Validation
 
 Automated tests:

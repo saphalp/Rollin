@@ -15,6 +15,9 @@ interface MessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
+  disabled?: boolean;
+  sending?: boolean;
+  keyboardVisible?: boolean;
   replyingTo?: { senderName: string; text: string } | null;
   onCancelReply?: () => void;
 }
@@ -23,6 +26,9 @@ export default function MessageInput({
   value,
   onChangeText,
   onSend,
+  disabled = false,
+  sending = false,
+  keyboardVisible = false,
   replyingTo,
   onCancelReply,
 }: MessageInputProps) {

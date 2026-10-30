@@ -20,7 +20,7 @@ test('chat SQL enforces membership, verified sessions, unread counts, monotonic 
       joined_at timestamptz default '2026-01-01', primary key(conversation_id,user_id));
     create table messages(id uuid primary key, conversation_id uuid references conversations, sender_id uuid,
       content text, type text default 'text', created_at timestamptz default now());
-    create table deleted_conversations(conversation_id uuid, user_id uuid, primary key(conversation_id,user_id));
+    create table deleted_conversations(conversation_id uuid, user_id uuid, deleted_at timestamptz not null default now(), primary key(conversation_id,user_id));
     create function member_of(cid uuid) returns boolean language sql stable security definer set search_path='' as $$
       select exists(select 1 from public.conversation_participants where conversation_id=cid and user_id=auth.uid())$$;
     alter table conversations enable row level security;
@@ -36,6 +36,8 @@ test('chat SQL enforces membership, verified sessions, unread counts, monotonic 
   `);
   const migration = fs.readFileSync('supabase/migrations/20261029120000_chat_read_status.sql', 'utf8');
   await db.exec(migration); await db.exec(migration); // safe to re-run in SQL editor
+  const reopen = fs.readFileSync('supabase/migrations/20261030120000_reopen_deleted_conversations.sql', 'utf8');
+  await db.exec(reopen); await db.exec(reopen);
   const me = uid(1), other = uid(2), stranger = uid(3), convo = uid(10), secret = uid(11);
   await db.exec(`insert into profiles values('${me}','Me',null),('${other}','Other',null),('${stranger}','Stranger',null);
     insert into conversations(id,type) values('${convo}','direct'),('${secret}','direct');
@@ -81,7 +83,11 @@ test('chat SQL enforces membership, verified sessions, unread counts, monotonic 
   const newer=(await db.query('select * from get_chat_messages($1,(select created_at from messages where id=$2),$2,true)',[convo,uid(150)])).rows;
   assert.equal(newer.length,50);assert.equal(newer[0].id,uid(151));
   await mark(uid(500)); assert.equal(Number((await summary())[0].unread_count),0);
-  await admin(); await db.query('insert into deleted_conversations values($1,$2)',[convo,me]);
+  await admin(); await db.query(`insert into deleted_conversations values($1,$2,'9999-01-01')`,[convo,me]);
+  await as(me); assert.equal((await summary()).length,0);
+  await admin(); await db.query(`update deleted_conversations set deleted_at='2000-01-01' where user_id=$1`,[me]);
+  await as(me); assert.equal((await summary()).length,1,'a message newer than the delete reopens the chat');
+  await admin(); await db.query(`update deleted_conversations set deleted_at='9999-01-01' where user_id=$1`,[me]);
   await as(me); assert.equal((await summary()).length,0);
   await as(other); assert.equal((await summary()).length,1,'deleting for me must not hide it for others');
   await admin();await db.query('delete from conversation_participants where conversation_id=$1 and user_id=$2',[convo,me]);

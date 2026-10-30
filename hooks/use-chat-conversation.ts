@@ -10,7 +10,7 @@ type State = { key: string; messages: ChatMessage[]; info: ChatInfo | null; load
   refreshing: boolean; loadingOlder: boolean; hasOlder: boolean; sending: boolean; error: string; historyError: string; readError: string; sendError: string };
 const initial = (key: string): State => ({ key, messages: [], info: null, loaded: false, refreshing: false,
   loadingOlder: false, hasOlder: true, sending: false, error: '', historyError: '', readError: '', sendError: '' });
-const emptyActions = { refresh: async () => {}, older: async () => {}, read: async (_id: string) => {}, send: async (_text: string) => false };
+const emptyActions = { refresh: async () => {}, older: async () => {}, read: async (_id: string) => {}, send: async (_text: string, _replyToId?: string | null) => false };
 
 export function useChatConversation(id: string) {
   const { claims } = useAuthContext();
@@ -89,11 +89,11 @@ export function useChatConversation(id: string) {
       } catch (error) { update({ readError: error instanceof Error ? error.message : 'Could not update read status.' }); }
       finally { reading = false; }
     }
-    async function send(text: string) {
+    async function send(text: string, replyToId?: string | null) {
       if (disposed || !foreground || sendBusy || !initialized || info?.is_archived || !text.trim()) return false;
       sendBusy = true; update({ sending: true, sendError: '' });
       try {
-        const sent = await sendChatMessage(id, userId!, text.trim());
+        const sent = await sendChatMessage(id, userId!, text.trim(), replyToId);
         if (disposed) return false;
         rows = mergeMessages(rows, [sent]); update({ messages: rows });
         return true;
@@ -116,5 +116,5 @@ export function useChatConversation(id: string) {
   const current = state.key === key ? state : initial(key);
   return { ...current, userId, loading: !current.loaded && !current.error,
     refresh: () => actions.current.refresh(), loadOlder: () => actions.current.older(),
-    markRead: (messageId: string) => actions.current.read(messageId), send: (text: string) => actions.current.send(text) };
+    markRead: (messageId: string) => actions.current.read(messageId), send: (text: string, replyToId?: string | null) => actions.current.send(text, replyToId) };
 }

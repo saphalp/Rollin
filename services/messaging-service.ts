@@ -10,14 +10,18 @@ export type ConversationSummary = {
 export type ChatMessage = MessagePosition & {
   conversation_id: string; sender_id: string; content: string | null;
   type: 'text' | 'activity' | 'post'; shared_activity_id: string | null; shared_post_id: string | null;
-  senderName?: string;
+  reply_to_message_id?: string | null; deleted_for_everyone?: boolean;
+  senderName?: string; senderAvatar?: string;
   sharedActivity?: { id: string; title: string; hostName: string; imageUrl: string };
   sharedPost?: { id: string; activityId: string; posterName: string; caption: string | null; imageUrl: string };
 };
 export type ChatInfo = {
   type: 'direct' | 'group'; activity_id: string | null; is_archived: boolean;
   otherUserId?: string; receipts: ReadPosition[];
+  // Resolved here so a chat opened from a notification or deep link still has a header.
+  title?: string; avatarUri?: string;
 };
+const MESSAGE_FIELDS = 'id, conversation_id, sender_id, content, type, shared_activity_id, shared_post_id, reply_to_message_id, deleted_for_everyone, created_at';
 const listeners = new Set<() => void>();
 export function notifyChatChanged() { listeners.forEach(listener => listener()); }
 
@@ -53,8 +57,9 @@ export async function loadConversations(signal: AbortSignal): Promise<Conversati
 }
 
 export async function hideConversation(conversationId: string, userId: string) {
+  // Refresh deleted_at on every delete: the chat reappears only for messages sent after it.
   const { error } = await supabase.from('deleted_conversations').upsert(
-    { conversation_id: conversationId, user_id: userId }, { onConflict: 'user_id,conversation_id', ignoreDuplicates: true });
+    { conversation_id: conversationId, user_id: userId, deleted_at: new Date().toISOString() }, { onConflict: 'user_id,conversation_id' });
   if (error) throw new Error('Could not delete this conversation. Please try again.');
   notifyChatChanged();
 }
@@ -75,7 +80,18 @@ export async function loadChatInfo(id: string, userId: string, signal: AbortSign
     if (otherError) throw new Error('Could not load conversation participants. Please try again.');
     otherUserId = other?.user_id;
   }
-  return { ...data, otherUserId, receipts: receipts ?? [] };
+  let title: string | undefined, avatarUri: string | undefined;
+  if (otherUserId) {
+    const { data: profile } = await supabase.from('profiles').select('full_name, profile_picture')
+      .eq('id', otherUserId).abortSignal(signal).maybeSingle();
+    title = profile?.full_name?.trim() || "Rollin' User"; avatarUri = resolveAvatarUri(profile?.profile_picture);
+  } else if (data.activity_id) {
+    const { data: activity } = await supabase.from('activities').select('title, image_url, category')
+      .eq('id', data.activity_id).abortSignal(signal).maybeSingle();
+    title = activity?.title?.trim() || 'Activity chat';
+    avatarUri = activity?.image_url || `https://picsum.photos/seed/${activity?.category || 'social'}/240/240`;
+  }
+  return { ...data, otherUserId, receipts: receipts ?? [], title, avatarUri };
 }
 
 export async function loadMessagePage(id: string, signal: AbortSignal, cursor?: MessagePosition, newer = false): Promise<ChatMessage[]> {
@@ -99,12 +115,13 @@ async function hydrateMessages(rows: ChatMessage[], signal: AbortSignal): Promis
   const activities = await lookup('activities', 'id, title, image_url, category, host_id', [
     ...rows.flatMap(m => m.shared_activity_id ? [m.shared_activity_id] : []), ...photos.map(p => p.activity_id),
   ]);
-  const profiles = await lookup('profiles', 'id, full_name', [...rows.map(m => m.sender_id), ...photos.map(p => p.user_id), ...activities.map(a => a.host_id)]);
+  const profiles = await lookup('profiles', 'id, full_name, profile_picture', [...rows.map(m => m.sender_id), ...photos.map(p => p.user_id), ...activities.map(a => a.host_id)]);
   const names = new Map(profiles.map(p => [p.id, p.full_name || "Rollin' User"]));
+  const avatars = new Map(profiles.map(p => [p.id, resolveAvatarUri(p.profile_picture)]));
   return rows.map(row => {
     const activity = activities.find(a => a.id === row.shared_activity_id);
     const photo = photos.find(p => p.id === row.shared_post_id);
-    return { ...row, senderName: names.get(row.sender_id) || "Rollin' User",
+    return { ...row, senderName: names.get(row.sender_id) || "Rollin' User", senderAvatar: avatars.get(row.sender_id),
       sharedActivity: row.shared_activity_id && activity ? {
         id: activity.id, title: activity.title, hostName: names.get(activity.host_id) || "Rollin' User",
         imageUrl: activity.image_url || `https://picsum.photos/seed/${activity.category || 'activity'}/240/240`,
@@ -123,9 +140,10 @@ export async function markChatRead(conversationId: string, messageId: string) {
   notifyChatChanged();
 }
 
-export async function sendChatMessage(conversationId: string, userId: string, content: string): Promise<ChatMessage> {
-  const { data, error } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: userId, content })
-    .select('id, conversation_id, sender_id, content, type, shared_activity_id, shared_post_id, created_at').single();
+export async function sendChatMessage(conversationId: string, userId: string, content: string,
+  replyToMessageId?: string | null): Promise<ChatMessage> {
+  const { data, error } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: userId, content,
+    ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}) }).select(MESSAGE_FIELDS).single();
   if (error || !data) throw new Error('Message not sent. Your text is still here—try again.');
   notifyChatChanged();
   // The persisted message succeeds independently of push-notification delivery.

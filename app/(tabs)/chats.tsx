@@ -19,8 +19,8 @@ import { useConversations } from "@/hooks/use-conversations";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Text } from "react-native-paper";
 
 type FriendResult = { id: string; full_name: string | null; profile_picture: string | null };
@@ -28,9 +28,7 @@ type FriendResult = { id: string; full_name: string | null; profile_picture: str
 export default function ChatsScreen() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
-  const { activeConversations, archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
-  const [refreshing, setRefreshing] = useState(false);
-  const hasFocused = useRef(false);
+  const { activeConversations, archivedConversations, loading, refreshing, error, refresh, formatTime, deleteConversation } = useConversations();
   const [search, setSearch] = useState("");
   const [friends, setFriends] = useState<FriendResult[]>([]);
   const [searchingFriends, setSearchingFriends] = useState(false);
@@ -95,21 +93,6 @@ export default function ChatsScreen() {
     activeConversations.map((conversation) => conversation.otherUserId).filter(Boolean),
   ), [activeConversations]);
   const newFriends = friends.filter((friend) => !existingOtherIds.has(friend.id));
-
-  // useConversations already loads on mount. Refresh only when returning to Chats.
-  useFocusEffect(useCallback(() => {
-    if (!hasFocused.current) {
-      hasFocused.current = true;
-      return;
-    }
-    void refresh();
-  }, [refresh]));
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
-  }
 
   // Reuse the same RPC as the Message button in components/profile/UserProfile.
   // Supabase returns an existing direct chat or creates it if necessary.
@@ -183,7 +166,7 @@ export default function ChatsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing && !loading} onRefresh={refresh} />}
       >
         <TourTarget id="chat-heading"><View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.sans }]}>
@@ -204,6 +187,7 @@ export default function ChatsScreen() {
           )}
         </View></TourTarget>
 
+        <ChatError message={error} onRetry={refresh} />
         <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
           <Ionicons name="search-outline" size={20} color={colors.icon} />
           <TextInput
@@ -225,7 +209,7 @@ export default function ChatsScreen() {
 
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : !searchTerm && activeConversations.length === 0 ? (
+        ) : !searchTerm && activeConversations.length === 0 && !error ? (
           <Text style={[styles.empty, { color: colors.icon, fontFamily: Fonts.sans }]}>
             No conversations yet. Follow someone to message them, or join an
             activity to join its group chat.
@@ -241,7 +225,8 @@ export default function ChatsScreen() {
                   user={conversation.title}
                   avatar={{ uri: conversation.avatarUri }}
                   last_message={conversation.lastMessage}
-                  is_read={conversation.isRead}
+                  is_read={conversation.unreadCount === 0}
+                  unreadCount={conversation.unreadCount}
                   time={
                     conversation.lastMessageAt
                       ? formatTime(conversation.lastMessageAt)
@@ -270,7 +255,7 @@ export default function ChatsScreen() {
                 <Text style={[styles.sectionTitle, { color: colors.icon }]}>People on Roli</Text>
                 {searchingFriends && <ActivityIndicator color={colors.tint} style={styles.searchSpinner} />}
                 {friendSearchError && (
-                  <Text style={[styles.empty, { color: colors.icon }]}>Couldn't search people. Please try again.</Text>
+                  <Text style={[styles.empty, { color: colors.icon }]}>{"Couldn't search people. Please try again."}</Text>
                 )}
                 {!searchingFriends && !friendSearchError && newFriends.map((friend) => (
                   <Pressable

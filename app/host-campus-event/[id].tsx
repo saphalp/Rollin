@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const categories = ['social', 'sports', 'music', 'study', 'outdoor', 'gaming'];
 
@@ -43,7 +43,7 @@ export default function HostCampusEventScreen() {
   const [sharing, setSharing] = useState(false); const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [description, setDescription] = useState(''); const [aboutExpanded, setAboutExpanded] = useState(false); const [busy, setBusy] = useState(false);
   const busyRef = useRef(false); const generation = useRef(0);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const meetingDate = parseMeeting(meeting);
   const currentPickerDate = () => parseMeeting(meeting) ?? new Date();
   useEffect(() => {

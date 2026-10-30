@@ -1,8 +1,9 @@
 import { Colors, Fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { useState } from "react";
-import { Image, Modal, Pressable, StyleSheet, useColorScheme, View } from "react-native";
+import { useRef, useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, useColorScheme, useWindowDimensions, View, type PressableInstance } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 
 interface MessageBubbleProps {
@@ -46,6 +47,14 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  // Where the pressed bubble sits on screen, and the measured menu layout used to line the
+  // menu's copy of the message up with it.
+  const [anchorY, setAnchorY] = useState(0);
+  const [stackHeight, setStackHeight] = useState(0);
+  const [previewOffset, setPreviewOffset] = useState<number | null>(null);
+  const bubbleRef = useRef<PressableInstance>(null);
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
@@ -83,9 +92,16 @@ export default function MessageBubble({
             ) : null}
           </View>
         )}
-        <View style={[styles.messageColumn, fromMe ? styles.columnMe : styles.columnThem, reactions.length > 0 && styles.withReaction]}>
+        {/* Hidden while the action menu shows its own copy, so the text isn't seen twice. */}
+        <View style={[styles.messageColumn, fromMe ? styles.columnMe : styles.columnThem, reactions.length > 0 && styles.withReaction,
+          menuVisible && styles.hidden]}>
           <Pressable
-            onLongPress={() => { setMoreVisible(false); setMenuVisible(true); }}
+            ref={bubbleRef}
+            onLongPress={() => {
+              setMoreVisible(false);
+              setPreviewOffset(null);
+              bubbleRef.current?.measureInWindow((_x, y) => { setAnchorY(y); setMenuVisible(true); });
+            }}
             delayLongPress={350}
             accessibilityHint="Long press to open message actions"
             style={[
@@ -158,7 +174,19 @@ export default function MessageBubble({
             onPress={() => { setMenuVisible(false); setMoreVisible(false); }}
             accessibilityLabel="Close message actions"
           />
-          <View style={[styles.menuStack, fromMe ? styles.stackRight : styles.stackLeft]}>
+          <View
+            onLayout={(event) => setStackHeight(event.nativeEvent.layout.height)}
+            style={[
+              styles.menuStack,
+              fromMe ? styles.stackRight : styles.stackLeft,
+              // Start with the copy over the original bubble, kept fully on screen.
+              {
+                marginTop: Math.max(insets.top + 8,
+                  Math.min(anchorY - (previewOffset ?? 0), windowHeight - stackHeight - insets.bottom - 8)),
+                opacity: previewOffset === null ? 0 : 1,
+              },
+            ]}
+          >
             {!moreVisible && onReact && (
               <View style={styles.reactionChoices}>
                 {reactionChoices.map((emoji) => (
@@ -175,8 +203,11 @@ export default function MessageBubble({
               </View>
             )}
             {(
-              <View style={styles.selectedMessageWrap}>
-                <Text numberOfLines={3} style={styles.selectedMessage}>{text}</Text>
+              <View
+                onLayout={(event) => setPreviewOffset(event.nativeEvent.layout.y)}
+                style={[styles.selectedMessageWrap, { backgroundColor: bubbleColor }]}
+              >
+                <Text numberOfLines={3} style={[styles.selectedMessage, { color: textColor, fontFamily: Fonts.sans }]}>{text}</Text>
               </View>
             )}
             <View style={styles.actionPanel}>
@@ -256,17 +287,19 @@ const styles = StyleSheet.create({
   },
   reactionSummaryText: { fontSize: 13, lineHeight: 18 },
   modalRoot: {
-    flex: 1, justifyContent: "center", paddingHorizontal: 16,
+    flex: 1, justifyContent: "flex-start", paddingHorizontal: 16,
     backgroundColor: "rgba(0,0,0,0.82)",
   },
   menuStack: { width: "100%", maxWidth: 365 },
-  stackRight: { alignSelf: "flex-end" },
-  stackLeft: { alignSelf: "flex-start" },
+  // Line the preview and actions up on the same side as the pressed message.
+  stackRight: { alignSelf: "flex-end", alignItems: "flex-end" },
+  stackLeft: { alignSelf: "flex-start", alignItems: "flex-start" },
   selectedMessageWrap: {
-    alignSelf: "flex-start", maxWidth: "92%", marginBottom: 10,
-    borderRadius: 17, backgroundColor: "#323234", paddingHorizontal: 15, paddingVertical: 12,
+    maxWidth: "92%", marginBottom: 10,
+    borderRadius: 17, paddingHorizontal: 15, paddingVertical: 12,
   },
-  selectedMessage: { color: "#f4f4f4", fontSize: 15, lineHeight: 21 },
+  selectedMessage: { fontSize: 15, lineHeight: 21 },
+  hidden: { opacity: 0 },
   actionPanel: { width: "78%", maxWidth: 300, borderRadius: 16, overflow: "hidden", backgroundColor: "#252527" },
   actionRow: {
     minHeight: 51, flexDirection: "row", alignItems: "center", justifyContent: "space-between",

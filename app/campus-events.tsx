@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { getCurrentUniversity, type University } from '@/lib/university';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -276,7 +276,9 @@ export default function CampusEventsScreen() {
 
   // Keep the bookmark handler stable while preserving its latest state.
   const toggleSavedRef = useRef(toggleSaved);
-  toggleSavedRef.current = toggleSaved;
+  useLayoutEffect(() => {
+    toggleSavedRef.current = toggleSaved;
+  });
   const handleToggleSaved = useCallback((item: CampusEvent) => {
     void toggleSavedRef.current(item);
   }, []);

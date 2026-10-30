@@ -36,3 +36,16 @@ export function conversationTime(iso: string): string {
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+// Compare local calendar days, not UTC dates, so dividers change at the user's midnight.
+export function messageDay(iso: string): string {
+  return new Date(iso).toDateString();
+}
+export function formatMessageDay(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}

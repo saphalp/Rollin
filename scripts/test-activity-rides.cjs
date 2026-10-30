@@ -40,9 +40,9 @@ function mount(fetch) {
     react: { useCallback: fn => fn, useState: initial => { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; } },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'expo-router': { useFocusEffect: fn => { focus = fn; }, router: { push: route => routes.push(route) } },
-    'react-native': { ActivityIndicator: 'Loading', View: 'View', StyleSheet: { create: x => x } },
-    'react-native-paper': { Button: 'Button' },
-    '@/components/rides/available-ride-card': { AvailableRideCard: 'RideCard' },
+    'react-native': { ActivityIndicator: 'Loading', TouchableOpacity: 'Button', View: 'View', StyleSheet: { create: x => x } },
+    'expo-image': { Image: 'Image' },
+    '@/components/ui/icon-symbol': { IconSymbol: 'Icon' },
     '@/components/text': { AppText: 'Text' },
     '@/constants/theme': { Colors: { light: {} } },
     '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
@@ -52,18 +52,20 @@ function mount(fetch) {
   function render() { cursor = 0; return ActivityRidesSection({ activityId: 'A' }); }
   function nodes(node = render()) { return !node || typeof node !== 'object' ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(n => nodes(n ?? null))]; }
   render();
-  return { nodes, routes, details, focus: () => focus(), change: () => change(), unsubscribed: () => unsubscribed, button: text => nodes().find(n => n.type === 'Button' && n.props.children === text) };
+  function text(node) { return typeof node === 'string' ? node : [node?.props?.children].flat(Infinity).map(child => child ? text(child) : '').join(''); }
+  return { nodes, routes, details, focus: () => focus(), change: () => change(), unsubscribed: () => unsubscribed, button: label => nodes().find(n => n.type === 'Button' && text(n).includes(label)) };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+const previewRide = id => ({ id, driver: { name: `Driver ${id}`, avatarUrl: null }, dateTime: '2026-11-01T18:00:00Z', pickupLocation: 'Campus', availableSeats: 2 });
 test('preview links requests, offers and full list to the activity even with existing rides', async () => {
-  const app = mount(async options => { assert.equal(options.activityId, 'A'); return [1,2,3,4].map(id => ({ id })); });
+  const app = mount(async options => { assert.equal(options.activityId, 'A'); return [1,2,3,4].map(previewRide); });
   const cleanup = app.focus();
   await settle();
-  const cards = app.nodes().filter(n => n.type === 'RideCard');
+  const cards = [1, 2, 3, 4].map(id => app.button(`Driver ${id}`)).filter(Boolean);
   assert.equal(cards.length, 3);
   cards[0].props.onPress();
   assert.equal(app.details[0], 1);
-  for (const label of ['Request a Ride', 'Offer a Ride', 'View all rides and requests']) app.button(label).props.onPress();
+  for (const label of ['Request a Ride', 'Offer a Ride', 'View all rides']) app.button(label).props.onPress();
   assert.deepEqual(app.routes.map(r => r.pathname), ['/ride/request', '/ride/offer', '/ride/available']);
   assert.ok(app.routes.every(r => r.params.activityId === 'A'));
   cleanup();
@@ -71,26 +73,27 @@ test('preview links requests, offers and full list to the activity even with exi
 });
 test('loading and errors preserve actions, and returning to the page refreshes offers', async () => {
   let fail = true;
-  const app = mount(async () => { if (fail) throw Error('offline'); return [{ id: 'new' }]; });
+  const app = mount(async () => { if (fail) throw Error('offline'); return [previewRide('new')]; });
   const cleanup = app.focus();
   assert.ok(app.nodes().some(n => n.type === 'Loading'));
   assert.ok(app.button('Request a Ride'));
   await settle();
-  assert.ok(app.button('Retry'));
+  assert.ok(app.button('Tap to retry'));
   cleanup();
   fail = false;
   app.focus();
   await settle();
-  assert.equal(app.nodes().find(n => n.type === 'RideCard').props.ride.id, 'new');
+  app.button('Driver new').props.onPress();
+  assert.equal(app.details[0], 'new');
 });
 test('late responses after leaving the activity do not update the preview', async () => {
   let finish;
   const app = mount(() => new Promise(resolve => { finish = resolve; }));
   const cleanup = app.focus();
   cleanup();
-  finish([{ id: 'stale' }]);
+  finish([previewRide('stale')]);
   await settle();
-  assert.equal(app.nodes().filter(n => n.type === 'RideCard').length, 0);
+  assert.equal(app.button('Driver stale'), undefined);
 });
 test('request form cannot post an unlinked request after an activity lookup fails', async () => {
   let cursor = 0, effect, fail = true;

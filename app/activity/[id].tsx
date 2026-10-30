@@ -1,6 +1,7 @@
 import { ActivityInfoCard } from "@/components/activity/activity-info-card";
 import { ActivityRidesSection } from "@/components/activity/activity-rides-section";
 import { RideOptionsSheet } from "@/components/activity/ride-options-sheet";
+import { ScheduleConflictDialog } from "@/components/activity/schedule-conflict-dialog";
 import { openReport } from "@/components/report/overflow-menu";
 import { ReviewFormSheet } from "@/components/reviews/ReviewFormSheet";
 import { ShareSheet } from "@/components/share/share-sheet";
@@ -9,13 +10,14 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useScheduleConflict } from "@/hooks/use-schedule-conflict";
 import { recordActivityView } from "@/lib/featured-activities";
 import { openEventMap } from "@/lib/open-event-map";
 import { supabase } from "@/lib/supabase";
 import { hasReviewedHost } from "@/services/reviews-service";
 import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -173,6 +175,8 @@ export default function ActivityDetailScreen() {
 
   const [rsvpLoading, setRsvpLoading] =
     useState(false);
+  const rsvpInFlight = useRef(false);
+  const scheduleConflict = useScheduleConflict(id, currentUserId);
 
   const [rideOptionsVisible, setRideOptionsVisible] =
     useState(false);
@@ -451,11 +455,13 @@ export default function ActivityDetailScreen() {
   async function toggleRsvp() {
     if (
       !activity ||
-      !currentUserId
+      !currentUserId ||
+      rsvpInFlight.current
     ) {
       return;
     }
 
+    rsvpInFlight.current = true;
     setRsvpLoading(true);
 
     try {
@@ -511,6 +517,8 @@ export default function ActivityDetailScreen() {
       /*
        * Join activity.
        */
+      if (!await scheduleConflict.confirmSchedule()) return;
+
       const { error } =
         await supabase
           .from("rsvps")
@@ -549,6 +557,7 @@ export default function ActivityDetailScreen() {
         "Something went wrong.",
       );
     } finally {
+      rsvpInFlight.current = false;
       setRsvpLoading(false);
     }
   }
@@ -590,44 +599,33 @@ export default function ActivityDetailScreen() {
   async function handleRequestToJoin() {
     if (
       !activity ||
-      !currentUserId
+      !currentUserId ||
+      myRequestStatus === "pending" ||
+      rsvpInFlight.current
     ) {
       return;
     }
 
+    rsvpInFlight.current = true;
     setRsvpLoading(true);
-
-    const { error } =
-      await supabase
-        .from(
-          "activity_join_requests",
-        )
-        .upsert(
-          {
-            activity_id:
-              activity.id,
-            requester_id:
-              currentUserId,
-            status: "pending",
-          },
-          {
-            onConflict:
-              "activity_id,requester_id",
-          },
-        );
-
-    if (error) {
+    try {
+      if (!await scheduleConflict.confirmSchedule()) return;
+      const { error } = await supabase.from("activity_join_requests").upsert(
+        { activity_id: activity.id, requester_id: currentUserId, status: "pending" },
+        { onConflict: "activity_id,requester_id" },
+      );
+      if (error) throw error;
+      setMyRequestStatus("pending");
+    } catch (error) {
       Alert.alert(
         "Could not send request",
-        error.message,
+        error && typeof error === "object" && "message" in error && typeof error.message === "string"
+          ? error.message : "Could not send your join request. Please try again.",
       );
-    } else {
-      setMyRequestStatus(
-        "pending",
-      );
+    } finally {
+      rsvpInFlight.current = false;
+      setRsvpLoading(false);
     }
-
-    setRsvpLoading(false);
   }
 
   async function handleBoostActivity() {
@@ -1577,6 +1575,14 @@ export default function ActivityDetailScreen() {
           </>
         )}
       </View>
+
+      <ScheduleConflictDialog
+        warning={scheduleConflict.warning}
+        userId={currentUserId}
+        privateRequest={activity.event_type === "private"}
+        onGoBack={scheduleConflict.goBack}
+        onContinue={scheduleConflict.continueJoining}
+      />
 
       <RideOptionsSheet
         visible={rideOptionsVisible}

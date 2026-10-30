@@ -28,6 +28,7 @@ nav:
       - Activity Creation and Discovery: features/activity-creation-and-discovery.md
       - Calendar Export: features/calendar-export.md
       - Calendar and Agenda: features/calendar-agenda.md
+      - Schedule Conflict Warnings: features/schedule-conflicts.md
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md

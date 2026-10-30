@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import { useCalendarPlans } from '@/hooks/use-calendar-plans';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { calendarDay, calendarPlanRoute, filterCalendarPlans, groupCalendarPlans, type ActivityFilter, type CalendarPlan } from '@/lib/calendar-plans';
 import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
+import { Ionicons } from '@expo/vector-icons';
 
 const OWN_COLOR = '#b97000';
 const OTHER_COLOR = '#0058be';
@@ -25,6 +26,9 @@ const FILTERS: { value: ActivityFilter; label: string }[] = [
 const dayLabel = (day: string) => new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 const planColor = (plan: CalendarPlan) => plan.kind === 'ride' ? RIDE_COLOR : plan.created ? OWN_COLOR : OTHER_COLOR;
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_RANGE = Array.from({ length: 11 }, (_, i) => CURRENT_YEAR - 5 + i);
+
 export default function CalendarScreen() {
   const colors = Colors[useColorScheme() ?? 'light'];
   const insets = useSafeAreaInsets();
@@ -33,6 +37,10 @@ export default function CalendarScreen() {
   const [includeRides, setIncludeRides] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [displayDate, setDisplayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [calendarKey, setCalendarKey] = useState(0);
+  const [yearPickerVisible, setYearPickerVisible] = useState(false);
+
   const visible = filterCalendarPlans(plans, filter, includeRides);
   const upcoming = visible.filter(plan => plan.startsAt >= now);
   const selected = selectedDate ? visible.filter(plan => calendarDay(plan.startsAt) === selectedDate) : [];
@@ -46,6 +54,13 @@ export default function CalendarScreen() {
     if (!mark.dots.some(dot => dot.color === color)) mark.dots.push({ key: color, color });
   }
   if (selectedDate) markedDates[selectedDate] = { dots: markedDates[selectedDate]?.dots ?? [], selected: true, selectedColor: colors.tint };
+
+  function handleYearSelect(year: number) {
+    const mm = displayDate.slice(5, 7);
+    setDisplayDate(`${year}-${mm}-01`);
+    setCalendarKey(k => k + 1);
+    setYearPickerVisible(false);
+  }
 
   function planRow(plan: CalendarPlan) {
     return (
@@ -65,6 +80,8 @@ export default function CalendarScreen() {
     );
   }
 
+  const displayYear = parseInt(displayDate.slice(0, 4), 10);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.outlineVariant }]}>
@@ -76,12 +93,51 @@ export default function CalendarScreen() {
       <TourScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading && loaded} onRefresh={refresh} tintColor={colors.tint} colors={[colors.tint]} />}>
         <TourTarget id="calendar-grid-and-legend">
-          <Calendar markingType="multi-dot" markedDates={markedDates}
+          <Calendar
+            key={calendarKey}
+            current={displayDate}
+            markingType="multi-dot"
+            markedDates={markedDates}
             onDayPress={day => setSelectedDate(day.dateString === selectedDate ? null : day.dateString)}
-            theme={{ backgroundColor: colors.background, calendarBackground: colors.background,
-              textSectionTitleColor: colors.icon, dayTextColor: colors.text, todayTextColor: colors.tint,
+            onMonthChange={month => setDisplayDate(month.dateString)}
+            renderArrow={(direction) => (
+              <View style={[styles.arrowBtn, { backgroundColor: colors.tint + '18' }]}>
+                <Ionicons
+                  name={direction === 'left' ? 'chevron-back' : 'chevron-forward'}
+                  size={22}
+                  color={colors.tint}
+                />
+              </View>
+            )}
+            renderHeader={(date: any) => {
+              const d = new Date(typeof date === 'string' ? date : date.toString());
+              const month = d.toLocaleString('en-US', { month: 'long' });
+              const year = d.getFullYear();
+              return (
+                <Pressable
+                  onPress={() => setYearPickerVisible(true)}
+                  style={styles.calHeader}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${month} ${year}, tap to change year`}
+                >
+                  <AppText style={[styles.calHeaderText, { color: colors.text }]}>
+                    {month}{' '}
+                  </AppText>
+                  <AppText style={[styles.calHeaderText, styles.calHeaderYear, { color: colors.tint }]}>
+                    {year}
+                  </AppText>
+                  <Ionicons name="chevron-down" size={14} color={colors.tint} style={{ marginLeft: 2, marginTop: 2 }} />
+                </Pressable>
+              );
+            }}
+            theme={{
+              backgroundColor: colors.background, calendarBackground: colors.background,
+              textSectionTitleColor: colors.icon, dayTextColor: colors.text, todayTextColor: '#fff',
+              todayBackgroundColor: colors.tint,
               selectedDayBackgroundColor: colors.tint, selectedDayTextColor: '#fff', monthTextColor: colors.text,
-              arrowColor: colors.tint, selectedDotColor: '#fff' }} />
+              arrowColor: colors.tint, selectedDotColor: '#fff',
+            }}
+          />
           <View style={styles.legend}>
             {[['Hosting', OWN_COLOR], ['Activities', OTHER_COLOR], ['Rides', RIDE_COLOR]].map(([label, color]) => (
               <View key={label} style={styles.legendItem}><View style={[styles.dot, { backgroundColor: color }]} /><AppText style={styles.meta}>{label}</AppText></View>
@@ -128,6 +184,53 @@ export default function CalendarScreen() {
           </>}
         </View>
       </TourScrollView>
+
+      {/* Year picker modal */}
+      <Modal
+        visible={yearPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setYearPickerVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setYearPickerVisible(false)}>
+          <Pressable style={[styles.yearSheet, { backgroundColor: colors.cardBackground }]} onPress={() => {}}>
+            <View style={[styles.yearSheetHandle, { backgroundColor: colors.outlineVariant }]} />
+            <AppText style={[styles.yearSheetTitle, { color: colors.text }]}>Select year</AppText>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.yearList}>
+              {YEAR_RANGE.map(year => (
+                <Pressable
+                  key={year}
+                  onPress={() => handleYearSelect(year)}
+                  style={[
+                    styles.yearRow,
+                    year === displayYear && { backgroundColor: colors.tint + '18' },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${year}${year === displayYear ? ', selected' : ''}`}
+                >
+                  <AppText style={[
+                    styles.yearRowText,
+                    { color: year === displayYear ? colors.tint : colors.text },
+                    year === displayYear && { fontWeight: '700' },
+                  ]}>
+                    {year}
+                  </AppText>
+                  {year === displayYear && (
+                    <Ionicons name="checkmark" size={18} color={colors.tint} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              onPress={() => setYearPickerVisible(false)}
+              style={[styles.yearSheetCancel, { borderTopColor: colors.outlineVariant }]}
+              accessibilityRole="button"
+            >
+              <AppText style={{ color: colors.tint, fontWeight: '700', fontSize: 16 }}>Cancel</AppText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -159,4 +262,18 @@ const styles = StyleSheet.create({
   action: { minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   more: { minHeight: 48, padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  // Calendar header
+  calHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  calHeaderText: { fontSize: 17, fontWeight: '600' },
+  calHeaderYear: { fontWeight: '700' },
+  arrowBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  // Year picker
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  yearSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, maxHeight: 420 },
+  yearSheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
+  yearSheetTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center', paddingBottom: 8 },
+  yearList: { paddingHorizontal: 20, paddingBottom: 8 },
+  yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
+  yearRowText: { fontSize: 17 },
+  yearSheetCancel: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, alignItems: 'center' },
 });

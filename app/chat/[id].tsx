@@ -8,11 +8,13 @@ import { useMessagesRealtime } from "@/hooks/use-messages-realtime";
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   KeyboardAvoidingView,
+  PanResponder,
   Platform, ScrollView, StyleSheet, Text, View,
   useColorScheme, type ScrollViewInstance
 } from "react-native";
@@ -95,11 +97,69 @@ export default function ChatConversationScreen() {
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const [senderAvatars, setSenderAvatars] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<Message[]>([]);
+  const [reactionsByMessage, setReactionsByMessage] = useState<Record<string, { emoji: string; user_id: string }[]>>({});
+  const reactionMessageIds = messages.map((m) => m.id).join(",");
+  const reactionIdsRef = useRef<string[]>([]);
+  reactionIdsRef.current = messages.map((m) => m.id);
+
+  const refreshReactions = useCallback(async () => {
+    const ids = reactionIdsRef.current;
+    if (!ids.length) { setReactionsByMessage({}); return; }
+    const { data, error } = await supabase.from("message_reactions")
+      .select("message_id, user_id, emoji").in("message_id", ids);
+    if (error) { console.warn("[chat] load reactions:", error.message); return; }
+    const next: Record<string, { emoji: string; user_id: string }[]> = {};
+    for (const reaction of data ?? []) {
+      (next[reaction.message_id] ??= []).push({ emoji: reaction.emoji, user_id: reaction.user_id });
+    }
+    setReactionsByMessage(next);
+  }, []);
+
+  useEffect(() => { void refreshReactions(); }, [reactionMessageIds, refreshReactions]);
+
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase.channel(`message-reactions-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" },
+        () => { void refreshReactions(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, refreshReactions]);
+
+  async function toggleReaction(messageId: string, emoji: string) {
+    if (!currentUserId) return;
+    const mine = reactionsByMessage[messageId]?.find((r) => r.user_id === currentUserId);
+    const query = supabase.from("message_reactions");
+    const { error } = mine?.emoji === emoji
+      ? await query.delete().eq("message_id", messageId).eq("user_id", currentUserId)
+      : await query.upsert({ message_id: messageId, user_id: currentUserId, emoji }, { onConflict: "message_id,user_id" });
+    if (error) Alert.alert("Reaction failed", error.message);
+    else await refreshReactions();
+  }
+
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [muted, setMuted] = useState(false);
   const [headerName, setHeaderName] = useState<string | null>(null);
   const [headerAvatar, setHeaderAvatar] = useState<string | null>(null);
+
+  // Messenger-style swipe-left: reveal timestamps in the right gutter, then spring back.
+  // Only claim horizontal gestures, leaving vertical scrolling and taps intact.
+  const swipeOffset = useRef(new Animated.Value(0)).current;
+  const swipeResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) =>
+      gesture.dx < -12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    onPanResponderMove: (_event, gesture) => {
+      swipeOffset.setValue(Math.max(-78, Math.min(0, gesture.dx)));
+    },
+    onPanResponderRelease: () => {
+      Animated.spring(swipeOffset, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(swipeOffset, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+    },
+  }), [swipeOffset]);
+
 
   useEffect(() => {
     if (!id || !currentUserId) return;
@@ -526,91 +586,117 @@ export default function ChatConversationScreen() {
             scrollEventThrottle={16}
             onContentSizeChange={handleContentSizeChange}
           >
-            {messages.map((m, index) => {
-              const senderName =
-                conversationType === "group" ? m.senderName : undefined;
+            <Animated.View
+              style={{ transform: [{ translateX: swipeOffset }] }}
+              {...swipeResponder.panHandlers}
+            >
+              {messages.map((m, index) => {
+                const senderName =
+                  conversationType === "group" ? m.senderName : undefined;
 
-              const nextMessage = messages[index + 1];
-              const showSenderAvatar = !m.fromMe && !!m.senderId && (
-                !nextMessage || nextMessage.senderId !== m.senderId ||
-                messageDay(nextMessage.createdAt) !== messageDay(m.createdAt)
-              );
+                const nextMessage = messages[index + 1];
+                const showSenderAvatar = !m.fromMe && !!m.senderId && (
+                  !nextMessage || nextMessage.senderId !== m.senderId ||
+                  messageDay(nextMessage.createdAt) !== messageDay(m.createdAt)
+                );
 
-              const previous = messages[index - 1];
-              const showDate = !previous || messageDay(previous.createdAt) !== messageDay(m.createdAt);
-              const dateDivider = showDate ? (
-                <View style={styles.dateDivider}>
-                  <Text style={[styles.dateLabel, { color: colors.icon, backgroundColor: colors.surfaceContainerHigh }]}>
-                    {formatMessageDay(m.createdAt)}
-                  </Text>
-                </View>
-              ) : null;
+                const previous = messages[index - 1];
+                const showDate = !previous || messageDay(previous.createdAt) !== messageDay(m.createdAt);
+                const dateDivider = showDate ? (
+                  <View style={styles.dateDivider}>
+                    <Text style={[styles.dateLabel, { color: colors.icon, backgroundColor: colors.surfaceContainerHigh }]}>
+                      {formatMessageDay(m.createdAt)}
+                    </Text>
+                  </View>
+                ) : null;
 
-              if (m.type === "activity" && m.sharedActivity) {
+                if (m.type === "activity" && m.sharedActivity) {
+                  return (
+                    <Fragment key={m.id}>
+                      {dateDivider}
+                      <View style={styles.swipeMessageRow}>
+                        <Text style={[styles.swipeTime, { color: colors.icon }]}>{m.time}</Text>
+                        <SharedContentBubble
+                          kind="activity"
+                          fromMe={m.fromMe}
+                          time={m.time}
+                          showTime={false}
+                          senderName={senderName}
+                          onPressSender={
+                            !m.fromMe && m.senderId
+                              ? () => router.push(`/profile/${m.senderId}`)
+                              : undefined
+                          }
+                          title={m.sharedActivity.title}
+                          hostName={m.sharedActivity.hostName}
+                          imageUrl={m.sharedActivity.imageUrl}
+                          onPress={() => router.push(`/activity/${m.sharedActivity!.id}`)}
+                        />
+                      </View>
+                    </Fragment>
+                  );
+                }
+
+                if (m.type === "post" && m.sharedPost) {
+                  return (
+                    <Fragment key={m.id}>
+                      {dateDivider}
+                      <View style={styles.swipeMessageRow}>
+                        <Text style={[styles.swipeTime, { color: colors.icon }]}>{m.time}</Text>
+                        <SharedContentBubble
+                          kind="post"
+                          fromMe={m.fromMe}
+                          time={m.time}
+                          showTime={false}
+                          senderName={senderName}
+                          onPressSender={
+                            !m.fromMe && m.senderId
+                              ? () => router.push(`/profile/${m.senderId}`)
+                              : undefined
+                          }
+                          posterName={m.sharedPost.posterName}
+                          caption={m.sharedPost.caption}
+                          imageUrl={m.sharedPost.imageUrl}
+                          onPress={() => router.push(`/post/${m.sharedPost!.id}`)}
+                        />
+                      </View>
+                    </Fragment>
+                  );
+                }
+
                 return (
                   <Fragment key={m.id}>
                     {dateDivider}
-                    <SharedContentBubble
-                      kind="activity"
-                      fromMe={m.fromMe}
-                      time={m.time}
-                      senderName={senderName}
-                      onPressSender={
-                        !m.fromMe && m.senderId
-                          ? () => router.push(`/profile/${m.senderId}`)
-                          : undefined
-                      }
-                      title={m.sharedActivity.title}
-                      hostName={m.sharedActivity.hostName}
-                      imageUrl={m.sharedActivity.imageUrl}
-                      onPress={() => router.push(`/activity/${m.sharedActivity!.id}`)}
-                    />
+                    <View style={styles.swipeMessageRow}>
+                      <Text style={[styles.swipeTime, { color: colors.icon }]}>{m.time}</Text>
+                      <MessageBubble
+                        text={m.text}
+                        fromMe={m.fromMe}
+                        time={m.time}
+                        showTime={false}
+                        senderName={senderName}
+                        avatarUri={m.senderId ? senderAvatars[m.senderId] : undefined}
+                        showAvatar={showSenderAvatar}
+                        reactions={(() => {
+                          const all = reactionsByMessage[m.id] ?? [];
+                          return [...new Set(all.map((r) => r.emoji))].map((emoji) => ({
+                            emoji,
+                            count: all.filter((r) => r.emoji === emoji).length,
+                            mine: all.some((r) => r.emoji === emoji && r.user_id === currentUserId),
+                          }));
+                        })()}
+                        onReact={(emoji) => { void toggleReaction(m.id, emoji); }}
+                        onPressSender={
+                          !m.fromMe && m.senderId
+                            ? () => router.push(`/profile/${m.senderId}`)
+                            : undefined
+                        }
+                      />
+                    </View>
                   </Fragment>
                 );
-              }
-
-              if (m.type === "post" && m.sharedPost) {
-                return (
-                  <Fragment key={m.id}>
-                    {dateDivider}
-                    <SharedContentBubble
-                      kind="post"
-                      fromMe={m.fromMe}
-                      time={m.time}
-                      senderName={senderName}
-                      onPressSender={
-                        !m.fromMe && m.senderId
-                          ? () => router.push(`/profile/${m.senderId}`)
-                          : undefined
-                      }
-                      posterName={m.sharedPost.posterName}
-                      caption={m.sharedPost.caption}
-                      imageUrl={m.sharedPost.imageUrl}
-                      onPress={() => router.push(`/post/${m.sharedPost!.id}`)}
-                    />
-                  </Fragment>
-                );
-              }
-
-              return (
-                <Fragment key={m.id}>
-                  {dateDivider}
-                  <MessageBubble
-                    text={m.text}
-                    fromMe={m.fromMe}
-                    time={m.time}
-                    senderName={senderName}
-                    avatarUri={m.senderId ? senderAvatars[m.senderId] : undefined}
-                    showAvatar={showSenderAvatar}
-                    onPressSender={
-                      !m.fromMe && m.senderId
-                        ? () => router.push(`/profile/${m.senderId}`)
-                        : undefined
-                    }
-                  />
-                </Fragment>
-              );
-            })}
+              })}
+            </Animated.View>
           </ScrollView>
         )}
 
@@ -621,6 +707,22 @@ export default function ChatConversationScreen() {
 }
 
 const styles = StyleSheet.create({
+  swipeMessageRow: {
+    width: "100%",
+    position: "relative",
+  },
+  // Outside the right edge until the chat is swiped to the left.
+  swipeTime: {
+    position: "absolute",
+    right: -73,
+    top: 0,
+    bottom: 0,
+    width: 68,
+    textAlign: "center",
+    textAlignVertical: "center",
+    fontSize: 10,
+    fontWeight: "500",
+  },
   container: {
     flex: 1,
   },

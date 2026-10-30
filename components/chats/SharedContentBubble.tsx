@@ -9,6 +9,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 type SharedContentBubbleProps = {
   fromMe: boolean;
   time: string;
+  showTime?: boolean;
   senderName?: string;
   onPressSender?: () => void;
   imageUrl: string;
@@ -19,7 +20,7 @@ type SharedContentBubbleProps = {
   );
 
 export default function SharedContentBubble(props: SharedContentBubbleProps) {
-  const { fromMe, time, senderName, onPressSender, imageUrl, onPress, kind } = props;
+  const { fromMe, time, showTime = true, senderName, onPressSender, imageUrl, onPress, kind } = props;
 
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -117,18 +118,20 @@ export default function SharedContentBubble(props: SharedContentBubbleProps) {
           </View>
         </TouchableOpacity>
 
-        <Text
-          style={[
-            styles.time,
-            {
-              color: timeColor,
-              fontFamily: Fonts.sans,
-              opacity: fromMe ? 0.75 : 1,
-            },
-          ]}
-        >
-          {time}
-        </Text>
+        {showTime && (
+          <Text
+            style={[
+              styles.time,
+              {
+                color: timeColor,
+                fontFamily: Fonts.sans,
+                opacity: fromMe ? 0.75 : 1,
+              },
+            ]}
+          >
+            {time}
+          </Text>
+        )}
       </View>
     </View>
   );

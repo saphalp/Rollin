@@ -2,9 +2,11 @@ import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
+  TextInput,
   useColorScheme,
   View,
 } from "react-native";
@@ -13,10 +15,14 @@ import ChatCards from "@/components/chats/ChatCards";
 import { AppView } from "@/components/view";
 import { Colors, Fonts } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
+import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
+import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text } from "react-native-paper";
+
+type FriendResult = { id: string; full_name: string | null; profile_picture: string | null };
 
 export default function ChatsScreen() {
   const theme = useColorScheme() ?? "light";
@@ -24,6 +30,68 @@ export default function ChatsScreen() {
   const { activeConversations, archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
   const [refreshing, setRefreshing] = useState(false);
   const hasFocused = useRef(false);
+  const [search, setSearch] = useState("");
+  const [friends, setFriends] = useState<FriendResult[]>([]);
+  const [searchingFriends, setSearchingFriends] = useState(false);
+  const [friendSearchError, setFriendSearchError] = useState(false);
+  const searchTerm = search.trim();
+  const filteredConversations = useMemo(() =>
+    activeConversations.filter((conversation) =>
+      conversation.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()),
+    ), [activeConversations, searchTerm]);
+
+  // Look up discoverable people after the user pauses typing. Supabase RLS
+  // determines which profiles this account is allowed to see.
+  useEffect(() => {
+    if (searchTerm.length < 2) {
+      setFriends([]);
+      setSearchingFriends(false);
+      setFriendSearchError(false);
+      return;
+    }
+    let cancelled = false;
+    setSearchingFriends(true);
+    setFriendSearchError(false);
+    const timer = setTimeout(async () => {
+      const safeTerm = searchTerm.replace(/[%,_]/g, "").trim();
+      if (safeTerm.length < 2) {
+        if (!cancelled) {
+          setFriends([]);
+          setSearchingFriends(false);
+        }
+        return;
+      }
+      const [profilesResult, authResult] = await Promise.all([
+        supabase.from("profiles")
+          .select("id, full_name, profile_picture")
+          .ilike("full_name", `%${safeTerm}%`)
+          .order("full_name", { ascending: true })
+          .limit(15),
+        supabase.auth.getUser(),
+      ]);
+      if (cancelled) return;
+      if (profilesResult.error || authResult.error) {
+        console.warn("[chats] friend search failed:", profilesResult.error ?? authResult.error);
+        setFriendSearchError(true);
+        setFriends([]);
+      } else {
+        setFriends((profilesResult.data ?? []).filter(
+          (profile) => profile.id !== authResult.data.user?.id,
+        ));
+      }
+      setSearchingFriends(false);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchTerm]);
+
+  // Existing direct conversations already appear above in search results.
+  const existingOtherIds = useMemo(() => new Set(
+    activeConversations.map((conversation) => conversation.otherUserId).filter(Boolean),
+  ), [activeConversations]);
+  const newFriends = friends.filter((friend) => !existingOtherIds.has(friend.id));
 
   // useConversations already loads on mount. Refresh only when returning to Chats.
   useFocusEffect(useCallback(() => {
@@ -61,6 +129,7 @@ export default function ChatsScreen() {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <TourTarget id="chat-heading"><View style={styles.titleRow}>
@@ -82,16 +151,38 @@ export default function ChatsScreen() {
           )}
         </View></TourTarget>
 
+        <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh, borderColor: colors.outlineVariant }]}>
+          <Ionicons name="search-outline" size={20} color={colors.icon} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search friends or conversations"
+            placeholderTextColor={colors.icon}
+            style={[styles.searchInput, { color: colors.text, fontFamily: Fonts.sans }]}
+            autoCorrect={false}
+            returnKeyType="search"
+            accessibilityLabel="Search friends or conversations"
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch("")} accessibilityLabel="Clear search" hitSlop={10}>
+              <Ionicons name="close-circle" size={20} color={colors.icon} />
+            </Pressable>
+          )}
+        </View>
+
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : activeConversations.length === 0 ? (
+        ) : !searchTerm && activeConversations.length === 0 ? (
           <Text style={[styles.empty, { color: colors.icon, fontFamily: Fonts.sans }]}>
             No conversations yet. Follow someone to message them, or join an
             activity to join its group chat.
           </Text>
         ) : (
           <View style={styles.list}>
-            {activeConversations.map((conversation, index) => (
+            {searchTerm.length > 0 && filteredConversations.length > 0 && (
+              <Text style={[styles.sectionTitle, { color: colors.icon }]}>Conversations</Text>
+            )}
+            {filteredConversations.map((conversation, index) => (
               <View key={conversation.id}>
                 <ChatCards
                   user={conversation.title}
@@ -116,11 +207,44 @@ export default function ChatsScreen() {
                   }
                   onLongPress={() => confirmDelete(conversation.id)}
                 />
-                {index < activeConversations.length - 1 && (
+                {index < filteredConversations.length - 1 && (
                   <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
                 )}
               </View>
             ))}
+            {searchTerm.length >= 2 && (
+              <View style={styles.friendSection}>
+                <Text style={[styles.sectionTitle, { color: colors.icon }]}>People on Roli</Text>
+                {searchingFriends && <ActivityIndicator color={colors.tint} style={styles.searchSpinner} />}
+                {friendSearchError && (
+                  <Text style={[styles.empty, { color: colors.icon }]}>Couldn't search people. Please try again.</Text>
+                )}
+                {!searchingFriends && !friendSearchError && newFriends.map((friend) => (
+                  <Pressable
+                    key={friend.id}
+                    style={styles.friendRow}
+                    onPress={() => router.push(`/profile/${friend.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${friend.full_name ?? "user"}'s profile`}
+                  >
+                    <Image source={{ uri: resolveAvatarUri(friend.profile_picture) }} style={styles.friendAvatar} />
+                    <View style={styles.friendText}>
+                      <Text style={[styles.friendName, { color: colors.text, fontFamily: Fonts.sans }]}>
+                        {friend.full_name?.trim() || "Rollin' User"}
+                      </Text>
+                      <Text style={{ color: colors.icon }}>View profile to message</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.icon} />
+                  </Pressable>
+                ))}
+                {!searchingFriends && !friendSearchError && newFriends.length === 0 && (
+                  <Text style={[styles.searchEmpty, { color: colors.icon }]}>No additional people found.</Text>
+                )}
+              </View>
+            )}
+            {searchTerm.length > 0 && searchTerm.length < 2 && filteredConversations.length === 0 && (
+              <Text style={[styles.searchEmpty, { color: colors.icon }]}>Type at least 2 characters to find people.</Text>
+            )}
           </View>
         )}
       </TourScrollView>
@@ -170,5 +294,56 @@ const styles = StyleSheet.create({
   archivedButtonLabel: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  searchBar: {
+    minHeight: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 10,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  friendSection: {
+    marginTop: 8,
+    gap: 6,
+  },
+  friendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 7,
+    gap: 12,
+  },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  friendText: {
+    flex: 1,
+    gap: 3,
+  },
+  friendName: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  searchSpinner: {
+    marginVertical: 12,
+  },
+  searchEmpty: {
+    fontSize: 14,
+    marginTop: 12,
   },
 });

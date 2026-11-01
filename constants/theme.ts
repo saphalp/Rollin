@@ -22,6 +22,7 @@ const light = {
     error: "#ba1a1a",
     onError: "#ffffff",
     errorContainer: "#ffdad6",
+    errorPulse: "#ff897d", // deeper red for the flashing "leaving soon" badge
     outline: "#727785",
     outlineVariant: "#c2c6d6",
     verified: "#10B981", // Emerald verified badge
@@ -50,6 +51,7 @@ const dark = {
     error: "#ba1a1a",
     onError: "#ffffff",
     errorContainer: "#ffdad6",
+    errorPulse: "#ff897d", // deeper red for the flashing "leaving soon" badge
     outline: "#727785",
     outlineVariant: "#c2c6d6",
     verified: "#10B981", // Emerald verified badge

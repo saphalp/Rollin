@@ -716,8 +716,11 @@ export default function RideDetailsScreen() {
                             request={request}
                             loading={requestLoading || submitting}
                             disabled={
-                                ride.status !== 'open' ||
-                                ride.availableSeats < 1
+                                request
+                                    // Cancelling: allowed until the ride starts
+                                    ? !['open', 'full'].includes(ride.status)
+                                    // Requesting: needs an open ride with a free seat
+                                    : ride.status !== 'open' || ride.availableSeats < 1
                             }
                             onRequest={handleRequest}
                             onCancel={handleCancelRequest}

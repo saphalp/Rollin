@@ -56,7 +56,17 @@
       "expo-sharing",
       [
         "react-native-maps",
-        { "androidGoogleMapsApiKey": "AIzaSyAaJ8nAygzPxmg11fK_diyiK_YAzyccFlM" }
+        {
+          "androidGoogleMapsApiKey": "AIzaSyAaJ8nAygzPxmg11fK_diyiK_YAzyccFlM"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class androidx.work.impl.WorkDatabase_Impl { *; }\n-keep class * extends androidx.room.RoomDatabase { <init>(); }"
+          }
+        }
       ]
     ],
     "experiments": {

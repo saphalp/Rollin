@@ -60,6 +60,31 @@ Deno.serve(async (req: Request) => {
       .eq('id', activityId);
     if (updateError) return reply({ error: 'Could not cancel the activity.' }, 500);
 
+    
+    // 2b. Cancel this activity's rides that haven't started yet,
+    // plus the passenger requests on them and any "ride wanted" posts.
+    const { data: cancelledRides } = await admin
+      .from('rides_offered')
+      .update({ status: 'cancelled' })
+      .eq('activity_id', activityId)
+      .in('status', ['open', 'full'])
+      .select('id');
+
+    const rideIds = (cancelledRides ?? []).map((ride) => ride.id);
+    if (rideIds.length > 0) {
+      await admin
+        .from('ride_requests')
+        .update({ status: 'cancelled' })
+        .in('ride_id', rideIds)
+        .in('status', ['pending', 'accepted']);
+    }
+
+    await admin
+      .from('ride_wanted_requests')
+      .update({ status: 'cancelled' })
+      .eq('activity_id', activityId)
+      .eq('status', 'open');
+
     // 3. Find everyone who RSVP'd.
     const { data: members } = await admin
       .from('rsvps')

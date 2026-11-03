@@ -1,27 +1,10 @@
-import * as Location from 'expo-location';
+
+import { supabase } from '@/lib/supabase';
 
 export type GeocodedLocation = {
     latitude: number;
     longitude: number;
 };
-
-async function ensureLocationPermission(): Promise<void> {
-    const currentPermission =
-        await Location.getForegroundPermissionsAsync();
-
-    if (currentPermission.granted) {
-        return;
-    }
-
-    const requestedPermission =
-        await Location.requestForegroundPermissionsAsync();
-
-    if (!requestedPermission.granted) {
-        throw new Error(
-            'Location permission is required to find map coordinates.',
-        );
-    }
-}
 
 export async function geocodeAddress(
     address: string,
@@ -32,27 +15,32 @@ export async function geocodeAddress(
         throw new Error('Enter a location first.');
     }
 
-    await ensureLocationPermission();
+    const { data, error } = await supabase.functions.invoke(
+        'geocode-address',
+        {
+            body: { address: cleanedAddress },
+        },
+    );
 
-    const results = await Location.geocodeAsync(cleanedAddress);
-
-    if (results.length === 0) {
-        throw new Error(
-            `Could not find coordinates for "${cleanedAddress}".`,
-        );
+    if (error) {
+        throw new Error('Could not search for this address.');
     }
 
-    const firstResult = results[0];
+    if (data?.error) {
+        throw new Error(data.error);
+    }
+
+    const latitude = data?.latitude;
+    const longitude = data?.longitude;
 
     if (
-        !Number.isFinite(firstResult.latitude) ||
-        !Number.isFinite(firstResult.longitude)
+        typeof latitude !== 'number' ||
+        typeof longitude !== 'number' ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
     ) {
-        throw new Error('The returned coordinates were invalid.');
+        throw new Error('Could not find valid coordinates.');
     }
 
-    return {
-        latitude: firstResult.latitude,
-        longitude: firstResult.longitude,
-    };
+    return { latitude, longitude };
 }

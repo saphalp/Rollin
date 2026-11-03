@@ -1,3 +1,4 @@
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -13,43 +14,54 @@ import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
+import { BackButton } from '@/components/ui/back-button';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { BackButton } from '@/components/ui/back-button';
+
+// Default location: Louisiana Tech University
+const DEFAULT_REGION: Region = {
+    latitude: 32.5299586,
+    longitude: -92.6522165,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
+};
 
 export default function FullRideMapScreen() {
     const theme = useColorScheme() ?? 'light';
     const colors = Colors[theme];
     const insets = useSafeAreaInsets();
 
-    const [region, setRegion] = useState<Region | null>(null);
+    const [region, setRegion] = useState<Region>(DEFAULT_REGION);
     const [loading, setLoading] = useState(true);
-    const [errorMessage, setErrorMessage] =
-        useState<string | null>(null);
+    const [hasLocationPermission, setHasLocationPermission] =
+        useState(false);
 
     useEffect(() => {
-        loadLocation();
+        void loadLocation();
     }, []);
 
     async function loadLocation() {
         setLoading(true);
-        setErrorMessage(null);
 
         try {
+            // Check permission without requesting it
             const permission =
-                await Location.requestForegroundPermissionsAsync();
+                await Location.getForegroundPermissionsAsync();
 
-            if (permission.status !== 'granted') {
-                setErrorMessage(
-                    'Location permission is required to show the map.',
-                );
+            if (!permission.granted) {
+                // Show the map at Louisiana Tech University
+                setHasLocationPermission(false);
+                setRegion(DEFAULT_REGION);
                 return;
             }
 
+            // Get current location only if permission exists
             const location =
                 await Location.getCurrentPositionAsync({
                     accuracy: Location.Accuracy.Balanced,
                 });
+
+            setHasLocationPermission(true);
 
             setRegion({
                 latitude: location.coords.latitude,
@@ -58,11 +70,11 @@ export default function FullRideMapScreen() {
                 longitudeDelta: 0.04,
             });
         } catch (error) {
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : 'Unable to load your current location.',
-            );
+            console.error('Unable to get current location:', error);
+
+            // Still display the map if GPS fails
+            setHasLocationPermission(false);
+            setRegion(DEFAULT_REGION);
         } finally {
             setLoading(false);
         }
@@ -82,7 +94,8 @@ export default function FullRideMapScreen() {
                     style={[
                         styles.statusContainer,
                         {
-                            backgroundColor: colors.surfaceContainerHigh,
+                            backgroundColor:
+                                colors.surfaceContainerHigh,
                         },
                     ]}
                 >
@@ -105,94 +118,28 @@ export default function FullRideMapScreen() {
                 </View>
             )}
 
-            {!loading && region && (
+            {!loading && (
                 <MapView
                     style={StyleSheet.absoluteFill}
                     initialRegion={region}
-                    showsUserLocation
-                    showsMyLocationButton
+                    showsUserLocation={hasLocationPermission}
+                    showsMyLocationButton={hasLocationPermission}
                 >
-                    <Marker
-                        coordinate={{
-                            latitude: region.latitude,
-                            longitude: region.longitude,
-                        }}
-                        title="Your location"
-                        description="Current area"
-                        pinColor={colors.tint}
-                    />
+                    {!hasLocationPermission && (
+                        <Marker
+                            coordinate={{
+                                latitude: DEFAULT_REGION.latitude,
+                                longitude: DEFAULT_REGION.longitude,
+                            }}
+                            title="Louisiana Tech University"
+                            description="Default map location"
+                            pinColor={colors.tint}
+                        />
+                    )}
                 </MapView>
             )}
 
-            {!loading && !region && (
-                <View
-                    style={[
-                        styles.statusContainer,
-                        {
-                            backgroundColor: colors.surfaceContainerHigh,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="map-marker-off-outline"
-                        size={38}
-                        color={colors.icon}
-                    />
-
-                    <AppText
-                        style={[
-                            styles.errorTitle,
-                            {
-                                color: colors.text,
-                                fontFamily: Fonts?.sans,
-                            },
-                        ]}
-                    >
-                        Map unavailable
-                    </AppText>
-
-                    <AppText
-                        style={[
-                            styles.statusText,
-                            {
-                                color: colors.icon,
-                                fontFamily: Fonts?.sans,
-                            },
-                        ]}
-                    >
-                        {errorMessage}
-                    </AppText>
-
-                    <TouchableOpacity
-                        onPress={loadLocation}
-                        style={[
-                            styles.retryButton,
-                            {
-                                backgroundColor: colors.tint,
-                            },
-                        ]}
-                    >
-                        <MaterialCommunityIcons
-                            name="refresh"
-                            size={19}
-                            color={colors.onPrimary}
-                        />
-
-                        <AppText
-                            style={[
-                                styles.retryText,
-                                {
-                                    color: colors.onPrimary,
-                                    fontFamily: Fonts?.sans,
-                                },
-                            ]}
-                        >
-                            Try Again
-                        </AppText>
-                    </TouchableOpacity>
-                </View>
-            )}
-
+            {/* Top Navigation */}
             <View
                 style={[
                     styles.topControls,
@@ -201,7 +148,10 @@ export default function FullRideMapScreen() {
                     },
                 ]}
             >
-                <BackButton variant="floating" accessibilityLabel="Return to ride dashboard" />
+                <BackButton
+                    variant="floating"
+                    accessibilityLabel="Return to ride dashboard"
+                />
 
                 <View
                     style={[
@@ -233,6 +183,7 @@ export default function FullRideMapScreen() {
                 </View>
             </View>
 
+            {/* Bottom Navigation */}
             <View
                 style={[
                     styles.bottomControls,
@@ -320,25 +271,6 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         textAlign: 'center',
     },
-    errorTitle: {
-        marginTop: 12,
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    retryButton: {
-        marginTop: 18,
-        minHeight: 46,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 14,
-        paddingHorizontal: 20,
-        gap: 8,
-    },
-    retryText: {
-        fontSize: 14,
-        fontWeight: '700',
-    },
     topControls: {
         position: 'absolute',
         top: 0,
@@ -347,14 +279,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-    },
-    floatingButton: {
-        width: 48,
-        height: 48,
-        borderWidth: 1,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     titlePill: {
         flex: 1,

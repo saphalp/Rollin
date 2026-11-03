@@ -53,3 +53,13 @@ app-example
 # MkDocs documentation
 .venv-docs/
 site/
+
+
+# Local environment backups
+.env.production.backup
+
+# Supabase CLI temporary files
+/supabase/.temp/
+
+# Local validation databases and test files
+/backups/

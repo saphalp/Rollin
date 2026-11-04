@@ -12,11 +12,12 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   StyleSheet,
   useColorScheme,
   View,
 } from "react-native";
-import { Chip, Text } from "react-native-paper";
+import { Button, Chip, Text } from "react-native-paper";
 import { ProfilePrivacyGate } from './ProfilePrivacyGate';
 import { ProfileSocialLinks } from './ProfileSocialLinks';
 
@@ -110,6 +111,8 @@ function sortActivitiesByDate(activities: ActivityRow[]): ActivityRow[] {
   });
 }
 
+const ACTIVITIES_PAGE_SIZE = 3;
+
 interface UserProfileProps {
   userId: string;
 }
@@ -145,7 +148,12 @@ function UserProfileContent({ userId }: UserProfileProps) {
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [hostedCount, setHostedCount] = useState(0);
   const [attendedCount, setAttendedCount] = useState(0);
+  const [hasMoreCreated, setHasMoreCreated] = useState(false);
+  const [hasMoreJoined, setHasMoreJoined] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const { average: rating } = useReviewSummary(userId);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
@@ -159,20 +167,25 @@ function UserProfileContent({ userId }: UserProfileProps) {
       setActivitiesLoading(true);
       setActivitiesError(null);
 
+      setLoadMoreError(null);
+
       const createdRequest = supabase
         .from("activities")
-        .select("id, title, date_time, image_url, category, status")
+        .select("id, title, date_time, image_url, category, status", { count: "exact" })
         .eq("host_id", userId)
         .is("recurrence_parent_id", null)
-        .order("date_time", { ascending: false });
+        .order("date_time", { ascending: false })
+        .range(0, ACTIVITIES_PAGE_SIZE - 1);
 
       const joinedRequest = isOwnProfile
         ? supabase
           .from("rsvps")
           .select(
             "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
+            { count: "exact" }
           )
           .eq("user_id", userId)
+          .range(0, ACTIVITIES_PAGE_SIZE - 1)
         : supabase
           .from("rsvps")
           .select("id", { count: "exact", head: true })
@@ -192,9 +205,12 @@ function UserProfileContent({ userId }: UserProfileProps) {
       }
 
       const created = (createdResult.data ?? []) as ActivityRecord[];
-      setCreatedActivities(
-        sortActivitiesByDate(created.map(toActivityRow)),
-      );
+      const sortedCreated = sortActivitiesByDate(created.map(toActivityRow));
+      setCreatedActivities(sortedCreated);
+
+      const totalHosted = createdResult.count ?? created.length;
+      setHostedCount(totalHosted);
+      setHasMoreCreated(totalHosted > sortedCreated.length);
 
       if (isOwnProfile) {
         const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
@@ -204,12 +220,15 @@ function UserProfileContent({ userId }: UserProfileProps) {
           return activities.filter((a: any) => !a.recurrence_parent_id);
         });
 
-        setJoinedActivities(
-          sortActivitiesByDate(joined.map(toActivityRow)),
-        );
-        setAttendedCount(joined.length);
+        const sortedJoined = sortActivitiesByDate(joined.map(toActivityRow));
+        setJoinedActivities(sortedJoined);
+
+        const totalJoined = joinedResult.count ?? joined.length;
+        setAttendedCount(totalJoined);
+        setHasMoreJoined(totalJoined > sortedJoined.length);
       } else {
         setJoinedActivities([]);
+        setHasMoreJoined(false);
         setAttendedCount(joinedResult.count ?? 0);
       }
       setActivitiesLoading(false);
@@ -282,8 +301,93 @@ function UserProfileContent({ userId }: UserProfileProps) {
     };
   }, [userId]);
 
+  async function handleLoadMore() {
+    if (loadingMore || !userId) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      if (activityView === "created") {
+        const from = createdActivities.length;
+        const to = from + ACTIVITIES_PAGE_SIZE - 1;
+
+        const { data, count, error } = await supabase
+          .from("activities")
+          .select("id, title, date_time, image_url, category, status", { count: "exact" })
+          .eq("host_id", userId)
+          .is("recurrence_parent_id", null)
+          .order("date_time", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        const total = typeof count === "number" ? count : hostedCount;
+        if (typeof count === "number") {
+          setHostedCount(count);
+        }
+
+        const newRecords = (data ?? []) as ActivityRecord[];
+        const newRows = newRecords.map(toActivityRow);
+
+        setCreatedActivities((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const unique = newRows.filter((a) => !existingIds.has(a.id));
+          return sortActivitiesByDate([...prev, ...unique]);
+        });
+
+        if (newRecords.length < ACTIVITIES_PAGE_SIZE || from + newRecords.length >= total) {
+          setHasMoreCreated(false);
+        }
+      } else {
+        const from = joinedActivities.length;
+        const to = from + ACTIVITIES_PAGE_SIZE - 1;
+
+        const { data, count, error } = await supabase
+          .from("rsvps")
+          .select(
+            "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
+            { count: "exact" }
+          )
+          .eq("user_id", userId)
+          .range(from, to);
+
+        if (error) throw error;
+
+        const total = typeof count === "number" ? count : attendedCount;
+        if (typeof count === "number") {
+          setAttendedCount(count);
+        }
+
+        const joinedRows = (data ?? []) as JoinedActivityRecord[];
+        const joined = joinedRows.flatMap((row) => {
+          if (!row.activity) return [];
+          const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+          return activities.filter((a: any) => !a.recurrence_parent_id);
+        });
+        const newRows = joined.map(toActivityRow);
+
+        setJoinedActivities((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const unique = newRows.filter((a) => !existingIds.has(a.id));
+          return sortActivitiesByDate([...prev, ...unique]);
+        });
+
+        if (joinedRows.length < ACTIVITIES_PAGE_SIZE || from + joinedRows.length >= total) {
+          setHasMoreJoined(false);
+        }
+      }
+    } catch (err) {
+      console.error("[profile] load more activities failed:", err);
+      setLoadMoreError("Unable to load more activities. Tap to retry.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const displayedActivities =
     activityView === "created" ? createdActivities : joinedActivities;
+  const hasMore =
+    activityView === "created" ? hasMoreCreated : hasMoreJoined;
 
   async function handleMessagePress() {
     if (!profile) return;
@@ -378,7 +482,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         <ProfileStats
           statsData={{
             attended: attendedCount,
-            hosted: createdActivities.length,
+            hosted: hostedCount,
             rides: rideCount,
             reviews: rating,
           }}
@@ -452,17 +556,46 @@ function UserProfileContent({ userId }: UserProfileProps) {
                   : "No activities yet."}
               </Text>
             ) : (
-              displayedActivities.map((activity) => (
-                <MyActivities
-                  key={activity.id}
-                  title={activity.title}
-                  date={activity.date}
-                  time={activity.time}
-                  image={{ uri: activity.imageUri }}
-                  cancelled={activity.cancelled}
-                  onPress={() => router.push(`/activity/${activity.id}`)}
-                />
-              ))
+              <>
+                {displayedActivities.map((activity) => (
+                  <MyActivities
+                    key={activity.id}
+                    title={activity.title}
+                    date={activity.date}
+                    time={activity.time}
+                    image={{ uri: activity.imageUri }}
+                    cancelled={activity.cancelled}
+                    onPress={() => router.push(`/activity/${activity.id}`)}
+                  />
+                ))}
+
+                {hasMore && (
+                  <Button
+                    mode="outlined"
+                    onPress={() => void handleLoadMore()}
+                    loading={loadingMore}
+                    disabled={loadingMore}
+                    textColor={colors.tint}
+                    style={[styles.loadMoreButton, { borderColor: colors.tint }]}
+                    labelStyle={{ fontFamily: Fonts.sans, fontWeight: "600" }}
+                  >
+                    Load more
+                  </Button>
+                )}
+
+                {loadMoreError && (
+                  <Pressable onPress={() => void handleLoadMore()} style={styles.loadMoreRetry}>
+                    <Text
+                      style={[
+                        styles.loadMoreError,
+                        { color: colors.error, fontFamily: Fonts.sans },
+                      ]}
+                    >
+                      {loadMoreError}
+                    </Text>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -527,6 +660,19 @@ const styles = StyleSheet.create({
   activitiesMessage: {
     fontSize: 14,
     paddingTop: 15,
+  },
+  loadMoreButton: {
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  loadMoreError: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 6,
+  },
+  loadMoreRetry: {
+    alignItems: "center",
+    paddingVertical: 4,
   },
   accountActions: {
     gap: 12,

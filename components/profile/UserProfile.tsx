@@ -1,21 +1,24 @@
 import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
 import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
+  RefreshControl,
   StyleSheet,
   useColorScheme,
   View,
 } from "react-native";
-import { Chip, Text } from "react-native-paper";
+import { Button, Chip, Text } from "react-native-paper";
 import { ProfilePrivacyGate } from './ProfilePrivacyGate';
 import { ProfileSocialLinks } from './ProfileSocialLinks';
 
@@ -109,168 +112,285 @@ function sortActivitiesByDate(activities: ActivityRow[]): ActivityRow[] {
   });
 }
 
+const ACTIVITIES_PAGE_SIZE = 3;
+
 interface UserProfileProps {
   userId: string;
 }
 
 export default function UserProfile({ userId }: UserProfileProps) {
-  return <ProfilePrivacyGate userId={userId}><UserProfileContent userId={userId} /></ProfilePrivacyGate>;
+  const { claims } = useAuthContext();
+  const currentUserId = claims?.sub as string | undefined;
+  const isOwnProfile = !!currentUserId && !!userId && currentUserId === userId;
+
+  if (isOwnProfile) {
+    return <UserProfileContent userId={userId} />;
+  }
+
+  return (
+    <ProfilePrivacyGate userId={userId}>
+      <UserProfileContent userId={userId} />
+    </ProfilePrivacyGate>
+  );
 }
 
 function UserProfileContent({ userId }: UserProfileProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const { profile, isLoading: profileLoading, isOwnProfile } =
-    useProfile(userId);
-  const { followState, toggle: toggleFollow } = useFollow(userId);
-  const { allInterestNames, selectedNames, save: saveInterests } =
-    useProfileInterests(userId);
+  const {
+    profile,
+    isLoading: profileLoading,
+    isOwnProfile,
+    refresh: refreshProfile,
+  } = useProfile(userId);
+  const { followState, toggle: toggleFollow, refresh: refreshFollow } =
+    useFollow(userId);
+  const {
+    allInterestNames,
+    selectedNames,
+    save: saveInterests,
+    refresh: refreshInterests,
+  } = useProfileInterests(userId);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activityView, setActivityView] =
     useState<ActivityView>("created");
   const [createdActivities, setCreatedActivities] = useState<ActivityRow[]>([]);
   const [joinedActivities, setJoinedActivities] = useState<ActivityRow[]>([]);
+  const [hostedCount, setHostedCount] = useState(0);
   const [attendedCount, setAttendedCount] = useState(0);
-  const { average: rating } = useReviewSummary(userId);
+  const [hasMoreCreated, setHasMoreCreated] = useState(false);
+  const [hasMoreJoined, setHasMoreJoined] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const { average: rating, refresh: refreshReviews } = useReviewSummary(userId);
+  const [refreshing, setRefreshing] = useState(false);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadRideCount = useCallback(async () => {
     if (!userId) return;
-    let cancelled = false;
 
-    (async () => {
-      setActivitiesLoading(true);
-      setActivitiesError(null);
+    const [offeredResult, takenResult] = await Promise.all([
+      supabase
+        .from("rides_offered")
+        .select("id", { count: "exact", head: true })
+        .eq("driver_id", userId)
+        .eq("status", "completed"),
+      supabase
+        .from("ride_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("requester_id", userId)
+        .eq("status", "completed"),
+    ]);
 
-      const createdRequest = supabase
-        .from("activities")
-        .select("id, title, date_time, image_url, category, status")
-        .eq("host_id", userId)
-        .is("recurrence_parent_id", null)
-        .order("date_time", { ascending: false });
+    if (offeredResult.error) {
+      console.error("[profile] offered ride count failed:", offeredResult.error);
+    }
+    if (takenResult.error) {
+      console.error("[profile] taken ride count failed:", takenResult.error);
+    }
 
-      const joinedRequest = isOwnProfile
-        ? supabase
+    const offered = offeredResult.count ?? 0;
+    const taken = takenResult.count ?? 0;
+
+    setRideCount(offered + taken);
+  }, [userId]);
+
+  const loadInitialActivities = useCallback(async () => {
+    if (!userId) return;
+    setActivitiesLoading(true);
+    setActivitiesError(null);
+    setLoadMoreError(null);
+
+    const createdRequest = supabase
+      .from("activities")
+      .select("id, title, date_time, image_url, category, status", { count: "exact" })
+      .eq("host_id", userId)
+      .is("recurrence_parent_id", null)
+      .order("date_time", { ascending: false })
+      .range(0, ACTIVITIES_PAGE_SIZE - 1);
+
+    const joinedRequest = isOwnProfile
+      ? supabase
+        .from("rsvps")
+        .select(
+          "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
+          { count: "exact" }
+        )
+        .eq("user_id", userId)
+        .range(0, ACTIVITIES_PAGE_SIZE - 1)
+      : supabase
+        .from("rsvps")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+    const [createdResult, joinedResult] = await Promise.all([
+      createdRequest,
+      joinedRequest,
+    ]);
+
+    if (createdResult.error || joinedResult.error) {
+      const error = createdResult.error ?? joinedResult.error;
+      console.error("[profile] fetch activities failed:", error);
+      setActivitiesError("Unable to load activities. Please try again.");
+    }
+
+    const created = (createdResult.data ?? []) as ActivityRecord[];
+    const sortedCreated = sortActivitiesByDate(created.map(toActivityRow));
+    setCreatedActivities(sortedCreated);
+
+    const totalHosted = createdResult.count ?? created.length;
+    setHostedCount(totalHosted);
+    setHasMoreCreated(totalHosted > sortedCreated.length);
+
+    if (isOwnProfile) {
+      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+      const joined = joinedRows.flatMap((row) => {
+        if (!row.activity) return [];
+        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+        return activities.filter((a: any) => !a.recurrence_parent_id);
+      });
+
+      const sortedJoined = sortActivitiesByDate(joined.map(toActivityRow));
+      setJoinedActivities(sortedJoined);
+
+      const totalJoined = joinedResult.count ?? joined.length;
+      setAttendedCount(totalJoined);
+      setHasMoreJoined(totalJoined > sortedJoined.length);
+    } else {
+      setJoinedActivities([]);
+      setHasMoreJoined(false);
+      setAttendedCount(joinedResult.count ?? 0);
+    }
+    setActivitiesLoading(false);
+  }, [isOwnProfile, userId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadInitialActivities();
+  }, [loadInitialActivities]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadRideCount();
+  }, [loadRideCount]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    notifyAccountChanges();
+    try {
+      await Promise.all([
+        refreshProfile(),
+        refreshInterests(),
+        refreshFollow(),
+        refreshReviews(),
+        loadRideCount(),
+        loadInitialActivities(),
+      ]);
+    } catch (err) {
+      console.error("[profile] pull-to-refresh failed:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    refreshProfile,
+    refreshInterests,
+    refreshFollow,
+    refreshReviews,
+    loadRideCount,
+    loadInitialActivities,
+  ]);
+
+  async function handleLoadMore() {
+    if (loadingMore || !userId) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      if (activityView === "created") {
+        const from = createdActivities.length;
+        const to = from + ACTIVITIES_PAGE_SIZE - 1;
+
+        const { data, count, error } = await supabase
+          .from("activities")
+          .select("id, title, date_time, image_url, category, status", { count: "exact" })
+          .eq("host_id", userId)
+          .is("recurrence_parent_id", null)
+          .order("date_time", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        const total = typeof count === "number" ? count : hostedCount;
+        if (typeof count === "number") {
+          setHostedCount(count);
+        }
+
+        const newRecords = (data ?? []) as ActivityRecord[];
+        const newRows = newRecords.map(toActivityRow);
+
+        setCreatedActivities((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const unique = newRows.filter((a) => !existingIds.has(a.id));
+          return sortActivitiesByDate([...prev, ...unique]);
+        });
+
+        if (newRecords.length < ACTIVITIES_PAGE_SIZE || from + newRecords.length >= total) {
+          setHasMoreCreated(false);
+        }
+      } else {
+        const from = joinedActivities.length;
+        const to = from + ACTIVITIES_PAGE_SIZE - 1;
+
+        const { data, count, error } = await supabase
           .from("rsvps")
           .select(
             "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
+            { count: "exact" }
           )
           .eq("user_id", userId)
-        : supabase
-          .from("rsvps")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId);
+          .range(from, to);
 
-      const [createdResult, joinedResult] = await Promise.all([
-        createdRequest,
-        joinedRequest,
-      ]);
+        if (error) throw error;
 
-      if (cancelled) return;
+        const total = typeof count === "number" ? count : attendedCount;
+        if (typeof count === "number") {
+          setAttendedCount(count);
+        }
 
-      if (createdResult.error || joinedResult.error) {
-        const error = createdResult.error ?? joinedResult.error;
-        console.error("[profile] fetch activities failed:", error);
-        setActivitiesError("Unable to load activities. Please try again.");
-      }
-
-      const created = (createdResult.data ?? []) as ActivityRecord[];
-      setCreatedActivities(
-        sortActivitiesByDate(created.map(toActivityRow)),
-      );
-
-      if (isOwnProfile) {
-        const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+        const joinedRows = (data ?? []) as JoinedActivityRecord[];
         const joined = joinedRows.flatMap((row) => {
           if (!row.activity) return [];
           const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
           return activities.filter((a: any) => !a.recurrence_parent_id);
         });
+        const newRows = joined.map(toActivityRow);
 
-        setJoinedActivities(
-          sortActivitiesByDate(joined.map(toActivityRow)),
-        );
-        setAttendedCount(joined.length);
-      } else {
-        setJoinedActivities([]);
-        setAttendedCount(joinedResult.count ?? 0);
+        setJoinedActivities((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          const unique = newRows.filter((a) => !existingIds.has(a.id));
+          return sortActivitiesByDate([...prev, ...unique]);
+        });
+
+        if (joinedRows.length < ACTIVITIES_PAGE_SIZE || from + joinedRows.length >= total) {
+          setHasMoreJoined(false);
+        }
       }
-      setActivitiesLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOwnProfile, userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    let cancelled = false;
-
-    async function loadRideCount() {
-      const [offeredResult, takenResult] = await Promise.all([
-        /*
-         * Rides this user offered and completed.
-         */
-        supabase
-          .from("rides_offered")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("driver_id", userId)
-          .eq("status", "completed"),
-
-        /*
-         * Rides this user took as a passenger
-         * and completed.
-         */
-        supabase
-          .from("ride_requests")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("requester_id", userId)
-          .eq("status", "completed"),
-      ]);
-
-      if (cancelled) return;
-
-      if (offeredResult.error) {
-        console.error(
-          "[profile] offered ride count failed:",
-          offeredResult.error,
-        );
-      }
-
-      if (takenResult.error) {
-        console.error(
-          "[profile] taken ride count failed:",
-          takenResult.error,
-        );
-      }
-
-      const offered = offeredResult.count ?? 0;
-      const taken = takenResult.count ?? 0;
-
-      setRideCount(offered + taken);
+    } catch (err) {
+      console.error("[profile] load more activities failed:", err);
+      setLoadMoreError("Unable to load more activities. Tap to retry.");
+    } finally {
+      setLoadingMore(false);
     }
-
-    void loadRideCount();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
+  }
 
   const displayedActivities =
     activityView === "created" ? createdActivities : joinedActivities;
+  const hasMore =
+    activityView === "created" ? hasMoreCreated : hasMoreJoined;
 
   async function handleMessagePress() {
     if (!profile) return;
@@ -327,6 +447,14 @@ function UserProfileContent({ userId }: UserProfileProps) {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.tint}
+            colors={[colors.tint]}
+          />
+        }
       >
         <View style={styles.header}>
           <ProfileCover
@@ -365,7 +493,7 @@ function UserProfileContent({ userId }: UserProfileProps) {
         <ProfileStats
           statsData={{
             attended: attendedCount,
-            hosted: createdActivities.length,
+            hosted: hostedCount,
             rides: rideCount,
             reviews: rating,
           }}
@@ -439,17 +567,46 @@ function UserProfileContent({ userId }: UserProfileProps) {
                   : "No activities yet."}
               </Text>
             ) : (
-              displayedActivities.map((activity) => (
-                <MyActivities
-                  key={activity.id}
-                  title={activity.title}
-                  date={activity.date}
-                  time={activity.time}
-                  image={{ uri: activity.imageUri }}
-                  cancelled={activity.cancelled}
-                  onPress={() => router.push(`/activity/${activity.id}`)}
-                />
-              ))
+              <>
+                {displayedActivities.map((activity) => (
+                  <MyActivities
+                    key={activity.id}
+                    title={activity.title}
+                    date={activity.date}
+                    time={activity.time}
+                    image={{ uri: activity.imageUri }}
+                    cancelled={activity.cancelled}
+                    onPress={() => router.push(`/activity/${activity.id}`)}
+                  />
+                ))}
+
+                {hasMore && (
+                  <Button
+                    mode="outlined"
+                    onPress={() => void handleLoadMore()}
+                    loading={loadingMore}
+                    disabled={loadingMore}
+                    textColor={colors.tint}
+                    style={[styles.loadMoreButton, { borderColor: colors.tint }]}
+                    labelStyle={{ fontFamily: Fonts.sans, fontWeight: "600" }}
+                  >
+                    Load more
+                  </Button>
+                )}
+
+                {loadMoreError && (
+                  <Pressable onPress={() => void handleLoadMore()} style={styles.loadMoreRetry}>
+                    <Text
+                      style={[
+                        styles.loadMoreError,
+                        { color: colors.error, fontFamily: Fonts.sans },
+                      ]}
+                    >
+                      {loadMoreError}
+                    </Text>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -514,6 +671,19 @@ const styles = StyleSheet.create({
   activitiesMessage: {
     fontSize: 14,
     paddingTop: 15,
+  },
+  loadMoreButton: {
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  loadMoreError: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 6,
+  },
+  loadMoreRetry: {
+    alignItems: "center",
+    paddingVertical: 4,
   },
   accountActions: {
     gap: 12,

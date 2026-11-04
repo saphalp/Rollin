@@ -3,9 +3,19 @@ import { useCallback, useState } from 'react';
 
 import { reviewSummary, type ReviewSummary } from '@/services/reviews-service';
 
-// Combined ride + host review average, refreshed whenever the screen regains focus.
+// Combined ride + host review average, refreshed whenever the screen regains focus or pulled to refresh.
 export function useReviewSummary(userId: string) {
   const [summary, setSummary] = useState<ReviewSummary>({ average: null, count: 0 });
+
+  const refresh = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const next = await reviewSummary(userId);
+      setSummary(next);
+    } catch (e) {
+      console.error('[profile] review summary failed:', e);
+    }
+  }, [userId]);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -16,5 +26,5 @@ export function useReviewSummary(userId: string) {
     return () => { active = false; };
   }, [userId]));
 
-  return summary;
+  return { ...summary, refresh };
 }

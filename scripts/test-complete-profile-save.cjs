@@ -126,3 +126,4 @@ test('complete-profile error handling: preserves screen on failure and prevents 
   assert.equal(caughtError.message, 'Database connection failed');
   assert.equal(navigatedTo, null, 'Must not navigate when completeProfile throws error');
 });
+

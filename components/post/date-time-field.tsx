@@ -125,7 +125,7 @@ export function DateTimeField({
                 mode={mode}
                 display="spinner"
                 minimumDate={minimumDate}
-                onChange={handleChange}
+                onValueChange={handleChange}
                 textColor={colors.text}
                 style={styles.picker}
               />

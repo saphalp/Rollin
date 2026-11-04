@@ -1,14 +1,22 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { RideActivityBadge } from '@/components/rides/ride-activity-badge';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
+    IncomingSeatRequestDashboardItem,
     MyRideRequestDashboardItem,
     OfferedRideDashboardItem,
     RideHistoryDashboardItem,
 } from '@/services/ride-dashboard-service';
+import type { RideOffer, WantedRide } from '@/types/rides';
+
+/** "Requested by others": a seat request on your ride, or someone's posted ride request. */
+export type OthersRideRequestItem =
+    | { kind: 'seat'; request: IncomingSeatRequestDashboardItem }
+    | { kind: 'wanted'; request: WantedRide };
 
 function formatDate(value: string | null) {
     if (!value) return 'Departure time not provided';
@@ -61,14 +69,7 @@ export function OfferedRideDashboardCard({
                 <MaterialCommunityIcons name="chevron-right" size={23} color={colors.tint} />
             </View>
 
-            {ride.activityTitle ? (
-                <View style={styles.row}>
-                    <MaterialCommunityIcons name="calendar-outline" size={17} color={colors.icon} />
-                    <AppText style={[styles.meta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-                        {ride.activityTitle}
-                    </AppText>
-                </View>
-            ) : null}
+            <RideActivityBadge activityTitle={ride.activityTitle} />
 
             <View style={styles.stats}>
                 <View style={[styles.stat, { backgroundColor: colors.surfaceContainer }]}>
@@ -151,6 +152,120 @@ export function MyRideRequestDashboardCard({
                     {formatDate(request.dateTime)}
                 </AppText>
             </View>
+
+            <RideActivityBadge activityTitle={request.activityTitle} />
+        </TouchableOpacity>
+    );
+}
+
+/** An open ride someone else is offering. Tapping opens the ride to request a seat. */
+export function OthersRideOfferDashboardCard({
+    ride,
+    onPress,
+}: {
+    ride: RideOffer;
+    onPress: () => void;
+}) {
+    const theme = useColorScheme() ?? 'light';
+    const colors = Colors[theme];
+
+    return (
+        <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onPress}
+            style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
+        >
+            <View style={styles.header}>
+                <View style={[styles.icon, { backgroundColor: colors.surfaceContainer }]}>
+                    <MaterialCommunityIcons name="car-outline" size={22} color={colors.tint} />
+                </View>
+
+                <View style={styles.headerText}>
+                    <AppText
+                        numberOfLines={1}
+                        style={[styles.route, { color: colors.text, fontFamily: Fonts?.sans }]}
+                    >
+                        {ride.pickupLocation || 'Individual pickups'} → {ride.destination}
+                    </AppText>
+                    <AppText style={[styles.meta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                        Offered by {ride.driver.name}
+                    </AppText>
+                </View>
+
+                <MaterialCommunityIcons name="chevron-right" size={23} color={colors.tint} />
+            </View>
+
+            <View style={styles.row}>
+                <MaterialCommunityIcons name="clock-outline" size={17} color={colors.icon} />
+                <AppText style={[styles.meta, styles.flexMeta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                    {formatDate(ride.dateTime)}
+                </AppText>
+                <AppText style={[styles.seats, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+                    {ride.availableSeats} {ride.availableSeats === 1 ? 'seat' : 'seats'} left
+                </AppText>
+            </View>
+
+            <RideActivityBadge activityTitle={ride.activity?.title} />
+        </TouchableOpacity>
+    );
+}
+
+/** A request from someone else: a seat on your ride to review, or a ride they need. */
+export function OthersRideRequestDashboardCard({
+    item,
+    onPress,
+}: {
+    item: OthersRideRequestItem;
+    onPress: () => void;
+}) {
+    const theme = useColorScheme() ?? 'light';
+    const colors = Colors[theme];
+    const isSeat = item.kind === 'seat';
+    const name = isSeat ? item.request.requesterName : item.request.requester.name;
+    const activityTitle = isSeat ? item.request.activityTitle : item.request.activity?.title;
+
+    return (
+        <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onPress}
+            style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
+        >
+            <View style={styles.header}>
+                <View style={[styles.icon, { backgroundColor: colors.secondaryContainer }]}>
+                    <MaterialCommunityIcons
+                        name={isSeat ? 'account-arrow-right-outline' : 'car-search-outline'}
+                        size={22}
+                        color={colors.onSecondaryContainer}
+                    />
+                </View>
+
+                <View style={styles.headerText}>
+                    <AppText
+                        numberOfLines={1}
+                        style={[styles.route, { color: colors.text, fontFamily: Fonts?.sans }]}
+                    >
+                        {item.request.pickupLocation} → {item.request.destination}
+                    </AppText>
+                    <AppText style={[styles.meta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                        {isSeat ? `${name} wants a seat on your ride` : `${name} needs a ride`}
+                    </AppText>
+                </View>
+
+                <View style={[styles.statusBadge, { backgroundColor: colors.surfaceContainer }]}>
+                    <AppText style={[styles.actionText, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+                        {isSeat ? 'Review' : 'Offer ride'}
+                    </AppText>
+                </View>
+            </View>
+
+            <View style={styles.row}>
+                <MaterialCommunityIcons name="clock-outline" size={17} color={colors.icon} />
+                <AppText style={[styles.meta, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+                    {formatDate(item.request.dateTime)}
+                </AppText>
+            </View>
+
+            <RideActivityBadge activityTitle={activityTitle} />
         </TouchableOpacity>
     );
 }
@@ -269,5 +384,18 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         textTransform: 'capitalize',
+    },
+    actionText: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    flexMeta: {
+        flex: 1,
+        marginTop: 0,
+    },
+    seats: {
+        fontSize: 12,
+        lineHeight: 17,
+        fontWeight: '700',
     },
 });

@@ -2,6 +2,7 @@ import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import {
     ActivitySummary,
+    Coordinates,
     DriverSummary,
     RideFilter,
     WantedRide,
@@ -206,16 +207,52 @@ export async function cancelWantedRequest(requestId: string): Promise<void> {
     }
 }
 
-export async function fulfillWantedRequest(requestId: string): Promise<void> {
-    const { error } = await supabase
+export async function fetchWantedRequest(requestId: string): Promise<WantedRide | null> {
+    const { data, error } = await supabase
         .from('ride_wanted_requests')
-        .update({ status: 'fulfilled' })
+        .select('*')
         .eq('id', requestId)
-        .eq('status', 'open');
+        .maybeSingle();
 
     if (error) {
         throw new Error(error.message);
     }
+
+    if (!data) {
+        return null;
+    }
+
+    const [request] = await hydrateWantedRides([data as RawWantedRide]);
+    return request;
+}
+
+/**
+ * A driver takes on a passenger's request. The database creates the ride with the request's
+ * pickup, destination and time, adds the passenger as an accepted rider, and marks the
+ * request fulfilled, all in one transaction. Returns the new ride's id.
+ */
+export async function offerRideForWantedRequest(input: {
+    requestId: string;
+    availableSeats: number;
+    notes: string | null;
+    pickup: Coordinates;
+    destination: Coordinates;
+}): Promise<string> {
+    const { data, error } = await supabase.rpc('offer_ride_for_wanted_request', {
+        p_wanted_request_id: input.requestId,
+        p_available_seats: input.availableSeats,
+        p_notes: input.notes,
+        p_pickup_latitude: input.pickup.latitude,
+        p_pickup_longitude: input.pickup.longitude,
+        p_destination_latitude: input.destination.latitude,
+        p_destination_longitude: input.destination.longitude,
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data as string;
 }
 
 export function subscribeToWantedRides(onChange: () => void) {

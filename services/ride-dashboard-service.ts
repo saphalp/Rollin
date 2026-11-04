@@ -19,6 +19,18 @@ type MyRideRequestDashboardItemBase = {
   pickupLocation: string;
   destination: string;
   dateTime: string | null;
+  activityTitle: string | null;
+};
+
+/** A pending seat request another passenger sent for one of your rides. */
+export type IncomingSeatRequestDashboardItem = {
+  id: string;
+  rideId: string;
+  requesterName: string;
+  pickupLocation: string;
+  destination: string;
+  dateTime: string | null;
+  activityTitle: string | null;
 };
 
 export type MyRideRequestDashboardItem = MyRideRequestDashboardItemBase &
@@ -38,6 +50,17 @@ export type RideHistoryDashboardItem = {
   status: string;
   counterpart: string;
 };
+
+async function fetchActivityTitles(activityIds: string[]): Promise<Map<string, string>> {
+  const titles = new Map<string, string>();
+  if (!activityIds.length) return titles;
+
+  const { data, error } = await supabase.from('activities').select('id, title').in('id', activityIds);
+  if (error) throw new Error(error.message);
+
+  for (const activity of data ?? []) titles.set(activity.id, activity.title);
+  return titles;
+}
 
 async function getUserId(): Promise<string> {
   const {
@@ -116,7 +139,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
       .order('created_at', { ascending: false }),
     supabase
       .from('ride_wanted_requests')
-      .select('id, pickup_location, destination, date_time, status, created_at')
+      .select('id, activity_id, pickup_location, destination, date_time, status, created_at')
       .eq('requester_id', userId)
       .eq('status', 'open')
       .order('created_at', { ascending: false }),
@@ -135,7 +158,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
     rideIds.length
       ? supabase
         .from('rides_offered')
-        .select('id, pickup_location, destination, date_time')
+        .select('id, activity_id, pickup_location, destination, date_time')
         .in('id', rideIds)
       : Promise.resolve({ data: [], error: null }),
     driverIds.length
@@ -147,6 +170,12 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
   if (profilesResult.error) throw new Error(profilesResult.error.message);
 
   const rideMap = new Map((ridesResult.data ?? []).map((ride) => [ride.id, ride]));
+  const activityTitles = await fetchActivityTitles([
+    ...new Set(
+      [...(ridesResult.data ?? []).map((ride) => ride.activity_id), ...wantedRequests.map((r) => r.activity_id)]
+        .filter(Boolean),
+    ),
+  ] as string[]);
   const profileMap = new Map(
     (profilesResult.data ?? []).map((profile) => [
       profile.id,
@@ -168,6 +197,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
       pickupLocation: ride.pickup_location || 'Individual pickups',
       destination: ride.destination,
       dateTime: ride.date_time,
+      activityTitle: ride.activity_id ? activityTitles.get(ride.activity_id) ?? null : null,
       offererName: request.driver_id
         ? profileMap.get(request.driver_id) ?? 'Rollin user'
         : 'Rollin user',
@@ -183,12 +213,64 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
     pickupLocation: request.pickup_location,
     destination: request.destination,
     dateTime: request.date_time,
+    activityTitle: request.activity_id ? activityTitles.get(request.activity_id) ?? null : null,
   }));
 
   return [...seatItems, ...wantedItems].sort((a, b) => {
     const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return bTime - aTime;
+  });
+}
+
+export async function fetchIncomingSeatRequests(): Promise<IncomingSeatRequestDashboardItem[]> {
+  const userId = await getUserId();
+
+  const { data: requests, error } = await supabase
+    .from('ride_requests')
+    .select('id, ride_id, requester_id, pickup_address, created_at')
+    .eq('driver_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  if (!requests?.length) return [];
+
+  const rideIds = [...new Set(requests.map((r) => r.ride_id).filter(Boolean))] as string[];
+  const requesterIds = [...new Set(requests.map((r) => r.requester_id).filter(Boolean))] as string[];
+
+  const [ridesResult, profilesResult] = await Promise.all([
+    supabase
+      .from('rides_offered')
+      .select('id, activity_id, pickup_location, destination, date_time')
+      .in('id', rideIds),
+    supabase.from('profiles').select('id, full_name').in('id', requesterIds),
+  ]);
+
+  if (ridesResult.error) throw new Error(ridesResult.error.message);
+  if (profilesResult.error) throw new Error(profilesResult.error.message);
+
+  const rideMap = new Map((ridesResult.data ?? []).map((ride) => [ride.id, ride]));
+  const nameMap = new Map(
+    (profilesResult.data ?? []).map((profile) => [profile.id, profile.full_name?.trim() || 'Rollin user']),
+  );
+  const activityTitles = await fetchActivityTitles(
+    [...new Set((ridesResult.data ?? []).map((ride) => ride.activity_id).filter(Boolean))] as string[],
+  );
+
+  return requests.flatMap((request) => {
+    const ride = request.ride_id ? rideMap.get(request.ride_id) : undefined;
+    if (!ride) return [];
+
+    return [{
+      id: request.id,
+      rideId: ride.id,
+      requesterName: request.requester_id ? nameMap.get(request.requester_id) ?? 'Rollin user' : 'Rollin user',
+      pickupLocation: request.pickup_address || ride.pickup_location || 'Individual pickup',
+      destination: ride.destination,
+      dateTime: ride.date_time,
+      activityTitle: ride.activity_id ? activityTitles.get(ride.activity_id) ?? null : null,
+    }];
   });
 }
 
@@ -279,7 +361,7 @@ export async function fetchMyRideHistory(
 
     const { data: wantedRequests, error: wantedError } = await supabase
       .from('ride_wanted_requests')
-      .select('id, pickup_location, destination, date_time, status, created_at')
+      .select('id, pickup_location, destination, date_time, status, created_at, offered_ride_id')
       .eq('requester_id', userId)
       .in('status', ['fulfilled', 'cancelled'])
       .order('created_at', { ascending: false });
@@ -287,6 +369,9 @@ export async function fetchMyRideHistory(
     if (wantedError) throw new Error(wantedError.message);
 
     for (const request of wantedRequests ?? []) {
+      // A request answered by a driver became a seat on their ride, which is listed above.
+      if (request.offered_ride_id) continue;
+
       result.push({
         id: `wanted-${request.id}`,
         wantedRequestId: request.id,

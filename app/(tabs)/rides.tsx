@@ -19,18 +19,24 @@ import { RideActionCards } from '@/components/rides/ride-action-cards';
 import {
   MyRideRequestDashboardCard,
   OfferedRideDashboardCard,
+  OthersRideOfferDashboardCard,
+  OthersRideRequestDashboardCard,
+  OthersRideRequestItem,
   RideHistoryDashboardCard,
 } from '@/components/rides/ride-dashboard-cards';
 import { RideEmptyState } from '@/components/rides/ride-empty-state';
 import { RideHeader } from '@/components/rides/ride-header';
 import { RideHowItWorksSheet } from '@/components/rides/ride-how-it-works-sheet';
 import { RideMapCard } from '@/components/rides/ride-map-card';
+import { RideSegmentedControl } from '@/components/rides/ride-segmented-control';
 import { RideTab, RideTabBar } from '@/components/rides/ride-tab-bar';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
+import { useAuthContext } from '@/hooks/use-auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRideDashboardData } from '@/hooks/use-ride-dashboard-data';
+import { useRideWantedRequests } from '@/hooks/use-ride-wanted-requests';
 import { MyRideRequestDashboardItem } from '@/services/ride-dashboard-service';
 import { cancelWantedRequest } from '@/services/ride-wanted-requests-service';
 
@@ -86,17 +92,44 @@ export default function RidesScreen() {
   const [historyFilter, setHistoryFilter] =
     useState<HistoryFilter>('all');
 
+  const [offeringView, setOfferingView] =
+    useState<'mine' | 'others'>('mine');
+
+  const [requestsView, setRequestsView] =
+    useState<'mine' | 'others'>('mine');
+
   const [refreshing, setRefreshing] =
     useState(false);
 
   const {
     offeredRides,
+    othersOffers,
     myRequests,
+    incomingSeatRequests,
     history,
     dataLoading,
     dataError,
     loadRideData,
   } = useRideDashboardData(historyFilter);
+
+  const { claims } = useAuthContext();
+  const {
+    requests: wantedRequests,
+    loading: wantedLoading,
+    refresh: refreshWantedRequests,
+  } = useRideWantedRequests({ filter: 'all' });
+  // "Requested by others": seat requests on your rides plus other students' open ride
+  // requests, soonest first.
+  const othersRequests: OthersRideRequestItem[] = [
+    ...incomingSeatRequests.map((request) => ({ kind: 'seat' as const, request })),
+    ...wantedRequests
+      .filter((request) => request.requesterId !== claims?.sub)
+      .map((request) => ({ kind: 'wanted' as const, request })),
+  ].sort((a, b) => {
+    const aTime = a.request.dateTime ? new Date(a.request.dateTime).getTime() : Infinity;
+    const bTime = b.request.dateTime ? new Date(b.request.dateTime).getTime() : Infinity;
+    return aTime - bTime;
+  });
 
   useEffect(() => {
     if (!promptsBlocked && focused) void loadCurrentLocation();
@@ -148,6 +181,7 @@ export default function RidesScreen() {
       await Promise.all([
         loadCurrentLocation(),
         loadRideData(),
+        refreshWantedRequests(),
       ]);
     } finally {
       setRefreshing(false);
@@ -281,85 +315,162 @@ export default function RidesScreen() {
     );
   }
 
-  function renderOfferingTab() {
-    if (dataLoading) {
-      return renderLoading(
-        'Loading your ride offers',
-      );
-    }
+  function renderSectionState(options: {
+    loading: boolean;
+    loadingMessage: string;
+    errorTitle: string;
+    isEmpty: boolean;
+    emptyIcon: Parameters<typeof RideEmptyState>[0]['icon'];
+    emptyTitle: string;
+    emptyMessage: string;
+  }) {
+    if (options.loading) return renderLoading(options.loadingMessage);
 
     if (dataError) {
       return (
         <RideEmptyState
           icon="alert-circle-outline"
-          title="Unable to load ride offers"
+          title={options.errorTitle}
           message={dataError}
         />
       );
     }
 
-    if (offeredRides.length === 0) {
+    if (options.isEmpty) {
       return (
         <RideEmptyState
-          icon="car-outline"
-          title="No active ride offers"
-          message="Rides you offer will appear here."
+          icon={options.emptyIcon}
+          title={options.emptyTitle}
+          message={options.emptyMessage}
         />
       );
     }
 
+    return null;
+  }
+
+  function renderOfferingTab() {
+    const showingMine = offeringView === 'mine';
+    const state = renderSectionState(showingMine
+      ? {
+        loading: dataLoading,
+        loadingMessage: 'Loading your ride offers',
+        errorTitle: 'Unable to load ride offers',
+        isEmpty: offeredRides.length === 0,
+        emptyIcon: 'car-outline',
+        emptyTitle: 'No active ride offers',
+        emptyMessage: 'Rides you offer will appear here.',
+      }
+      : {
+        loading: dataLoading,
+        loadingMessage: 'Loading rides',
+        errorTitle: 'Unable to load rides',
+        isEmpty: othersOffers.length === 0,
+        emptyIcon: 'car-off',
+        emptyTitle: 'No rides offered right now',
+        emptyMessage: 'Open rides other students offer will appear here.',
+      });
+
     return (
-      <View style={styles.list}>
-        {offeredRides.map((ride) => (
-          <OfferedRideDashboardCard
-            key={ride.id}
-            ride={ride}
-            onPress={() =>
-              openRideDetails(ride.id)
-            }
-          />
-        ))}
-      </View>
+      <>
+        <RideSegmentedControl
+          options={[
+            { key: 'mine', label: 'Offered by you', count: offeredRides.length },
+            { key: 'others', label: 'Offered by others', count: othersOffers.length },
+          ]}
+          value={offeringView}
+          onChange={setOfferingView}
+        />
+
+        {state ?? (
+          <View style={styles.list}>
+            {showingMine
+              ? offeredRides.map((ride) => (
+                <OfferedRideDashboardCard
+                  key={ride.id}
+                  ride={ride}
+                  onPress={() => openRideDetails(ride.id)}
+                />
+              ))
+              : othersOffers.map((ride) => (
+                <OthersRideOfferDashboardCard
+                  key={ride.id}
+                  ride={ride}
+                  onPress={() => openRideDetails(ride.id)}
+                />
+              ))}
+          </View>
+        )}
+      </>
     );
   }
 
+  function handleOthersRequestPress(item: OthersRideRequestItem) {
+    if (item.kind === 'seat') {
+      // Accept or decline it on the ride's page.
+      openRideDetails(item.request.rideId);
+      return;
+    }
+
+    router.push({
+      pathname: '/ride/offer',
+      params: { sourceRequestId: item.request.id },
+    });
+  }
+
   function renderRequestsTab() {
-    if (dataLoading) {
-      return renderLoading(
-        'Loading your ride requests',
-      );
-    }
-
-    if (dataError) {
-      return (
-        <RideEmptyState
-          icon="alert-circle-outline"
-          title="Unable to load requests"
-          message={dataError}
-        />
-      );
-    }
-
-    if (myRequests.length === 0) {
-      return (
-        <RideEmptyState
-          icon="account-arrow-right-outline"
-          title="No ride requests"
-          message="Your pending and accepted ride requests will appear here."
-        />
-      );
-    }
+    const showingMine = requestsView === 'mine';
+    const state = renderSectionState(showingMine
+      ? {
+        loading: dataLoading,
+        loadingMessage: 'Loading your ride requests',
+        errorTitle: 'Unable to load requests',
+        isEmpty: myRequests.length === 0,
+        emptyIcon: 'account-arrow-right-outline',
+        emptyTitle: 'No ride requests',
+        emptyMessage: 'Your pending and accepted ride requests will appear here.',
+      }
+      : {
+        loading: dataLoading || wantedLoading,
+        loadingMessage: 'Loading requests',
+        errorTitle: 'Unable to load requests',
+        isEmpty: othersRequests.length === 0,
+        emptyIcon: 'account-search-outline',
+        emptyTitle: 'No requests from others',
+        emptyMessage: 'Seat requests for your rides and students looking for a ride will appear here.',
+      });
 
     return (
-      <View style={styles.list}>
-        {myRequests.map((request) => (
-          <MyRideRequestDashboardCard
-            key={request.id}
-            request={request}
-            onPress={() => handleRequestCardPress(request)}
-          />
-        ))}
-      </View>
+      <>
+        <RideSegmentedControl
+          options={[
+            { key: 'mine', label: 'Requested by you', count: myRequests.length },
+            { key: 'others', label: 'Requested by others', count: othersRequests.length },
+          ]}
+          value={requestsView}
+          onChange={setRequestsView}
+        />
+
+        {state ?? (
+          <View style={styles.list}>
+            {showingMine
+              ? myRequests.map((request) => (
+                <MyRideRequestDashboardCard
+                  key={request.id}
+                  request={request}
+                  onPress={() => handleRequestCardPress(request)}
+                />
+              ))
+              : othersRequests.map((item) => (
+                <OthersRideRequestDashboardCard
+                  key={`${item.kind}-${item.request.id}`}
+                  item={item}
+                  onPress={() => handleOthersRequestPress(item)}
+                />
+              ))}
+          </View>
+        )}
+      </>
     );
   }
 

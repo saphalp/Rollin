@@ -182,7 +182,7 @@ test('offer screen distinguishes an undated activity from a failed lookup and lo
       '@/services/geocoding-service': {},
       '@/services/ride-wanted-requests-service': {},
     };
-    for (const [path, name] of [['@/components/rides/offer/offer-ride-form','OfferRideForm'],['@/components/rides/offer/offer-ride-header','OfferRideHeader'],['@/components/rides/offer/offer-ride-intro-card','OfferRideIntroCard'],['@/components/view','AppView']]) dependencies[path] = { [name]: name };
+    for (const [path, name] of [['@/components/rides/offer/offer-ride-form','OfferRideForm'],['@/components/rides/offer/offer-ride-header','OfferRideHeader'],['@/components/rides/offer/offer-ride-intro-card','OfferRideIntroCard'],['@/components/rides/offer/requested-ride-offer-form','RequestedRideOfferForm'],['@/components/view','AppView']]) dependencies[path] = { [name]: name };
     const Screen = compile('app/ride/offer.tsx', dependencies).default;
     function render() { cursor = 0; return Screen(); }
     function nodes(n) { return !n || typeof n !== 'object' ? [] : [n, ...[n.props?.children].flat(Infinity).flatMap(nodes)]; }
@@ -219,4 +219,50 @@ test('activity creation rejects missing or invalid dates before uploads or datab
     await context.submit();
     assert.equal(alerts[0][0], 'Missing date and time');
   }
+});
+test('answering a ride request locks the trip details and offers through the database', async () => {
+  let cursor = 0; const effects = [], states = [], alerts = [], offers = [];
+  const jsx = (type, props) => ({ type, props });
+  const request = {
+    id: 'wanted-1', requesterId: 'pat', activityId: null, pickupLocation: 'Library', destination: 'Airport',
+    dateTime: '2030-10-23T17:30:00+00:00', notes: null, status: 'open', createdAt: null,
+    requester: { id: 'pat', name: 'Pat Lee', username: null, avatarUrl: null }, activity: null,
+  };
+  const dependencies = {
+    react: { useState: initial => { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; }, useEffect: fn => { effects.push(fn); } },
+    'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
+    'expo-router': { useLocalSearchParams: () => ({ sourceRequestId: 'wanted-1' }), router: {} },
+    'react-native': { Alert: { alert: (...args) => alerts.push(args) }, Platform: { OS: 'android' }, StyleSheet: { create: x => x }, ScrollView: 'ScrollView', KeyboardAvoidingView: 'KeyboardAvoidingView' },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+    'react-native-paper': { Text: 'Text', Button: 'Button' },
+    '@/constants/theme': { Colors: { light: {} }, Fonts: {} },
+    '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
+    '@/lib/supabase': { supabase: { from: () => assert.fail('Answering a request must not insert a ride directly') } },
+    '@/components/text': { AppText: 'Text' },
+    '@/components/ui/icon-symbol': { IconSymbol: 'IconSymbol' },
+    '@/lib/profile/driver-profile': { getDriverProfile: async () => ({ verification_status: 'verified' }) },
+    '@/services/geocoding-service': { geocodeAddress: async address => ({ latitude: address.length, longitude: -92 }) },
+    '@/services/ride-wanted-requests-service': {
+      fetchWantedRequest: async id => (id === 'wanted-1' ? request : null),
+      offerRideForWantedRequest: async input => { offers.push(input); return 'ride-9'; },
+    },
+  };
+  for (const [path, name] of [['@/components/rides/offer/offer-ride-form','OfferRideForm'],['@/components/rides/offer/offer-ride-header','OfferRideHeader'],['@/components/rides/offer/offer-ride-intro-card','OfferRideIntroCard'],['@/components/rides/offer/requested-ride-offer-form','RequestedRideOfferForm'],['@/components/view','AppView']]) dependencies[path] = { [name]: name };
+  const Screen = compile('app/ride/offer.tsx', dependencies).default;
+  function render() { cursor = 0; return Screen(); }
+  function nodes(n) { return !n || typeof n !== 'object' ? [] : [n, ...[n.props?.children].flat(Infinity).flatMap(nodes)]; }
+  render(); effects.forEach(effect => effect()); await settle();
+  const tree = nodes(render());
+  assert.equal(tree.find(n => n.type === 'OfferRideForm'), undefined, 'the editable offer form is not shown');
+  const form = tree.find(n => n.type === 'RequestedRideOfferForm');
+  assert.equal(form.props.request, request);
+  form.props.onAvailableSeatsChange('3');
+  render();
+  await nodes(render()).find(n => n.type === 'RequestedRideOfferForm').props.onSubmit();
+  // Objects from the vm context have another realm's prototypes, so compare their JSON.
+  assert.deepEqual(JSON.parse(JSON.stringify(offers)), [{
+    requestId: 'wanted-1', availableSeats: 3, notes: null,
+    pickup: { latitude: 'Library'.length, longitude: -92 }, destination: { latitude: 'Airport'.length, longitude: -92 },
+  }]);
+  assert.equal(alerts[0][0], 'Ride offered');
 });

@@ -99,6 +99,7 @@ async function setup() {
     '20261013120000_verified_driver_gating_and_badge.sql',
     '20261102120000_ride_seats_and_cancelled_activity_rides.sql',
     '20261103120000_offer_ride_for_wanted_request.sql',
+    '20261105120000_notify_driver_on_seat_cancel.sql',
   ]) {
     await db.exec(fs.readFileSync(`supabase/migrations/${file}`, 'utf8'));
   }
@@ -220,4 +221,40 @@ test('clients still cannot add someone else to a ride directly', async () => {
       insert into ride_requests(ride_id, requester_id, driver_id, status) values ('${id(50)}','${id(OTHER)}','${id(DRIVER)}','pending')`),
     /Invalid ride participants/,
   );
+});
+
+test('the driver is notified when a passenger cancels, but not when the ride itself is cancelled', async () => {
+  const { as, db } = await setup();
+  await as(DRIVER);
+  await db.exec(`insert into rides_offered(id, driver_id, status, pickup_location, pickup_latitude, pickup_longitude, destination, available_seats)
+    values ('${id(50)}','${id(DRIVER)}','open','Union',32.5,-92.6,'Campus',3)`);
+  await as(OTHER);
+  await db.exec(`insert into ride_requests(id, ride_id, requester_id, driver_id, status) values ('${id(60)}','${id(50)}','${id(OTHER)}','${id(DRIVER)}','pending')`);
+  await as(PASSENGER);
+  await db.exec(`insert into ride_requests(id, ride_id, requester_id, driver_id, status) values ('${id(61)}','${id(50)}','${id(PASSENGER)}','${id(DRIVER)}','pending')`);
+  await as(DRIVER);
+  await db.exec(`select accept_ride_request('${id(61)}')`);
+  await db.exec('reset role; delete from notifications');
+
+  // A pending request withdrawn, then an accepted seat cancelled, each by the passenger.
+  await as(OTHER);
+  await db.exec(`update ride_requests set status = 'cancelled' where id = '${id(60)}'`);
+  await as(PASSENGER);
+  await db.exec(`update ride_requests set status = 'cancelled' where id = '${id(61)}'`);
+  await db.exec('reset role');
+  assert.deepEqual((await db.query('select user_id, message from notifications order by message')).rows, [
+    { user_id: id(DRIVER), message: 'Oli withdrew their seat request for your ride to Campus.' },
+    { user_id: id(DRIVER), message: 'Pat cancelled their seat on your ride to Campus.' },
+  ]);
+
+  // The driver cancelling their ride cancels requests without notifying themselves.
+  await db.exec('delete from notifications');
+  await as(OTHER);
+  await db.exec(`insert into ride_requests(id, ride_id, requester_id, driver_id, status) values ('${id(62)}','${id(50)}','${id(OTHER)}','${id(DRIVER)}','pending')`);
+  await db.exec('reset role; delete from notifications');
+  await as(DRIVER);
+  await db.exec(`update rides_offered set status = 'cancelled' where id = '${id(50)}'`);
+  await db.exec(`update ride_requests set status = 'cancelled' where id = '${id(62)}'`);
+  await db.exec('reset role');
+  assert.equal((await db.query('select count(*)::int as n from notifications')).rows[0].n, 0);
 });

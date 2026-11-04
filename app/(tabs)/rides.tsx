@@ -2,7 +2,7 @@ import { useGuidedTour } from '@/components/tutorial/guided-tour-provider';
 import { TourTarget, TourScrollView } from '@/components/tutorial/tour-target';
 import * as Location from 'expo-location';
 import { router, useIsFocused } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -107,6 +107,7 @@ export default function RidesScreen() {
     myRequests,
     incomingSeatRequests,
     history,
+    historyLoading,
     dataLoading,
     dataError,
     loadRideData,
@@ -134,6 +135,20 @@ export default function RidesScreen() {
   useEffect(() => {
     if (!promptsBlocked && focused) void loadCurrentLocation();
   }, [promptsBlocked, focused]);
+
+  // The tab stays mounted while other screens are open, and realtime doesn't reliably
+  // deliver ride_wanted_requests changes, so reload when coming back (e.g. after accepting
+  // a request). The first focus is skipped because the hooks already load on mount.
+  const hasBeenFocused = useRef(false);
+  useEffect(() => {
+    if (!focused) return;
+    if (!hasBeenFocused.current) {
+      hasBeenFocused.current = true;
+      return;
+    }
+    void loadRideData();
+    void refreshWantedRequests();
+  }, [focused, loadRideData, refreshWantedRequests]);
 
   async function loadCurrentLocation() {
     setLoadingLocation(true);
@@ -412,10 +427,32 @@ export default function RidesScreen() {
       return;
     }
 
-    router.push({
-      pathname: '/ride/offer',
-      params: { sourceRequestId: item.request.id },
-    });
+    const request = item.request;
+    const when = request.dateTime
+      ? `\n${new Date(request.dateTime).toLocaleString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })}`
+      : '';
+
+    Alert.alert(
+      `Offer ${request.requester.name} a ride?`,
+      `${request.pickupLocation} → ${request.destination}${when}\n\nYou'll choose your seats and add notes before confirming.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Offer ride',
+          onPress: () =>
+            router.push({
+              pathname: '/ride/offer',
+              params: { sourceRequestId: request.id },
+            }),
+        },
+      ],
+    );
   }
 
   function renderRequestsTab() {
@@ -547,7 +584,9 @@ export default function RidesScreen() {
           })}
         </View>
 
-        {history.length === 0 ? (
+        {historyLoading ? (
+          renderLoading('Loading ride history')
+        ) : history.length === 0 ? (
           <RideEmptyState
             icon="history"
             title="No ride history"

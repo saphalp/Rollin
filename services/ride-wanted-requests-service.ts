@@ -76,12 +76,21 @@ async function hydrateWantedRides(rawRequests: RawWantedRide[]): Promise<WantedR
         ),
     ];
 
+    // profiles has no username column; asking for one fails the whole query.
     const [profilesResult, activitiesResult] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, username, profile_picture').in('id', requesterIds),
+        supabase.from('profiles').select('id, full_name, profile_picture').in('id', requesterIds),
         activityIds.length > 0
             ? supabase.from('activities').select('id, title, location, date_time').in('id', activityIds)
             : Promise.resolve({ data: [], error: null }),
     ]);
+
+    if (profilesResult.error) {
+        throw new Error(profilesResult.error.message);
+    }
+
+    if (activitiesResult.error) {
+        throw new Error(activitiesResult.error.message);
+    }
 
     const profileMap = new Map<string, Record<string, unknown>>();
     for (const profile of profilesResult.data ?? []) {

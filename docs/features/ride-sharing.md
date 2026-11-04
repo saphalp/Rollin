@@ -234,7 +234,7 @@ The ride offerer can then see the incoming request.
 
 - Accept: request becomes 'accepted and available seats decrease by 1.
 - Decline: request becomes 'rejected'.
-- Cancel: passenger request becomes 'cancelled.
+- Cancel: passenger request becomes 'cancelled'. When the passenger cancels it themselves, the driver gets a notification ("cancelled their seat" for an accepted seat, "withdrew their seat request" for a pending one). Requests cancelled because the ride or activity was cancelled don't notify the driver.
 - If seats reach 0, the ride status becomes 'full'.
 
 ### Offering a Ride on a Passenger's Request

@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { RideActivityBadge } from '@/components/rides/ride-activity-badge';
@@ -176,8 +177,17 @@ export function OthersRideOfferDashboardCard({
             style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
         >
             <View style={styles.header}>
-                <View style={[styles.icon, { backgroundColor: colors.surfaceContainer }]}>
-                    <MaterialCommunityIcons name="car-outline" size={22} color={colors.tint} />
+                <View>
+                    {ride.driver.avatarUrl ? (
+                        <Image source={{ uri: ride.driver.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.surfaceContainer }]}>
+                            <MaterialCommunityIcons name="account" size={24} color={colors.icon} />
+                        </View>
+                    )}
+                    <View style={[styles.kindIcon, { backgroundColor: colors.surfaceContainer, borderColor: colors.cardBackground }]}>
+                        <MaterialCommunityIcons name="car-outline" size={12} color={colors.tint} />
+                    </View>
                 </View>
 
                 <View style={styles.headerText}>
@@ -222,6 +232,7 @@ export function OthersRideRequestDashboardCard({
     const colors = Colors[theme];
     const isSeat = item.kind === 'seat';
     const name = isSeat ? item.request.requesterName : item.request.requester.name;
+    const avatarUrl = isSeat ? item.request.requesterAvatarUrl : item.request.requester.avatarUrl;
     const activityTitle = isSeat ? item.request.activityTitle : item.request.activity?.title;
 
     return (
@@ -231,12 +242,22 @@ export function OthersRideRequestDashboardCard({
             style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
         >
             <View style={styles.header}>
-                <View style={[styles.icon, { backgroundColor: colors.secondaryContainer }]}>
-                    <MaterialCommunityIcons
-                        name={isSeat ? 'account-arrow-right-outline' : 'car-search-outline'}
-                        size={22}
-                        color={colors.onSecondaryContainer}
-                    />
+                <View>
+                    {avatarUrl ? (
+                        <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.surfaceContainer }]}>
+                            <MaterialCommunityIcons name="account" size={24} color={colors.icon} />
+                        </View>
+                    )}
+                    {/* Small corner icon: seat request on your ride vs. a ride they need. */}
+                    <View style={[styles.kindIcon, { backgroundColor: colors.secondaryContainer, borderColor: colors.cardBackground }]}>
+                        <MaterialCommunityIcons
+                            name={isSeat ? 'account-arrow-right-outline' : 'car-search-outline'}
+                            size={12}
+                            color={colors.onSecondaryContainer}
+                        />
+                    </View>
                 </View>
 
                 <View style={styles.headerText}>
@@ -384,6 +405,26 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         textTransform: 'capitalize',
+    },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+    },
+    avatarFallback: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    kindIcon: {
+        position: 'absolute',
+        right: -4,
+        bottom: -4,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     actionText: {
         fontSize: 12,

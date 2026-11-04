@@ -21,6 +21,7 @@ test('activity offers stay scoped and own offers are opt-in', async () => {
   }
   const { fetchAvailableRides } = compile('services/rides-service.ts', {
     '@/lib/supabase': { supabase: { auth: { getUser: async () => ({ data: { user: { id: 'me' } } }) }, from: () => query } },
+    '@/lib/profile/resolve-avatar-uri': { resolveAvatarUri: path => path },
   });
   await fetchAvailableRides({ activityId: 'A', includeOwn: true });
   assert.ok(calls.some(c => c[0] === 'eq' && c[1] === 'activity_id' && c[2] === 'A'));

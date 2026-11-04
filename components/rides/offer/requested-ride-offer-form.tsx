@@ -98,10 +98,6 @@ export function RequestedRideOfferForm({
             </AppText>
           </View>
         )}
-
-        <AppText style={[styles.hint, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-          {firstName} set the pickup, destination and time. Offer the ride to pick them up as requested.
-        </AppText>
       </View>
 
       <View style={styles.fields}>
@@ -132,7 +128,7 @@ export function RequestedRideOfferForm({
         style={[styles.submitButton, { backgroundColor: saving ? colors.outline : colors.tint }]}
       >
         <AppText style={[styles.submitText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
-          {saving ? 'Offering...' : `Offer ${firstName} this ride`}
+          {saving ? 'Accepting...' : 'Accept Request'}
         </AppText>
       </TouchableOpacity>
     </>
@@ -202,10 +198,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-  },
-  hint: {
-    fontSize: 13,
-    lineHeight: 18,
   },
   fields: {
     gap: 8,

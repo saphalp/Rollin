@@ -1,3 +1,4 @@
+import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 import {
     ActivitySummary,
@@ -46,12 +47,11 @@ function mapDriver(profile: Record<string, unknown> | undefined, id: string): Dr
         typeof profile?.full_name === 'string' ? profile.full_name : null;
     const username =
         typeof profile?.username === 'string' ? profile.username : null;
+    // The photo is profiles.profile_picture (a storage path or URL); null when there's none.
     const avatarUrl =
-        typeof profile?.avatar_url === 'string'
-            ? profile.avatar_url
-            : typeof profile?.profile_image_url === 'string'
-                ? profile.profile_image_url
-                : null;
+        typeof profile?.profile_picture === 'string' && profile.profile_picture
+            ? resolveAvatarUri(profile.profile_picture)
+            : null;
 
     return {
         id,

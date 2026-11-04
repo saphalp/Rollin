@@ -4,6 +4,7 @@ import {
   isRideExpired,
   isWantedRequestExpired,
 } from '@/lib/ride-status';
+import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 let rideDashboardChannelCounter = 0;
 
@@ -33,6 +34,7 @@ export type IncomingSeatRequestDashboardItem = {
   id: string;
   rideId: string;
   requesterName: string;
+  requesterAvatarUrl: string;
   pickupLocation: string;
   destination: string;
   dateTime: string | null;
@@ -259,16 +261,14 @@ export async function fetchIncomingSeatRequests(): Promise<IncomingSeatRequestDa
       .from('rides_offered')
       .select('id, activity_id, pickup_location, destination, date_time, status')
       .in('id', rideIds),
-    supabase.from('profiles').select('id, full_name').in('id', requesterIds),
+    supabase.from('profiles').select('id, full_name, profile_picture').in('id', requesterIds),
   ]);
 
   if (ridesResult.error) throw new Error(ridesResult.error.message);
   if (profilesResult.error) throw new Error(profilesResult.error.message);
 
   const rideMap = new Map((ridesResult.data ?? []).map((ride) => [ride.id, ride]));
-  const nameMap = new Map(
-    (profilesResult.data ?? []).map((profile) => [profile.id, profile.full_name?.trim() || 'Rollin user']),
-  );
+  const profileMap = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile]));
   const activityTitles = await fetchActivityTitles(
     [...new Set((ridesResult.data ?? []).map((ride) => ride.activity_id).filter(Boolean))] as string[],
   );
@@ -280,7 +280,8 @@ export async function fetchIncomingSeatRequests(): Promise<IncomingSeatRequestDa
     return [{
       id: request.id,
       rideId: ride.id,
-      requesterName: request.requester_id ? nameMap.get(request.requester_id) ?? 'Rollin user' : 'Rollin user',
+      requesterName: (request.requester_id && profileMap.get(request.requester_id)?.full_name?.trim()) || 'Rollin user',
+      requesterAvatarUrl: resolveAvatarUri(request.requester_id ? profileMap.get(request.requester_id)?.profile_picture : null),
       pickupLocation: request.pickup_address || ride.pickup_location || 'Individual pickup',
       destination: ride.destination,
       dateTime: ride.date_time,

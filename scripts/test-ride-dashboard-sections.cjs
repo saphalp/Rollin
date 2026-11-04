@@ -23,6 +23,7 @@ function dashboardService(supabase) {
   return compile('services/ride-dashboard-service.ts', {
     '@/lib/supabase': { supabase, isTransientRealtimeError: () => false },
     '@/lib/ride-status': rideStatus,
+    '@/lib/profile/resolve-avatar-uri': { resolveAvatarUri: path => (path ? `avatars/${path}` : 'fallback') },
   });
 }
 
@@ -33,8 +34,9 @@ function fakeSupabase(tables, calls) {
     from(table) {
       const query = {
         then(resolve) { resolve({ data: tables[table] ?? [], error: null }); },
+        maybeSingle: async () => ({ data: (tables[table] ?? [])[0] ?? null, error: null }),
       };
-      for (const method of ['select', 'eq', 'in', 'order']) {
+      for (const method of ['select', 'eq', 'in', 'order', 'gt', 'gte', 'neq', 'not', 'is']) {
         query[method] = (...args) => { calls.push([table, method, ...args]); return query; };
       }
       return query;
@@ -54,7 +56,7 @@ test('incoming seat requests list pending requests on your rides with their acti
       { id: 'r1', activity_id: 'a1', pickup_location: 'Union', destination: 'Stadium', date_time: '2030-01-01T10:00:00Z' },
       { id: 'r2', activity_id: null, pickup_location: 'Dorm', destination: 'Airport', date_time: null },
     ],
-    profiles: [{ id: 'pat', full_name: ' Pat Lee ' }, { id: 'oli', full_name: '' }],
+    profiles: [{ id: 'pat', full_name: ' Pat Lee ', profile_picture: 'pat.jpg' }, { id: 'oli', full_name: '', profile_picture: null }],
     activities: [{ id: 'a1', title: 'Game night' }],
   }, calls);
   const { fetchIncomingSeatRequests } = dashboardService(supabase);
@@ -65,11 +67,11 @@ test('incoming seat requests list pending requests on your rides with their acti
   assert.ok(calls.some(c => c[0] === 'ride_requests' && c[1] === 'eq' && c[2] === 'status' && c[3] === 'pending'));
   assert.deepEqual(items, [
     {
-      id: 'q1', rideId: 'r1', requesterName: 'Pat Lee', pickupLocation: 'Library',
+      id: 'q1', rideId: 'r1', requesterName: 'Pat Lee', requesterAvatarUrl: 'avatars/pat.jpg', pickupLocation: 'Library',
       destination: 'Stadium', dateTime: '2030-01-01T10:00:00Z', activityTitle: 'Game night',
     },
     {
-      id: 'q2', rideId: 'r2', requesterName: 'Rollin user', pickupLocation: 'Dorm',
+      id: 'q2', rideId: 'r2', requesterName: 'Rollin user', requesterAvatarUrl: 'fallback', pickupLocation: 'Dorm',
       destination: 'Airport', dateTime: null, activityTitle: null,
     },
   ], 'falls back to the ride pickup, skips requests whose ride is gone, and has no title for independent rides');
@@ -163,4 +165,38 @@ test('seat requests on closed rides are not shown to the driver', async () => {
   }, []);
   const { fetchIncomingSeatRequests } = dashboardService(supabase);
   assert.deepEqual((await fetchIncomingSeatRequests()).map(item => item.id), ['q-live']);
+});
+
+test('ride requests show the requester\'s name and only ask for profile columns that exist', async () => {
+  const calls = [];
+  const supabase = fakeSupabase({
+    ride_wanted_requests: [{ id: 'w1', requester_id: 'pat', activity_id: null, pickup_location: 'Library', destination: 'Airport', date_time: null, notes: null, status: 'open', created_at: null }],
+    profiles: [{ id: 'pat', full_name: 'Pat Lee', profile_picture: null }],
+  }, calls);
+  const { fetchWantedRequest } = compile('services/ride-wanted-requests-service.ts', {
+    '@/lib/supabase': { supabase },
+    '@/lib/profile/resolve-avatar-uri': { resolveAvatarUri: () => null },
+  });
+
+  const request = await fetchWantedRequest('w1');
+  assert.equal(request.requester.name, 'Pat Lee');
+  const profileSelect = calls.find(c => c[0] === 'profiles' && c[1] === 'select');
+  assert.ok(!profileSelect[2].includes('username'), 'profiles has no username column');
+});
+
+test('ride offers carry the driver\'s profile picture, or none when they have no photo', async () => {
+  const supabase = fakeSupabase({
+    rides_offered: [
+      { id: 'r1', driver_id: 'dana', activity_id: null, pickup_location: 'A', destination: 'B', date_time: null, available_seats: 2, status: 'open' },
+      { id: 'r2', driver_id: 'sam', activity_id: null, pickup_location: 'A', destination: 'C', date_time: null, available_seats: 1, status: 'open' },
+    ],
+    profiles: [{ id: 'dana', full_name: 'Dana', profile_picture: 'dana.jpg' }, { id: 'sam', full_name: 'Sam', profile_picture: null }],
+  }, []);
+  const { fetchAvailableRides } = compile('services/rides-service.ts', {
+    '@/lib/supabase': { supabase, isTransientRealtimeError: () => false },
+    '@/lib/profile/resolve-avatar-uri': { resolveAvatarUri: path => `avatars/${path}` },
+  });
+
+  const rides = await fetchAvailableRides();
+  assert.deepEqual(rides.map(ride => [ride.driver.name, ride.driver.avatarUrl]), [['Dana', 'avatars/dana.jpg'], ['Sam', null]]);
 });

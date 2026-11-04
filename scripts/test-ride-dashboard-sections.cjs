@@ -15,6 +15,17 @@ function compile(path, dependencies) {
   return exports;
 }
 
+const rideStatus = compile('lib/ride-status.ts', {});
+const HOUR = 60 * 60 * 1000;
+const at = offsetMs => new Date(Date.now() + offsetMs).toISOString();
+
+function dashboardService(supabase) {
+  return compile('services/ride-dashboard-service.ts', {
+    '@/lib/supabase': { supabase, isTransientRealtimeError: () => false },
+    '@/lib/ride-status': rideStatus,
+  });
+}
+
 // Minimal Supabase stand-in: each table returns fixed rows and records the filters used.
 function fakeSupabase(tables, calls) {
   return {
@@ -46,9 +57,7 @@ test('incoming seat requests list pending requests on your rides with their acti
     profiles: [{ id: 'pat', full_name: ' Pat Lee ' }, { id: 'oli', full_name: '' }],
     activities: [{ id: 'a1', title: 'Game night' }],
   }, calls);
-  const { fetchIncomingSeatRequests } = compile('services/ride-dashboard-service.ts', {
-    '@/lib/supabase': { supabase, isTransientRealtimeError: () => false },
-  });
+  const { fetchIncomingSeatRequests } = dashboardService(supabase);
 
   const items = JSON.parse(JSON.stringify(await fetchIncomingSeatRequests()));
 
@@ -74,10 +83,84 @@ test('your active requests carry the activity title, or none for independent rid
     profiles: [{ id: 'dana', full_name: 'Dana' }],
     activities: [{ id: 'a1', title: 'Game night' }],
   }, []);
-  const { fetchMyActiveRequests } = compile('services/ride-dashboard-service.ts', {
-    '@/lib/supabase': { supabase, isTransientRealtimeError: () => false },
-  });
+  const { fetchMyActiveRequests } = dashboardService(supabase);
 
   const items = JSON.parse(JSON.stringify(await fetchMyActiveRequests()));
   assert.deepEqual(items.map(item => [item.kind, item.activityTitle]), [['seat', 'Game night'], ['wanted', null]]);
+});
+
+test('a ride that never started expires after the grace period; in-progress rides never expire', () => {
+  const { isRideExpired, isRideClosed, closedRideStatus, isWantedRequestExpired, RIDE_START_GRACE_MS } = rideStatus;
+  assert.equal(RIDE_START_GRACE_MS, 30 * 60 * 1000);
+  assert.equal(isRideExpired({ status: 'open', dateTime: at(-10 * 60 * 1000) }), false, 'a driver 10 minutes late can still start');
+  assert.equal(isRideExpired({ status: 'full', dateTime: at(-31 * 60 * 1000) }), true);
+  assert.equal(isRideExpired({ status: 'in_progress', dateTime: at(-5 * HOUR) }), false);
+  assert.equal(isRideClosed({ status: 'cancelled', dateTime: at(HOUR) }), true);
+  assert.equal(isRideClosed({ status: 'open', dateTime: null }), false);
+  assert.equal(closedRideStatus({ status: 'open', dateTime: at(-HOUR) }), 'expired');
+  assert.equal(closedRideStatus({ status: 'completed', dateTime: at(-HOUR) }), 'completed');
+  assert.equal(isWantedRequestExpired(at(-60 * 1000)), true);
+  assert.equal(isWantedRequestExpired(at(60 * 1000)), false);
+});
+
+test('closed rides leave Offering and Requests and show up in History instead', async () => {
+  const supabase = fakeSupabase({
+    rides_offered: [
+      // Mine
+      { id: 'mine-open', driver_id: 'driver', activity_id: null, pickup_location: 'A', destination: 'B', date_time: at(HOUR), available_seats: 2, status: 'open' },
+      { id: 'mine-expired', driver_id: 'driver', activity_id: null, pickup_location: 'A', destination: 'C', date_time: at(-2 * HOUR), available_seats: 2, status: 'open' },
+      { id: 'mine-driving', driver_id: 'driver', activity_id: null, pickup_location: 'A', destination: 'D', date_time: at(-2 * HOUR), available_seats: 1, status: 'in_progress' },
+      { id: 'mine-cancelled', driver_id: 'driver', activity_id: null, pickup_location: 'A', destination: 'E', date_time: at(HOUR), available_seats: 2, status: 'cancelled' },
+      // Others' rides I asked for a seat on
+      { id: 'theirs-cancelled', driver_id: 'dana', activity_id: null, pickup_location: 'X', destination: 'Y', date_time: at(HOUR), status: 'cancelled' },
+      { id: 'theirs-open', driver_id: 'dana', activity_id: null, pickup_location: 'X', destination: 'Z', date_time: at(HOUR), status: 'open' },
+    ],
+    ride_requests: [
+      { id: 'seat-on-cancelled', ride_id: 'theirs-cancelled', driver_id: 'dana', requester_id: 'driver', status: 'accepted', created_at: null, pickup_address: null },
+      { id: 'seat-on-open', ride_id: 'theirs-open', driver_id: 'dana', requester_id: 'driver', status: 'pending', created_at: null, pickup_address: null },
+    ],
+    ride_wanted_requests: [
+      { id: 'wanted-future', activity_id: null, pickup_location: 'P', destination: 'Q', date_time: at(HOUR), status: 'open', created_at: null, offered_ride_id: null },
+      { id: 'wanted-past', activity_id: null, pickup_location: 'P', destination: 'R', date_time: at(-HOUR), status: 'open', created_at: null, offered_ride_id: null },
+    ],
+    profiles: [{ id: 'dana', full_name: 'Dana' }],
+    activities: [],
+  }, []);
+  const { fetchMyActiveOffers, fetchMyActiveRequests, fetchMyRideHistory } = dashboardService(supabase);
+
+  // The fake ignores server filters, so drop the rows those filters would exclude.
+  const offers = JSON.parse(JSON.stringify(await fetchMyActiveOffers()))
+    .filter(ride => ride.status !== 'cancelled');
+  assert.deepEqual(offers.map(ride => ride.id).sort(), ['mine-driving', 'mine-open', 'theirs-open']);
+
+  const active = JSON.parse(JSON.stringify(await fetchMyActiveRequests()));
+  assert.deepEqual(active.map(item => item.id).sort(), ['seat-on-open', 'wanted-future']);
+
+  const history = JSON.parse(JSON.stringify(await fetchMyRideHistory('all')));
+  const statuses = Object.fromEntries(history.map(item => [item.id, item.status]));
+  assert.equal(statuses['offered-mine-expired'], 'expired');
+  assert.equal(statuses['offered-mine-cancelled'], 'cancelled');
+  assert.equal(statuses['offered-mine-open'], undefined, 'an upcoming ride is not history');
+  assert.equal(statuses['offered-mine-driving'], undefined, 'an in-progress ride is not history');
+  assert.equal(statuses['requested-seat-on-cancelled'], 'cancelled');
+  assert.equal(statuses['requested-seat-on-open'], undefined);
+  assert.equal(statuses['wanted-wanted-past'], 'expired');
+  assert.equal(statuses['wanted-wanted-future'], undefined);
+});
+
+test('seat requests on closed rides are not shown to the driver', async () => {
+  const supabase = fakeSupabase({
+    ride_requests: [
+      { id: 'q-live', ride_id: 'live', requester_id: 'pat', pickup_address: null, created_at: null },
+      { id: 'q-expired', ride_id: 'expired', requester_id: 'pat', pickup_address: null, created_at: null },
+    ],
+    rides_offered: [
+      { id: 'live', activity_id: null, pickup_location: 'A', destination: 'B', date_time: at(HOUR), status: 'open' },
+      { id: 'expired', activity_id: null, pickup_location: 'A', destination: 'C', date_time: at(-HOUR), status: 'open' },
+    ],
+    profiles: [{ id: 'pat', full_name: 'Pat' }],
+    activities: [],
+  }, []);
+  const { fetchIncomingSeatRequests } = dashboardService(supabase);
+  assert.deepEqual((await fetchIncomingSeatRequests()).map(item => item.id), ['q-live']);
 });

@@ -89,7 +89,7 @@ export function DateTimeField({
           mode={mode}
           display="default"
           minimumDate={minimumDate}
-          onChange={handleChange}
+          onValueChange={handleChange}
           onDismiss={() => setVisible(false)}
         />
       )}

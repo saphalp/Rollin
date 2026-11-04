@@ -37,6 +37,7 @@ import {
     startRide,
 } from '@/services/ride-lifecycle-service';
 
+import { closedRideStatus, isRideClosed } from '@/lib/ride-status';
 import { supabase } from '@/lib/supabase';
 import { stopDriverLocation } from '@/services/ride-tracking-service';
 import { fetchRideById } from '@/services/rides-service';
@@ -458,6 +459,9 @@ export default function RideDetailsScreen() {
     }
         const departed =
         !!ride.dateTime && new Date(ride.dateTime).getTime() <= now;
+    // Completed, cancelled, or expired rides are read-only; only reviews remain.
+    const closed = isRideClosed(ride, now);
+    const closedStatus = closedRideStatus(ride, now);
 
     return (
         <AppView
@@ -507,7 +511,35 @@ export default function RideDetailsScreen() {
                     <AppText style={{ color: colors.onPrimary }}>Rate this ride</AppText>
                 </TouchableOpacity>}
 
-                {isOfferer ? (
+                {closed ? (
+                    <View
+                        style={[
+                            styles.infoCard,
+                            { backgroundColor: colors.surfaceContainer },
+                        ]}
+                    >
+                        <MaterialCommunityIcons
+                            name={closedStatus === 'completed' ? 'flag-checkered' : closedStatus === 'cancelled' ? 'cancel' : 'clock-alert-outline'}
+                            size={22}
+                            color={colors.icon}
+                        />
+
+                        <View style={{ flex: 1 }}>
+                            <AppText style={[styles.name, { color: colors.text }]}>
+                                {closedStatus === 'completed'
+                                    ? 'This ride is complete'
+                                    : closedStatus === 'cancelled'
+                                        ? 'This ride was cancelled'
+                                        : 'This ride expired without starting'}
+                            </AppText>
+
+                            <AppText style={[styles.smallText, { color: colors.icon }]}>
+                                {request && !isOfferer ? `Your request: ${request.status}. ` : ''}
+                                It&apos;s in your ride history and can no longer be changed.
+                            </AppText>
+                        </View>
+                    </View>
+                ) : isOfferer ? (
                     <>
                         <View
                             style={[

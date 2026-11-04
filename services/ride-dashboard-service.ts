@@ -1,3 +1,9 @@
+import {
+  closedRideStatus,
+  isRideClosed,
+  isRideExpired,
+  isWantedRequestExpired,
+} from '@/lib/ride-status';
 import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 let rideDashboardChannelCounter = 0;
 
@@ -77,7 +83,7 @@ async function getUserId(): Promise<string> {
 export async function fetchMyActiveOffers(): Promise<OfferedRideDashboardItem[]> {
   const userId = await getUserId();
 
-  const { data: rides, error } = await supabase
+  const { data, error } = await supabase
     .from('rides_offered')
     .select('id, activity_id, pickup_location, destination, date_time, available_seats, status')
     .eq('driver_id', userId)
@@ -85,7 +91,12 @@ export async function fetchMyActiveOffers(): Promise<OfferedRideDashboardItem[]>
     .order('date_time', { ascending: true });
 
   if (error) throw new Error(error.message);
-  if (!rides?.length) return [];
+
+  // Rides that expired without starting are in History instead.
+  const rides = (data ?? []).filter(
+    (ride) => !isRideExpired({ status: ride.status, dateTime: ride.date_time }),
+  );
+  if (!rides.length) return [];
 
   const rideIds = rides.map((ride) => ride.id);
   const activityIds = [...new Set(rides.map((ride) => ride.activity_id).filter(Boolean))] as string[];
@@ -149,7 +160,10 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
   if (wantedRequestsResult.error) throw new Error(wantedRequestsResult.error.message);
 
   const requests = seatRequestsResult.data ?? [];
-  const wantedRequests = wantedRequestsResult.data ?? [];
+  // Requests whose time passed without a driver are in History instead.
+  const wantedRequests = (wantedRequestsResult.data ?? []).filter(
+    (request) => !isWantedRequestExpired(request.date_time),
+  );
 
   const rideIds = [...new Set(requests.map((r) => r.ride_id).filter(Boolean))] as string[];
   const driverIds = [...new Set(requests.map((r) => r.driver_id).filter(Boolean))] as string[];
@@ -158,7 +172,7 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
     rideIds.length
       ? supabase
         .from('rides_offered')
-        .select('id, activity_id, pickup_location, destination, date_time')
+        .select('id, activity_id, pickup_location, destination, date_time, status')
         .in('id', rideIds)
       : Promise.resolve({ data: [], error: null }),
     driverIds.length
@@ -186,7 +200,8 @@ export async function fetchMyActiveRequests(): Promise<MyRideRequestDashboardIte
   const seatItems: MyRideRequestDashboardItem[] = requests.flatMap((request) => {
     if (!request.ride_id) return [];
     const ride = rideMap.get(request.ride_id);
-    if (!ride) return [];
+    // A seat on a completed, cancelled, or expired ride belongs in History.
+    if (!ride || isRideClosed({ status: ride.status, dateTime: ride.date_time })) return [];
 
     return [{
       kind: 'seat' as const,
@@ -242,7 +257,7 @@ export async function fetchIncomingSeatRequests(): Promise<IncomingSeatRequestDa
   const [ridesResult, profilesResult] = await Promise.all([
     supabase
       .from('rides_offered')
-      .select('id, activity_id, pickup_location, destination, date_time')
+      .select('id, activity_id, pickup_location, destination, date_time, status')
       .in('id', rideIds),
     supabase.from('profiles').select('id, full_name').in('id', requesterIds),
   ]);
@@ -260,7 +275,7 @@ export async function fetchIncomingSeatRequests(): Promise<IncomingSeatRequestDa
 
   return requests.flatMap((request) => {
     const ride = request.ride_id ? rideMap.get(request.ride_id) : undefined;
-    if (!ride) return [];
+    if (!ride || isRideClosed({ status: ride.status, dateTime: ride.date_time })) return [];
 
     return [{
       id: request.id,
@@ -285,12 +300,16 @@ export async function fetchMyRideHistory(
       .from('rides_offered')
       .select('id, pickup_location, destination, date_time, status')
       .eq('driver_id', userId)
-      .in('status', ['completed', 'cancelled'])
+      .in('status', ['completed', 'cancelled', 'open', 'full'])
       .order('date_time', { ascending: false });
 
     if (error) throw new Error(error.message);
 
     for (const ride of offered ?? []) {
+      const timing = { status: ride.status, dateTime: ride.date_time };
+      // Open or full rides are history only once they've expired without starting.
+      if (!isRideClosed(timing)) continue;
+
       result.push({
         id: `offered-${ride.id}`,
         rideId: ride.id,
@@ -298,7 +317,7 @@ export async function fetchMyRideHistory(
         pickupLocation: ride.pickup_location || 'Individual pickups',
         destination: ride.destination,
         dateTime: ride.date_time,
-        status: ride.status,
+        status: closedRideStatus(timing),
         counterpart: 'You offered this ride',
       });
     }
@@ -309,7 +328,7 @@ export async function fetchMyRideHistory(
       .from('ride_requests')
       .select('id, ride_id, driver_id, status, created_at')
       .eq('requester_id', userId)
-      .in('status', ['rejected', 'cancelled', 'completed'])
+      .in('status', ['rejected', 'cancelled', 'completed', 'pending', 'accepted'])
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
@@ -321,7 +340,7 @@ export async function fetchMyRideHistory(
       const [ridesResult, profilesResult] = await Promise.all([
         supabase
           .from('rides_offered')
-          .select('id, pickup_location, destination, date_time')
+          .select('id, pickup_location, destination, date_time, status')
           .in('id', rideIds),
         driverIds.length
           ? supabase.from('profiles').select('id, full_name').in('id', driverIds)
@@ -344,6 +363,11 @@ export async function fetchMyRideHistory(
         const ride = rideMap.get(request.ride_id);
         if (!ride) continue;
 
+        // A still-pending or accepted seat is history once its ride is over.
+        const timing = { status: ride.status, dateTime: ride.date_time };
+        const stillActive = request.status === 'pending' || request.status === 'accepted';
+        if (stillActive && !isRideClosed(timing)) continue;
+
         result.push({
           id: `requested-${request.id}`,
           rideId: request.ride_id,
@@ -351,7 +375,7 @@ export async function fetchMyRideHistory(
           pickupLocation: ride.pickup_location || 'Individual pickups',
           destination: ride.destination,
           dateTime: ride.date_time,
-          status: request.status,
+          status: stillActive ? closedRideStatus(timing) : request.status,
           counterpart: request.driver_id
             ? `Ride offered by ${profileMap.get(request.driver_id) ?? 'Rollin user'}`
             : 'Ride request',
@@ -363,7 +387,7 @@ export async function fetchMyRideHistory(
       .from('ride_wanted_requests')
       .select('id, pickup_location, destination, date_time, status, created_at, offered_ride_id')
       .eq('requester_id', userId)
-      .in('status', ['fulfilled', 'cancelled'])
+      .in('status', ['fulfilled', 'cancelled', 'open'])
       .order('created_at', { ascending: false });
 
     if (wantedError) throw new Error(wantedError.message);
@@ -371,6 +395,8 @@ export async function fetchMyRideHistory(
     for (const request of wantedRequests ?? []) {
       // A request answered by a driver became a seat on their ride, which is listed above.
       if (request.offered_ride_id) continue;
+      const expired = request.status === 'open' && isWantedRequestExpired(request.date_time);
+      if (request.status === 'open' && !expired) continue;
 
       result.push({
         id: `wanted-${request.id}`,
@@ -379,9 +405,10 @@ export async function fetchMyRideHistory(
         pickupLocation: request.pickup_location,
         destination: request.destination,
         dateTime: request.date_time,
-        status: request.status,
-        counterpart:
-          request.status === 'fulfilled'
+        status: expired ? 'expired' : request.status,
+        counterpart: expired
+          ? 'No driver offered a ride in time'
+          : request.status === 'fulfilled'
             ? 'A driver offered you a ride'
             : 'You cancelled this request',
       });

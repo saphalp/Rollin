@@ -270,6 +270,12 @@ Both Rides tabs are split into two subsections with a switch at the top, and nei
 
 Every card shows a badge with its activity's title, or **Independent ride** when it isn't linked to an activity.
 
+### When a ride moves to History
+
+A ride is **closed** once it is completed, cancelled, or **expired**: still open or full 30 minutes after its departure time without the driver starting it (`RIDE_START_GRACE_MS` in `lib/ride-status.ts`). The grace period lets a driver who is running late still tap Start Drive; a ride already in progress never expires.
+
+Closed rides, seat requests on closed rides, and posted ride requests whose time has passed leave Offering and Requests and appear in History (expired ones with an **expired** status). Opening a closed ride shows it read-only: no accepting, declining, starting, cancelling, requesting, or tracking. A completed ride keeps its **Rate this ride** button.
+
 ## Relevant Files
 
 | File | Role |

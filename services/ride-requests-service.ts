@@ -1,5 +1,5 @@
 import { geocodeAddress } from '@/services/geocoding-service';
-import { supabase } from '@/lib/supabase';
+import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 import {
     RideOffer,
     RideRequest,
@@ -435,15 +435,26 @@ export function subscribeToMyRideRequest(
             },
         )
         .subscribe((status, error) => {
+            if (status === 'SUBSCRIBED') {
+                onChange();
+                return;
+            }
             if (
                 status === 'CHANNEL_ERROR' ||
                 status === 'TIMED_OUT'
             ) {
-                console.error(
-                    'Ride request Realtime error:',
-                    status,
-                    error,
-                );
+                if (isTransientRealtimeError(error)) {
+                    console.warn(
+                        'Ride request Realtime disconnected, will reconnect:',
+                        error instanceof Error ? error.message : error,
+                    );
+                } else {
+                    console.error(
+                        'Ride request Realtime error:',
+                        status,
+                        error,
+                    );
+                }
             }
         });
 

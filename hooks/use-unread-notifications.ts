@@ -1,5 +1,4 @@
-
-import { supabase } from "@/lib/supabase";
+import { isTransientRealtimeError, supabase } from "@/lib/supabase";
 import { usePathname } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
@@ -108,15 +107,26 @@ export function useUnreadNotifications(): boolean {
     );
 
     channel.subscribe((status, error) => {
+      if (status === "SUBSCRIBED") {
+        void refresh();
+        return;
+      }
       if (
         status === "CHANNEL_ERROR" ||
         status === "TIMED_OUT"
       ) {
-        console.error(
-          "[notifications] realtime error:",
-          status,
-          error
-        );
+        if (isTransientRealtimeError(error)) {
+          console.warn(
+            "[notifications] realtime disconnected, will reconnect:",
+            error instanceof Error ? error.message : error
+          );
+        } else {
+          console.error(
+            "[notifications] realtime error:",
+            status,
+            error
+          );
+        }
       }
     });
 

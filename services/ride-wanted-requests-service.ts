@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import {
     ActivitySummary,
@@ -231,8 +231,19 @@ export function subscribeToWantedRides(onChange: () => void) {
             onChange,
         )
         .subscribe((status, error) => {
+            if (status === 'SUBSCRIBED') {
+                onChange();
+                return;
+            }
             if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.error('Ride wanted requests realtime error:', status, error);
+                if (isTransientRealtimeError(error)) {
+                    console.warn(
+                        'Ride wanted requests realtime disconnected, will reconnect:',
+                        error instanceof Error ? error.message : error
+                    );
+                } else {
+                    console.error('Ride wanted requests realtime error:', status, error);
+                }
             }
         });
 

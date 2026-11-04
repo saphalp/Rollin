@@ -9,16 +9,18 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 type SharedContentBubbleProps = {
   fromMe: boolean;
   time: string;
+  showTime?: boolean;
   senderName?: string;
+  onPressSender?: () => void;
   imageUrl: string;
   onPress: () => void;
 } & (
-  | { kind: "activity"; title: string; hostName: string }
-  | { kind: "post"; posterName: string; caption: string | null }
-);
+    | { kind: "activity"; title: string; hostName: string }
+    | { kind: "post"; posterName: string; caption: string | null }
+  );
 
 export default function SharedContentBubble(props: SharedContentBubbleProps) {
-  const { fromMe, time, senderName, imageUrl, onPress, kind } = props;
+  const { fromMe, time, showTime = true, senderName, onPressSender, imageUrl, onPress, kind } = props;
 
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -41,11 +43,19 @@ export default function SharedContentBubble(props: SharedContentBubbleProps) {
         ]}
       >
         {senderName && (
-          <Text
-            style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+          <TouchableOpacity
+            disabled={!onPressSender}
+            onPress={onPressSender}
+            activeOpacity={0.7}
+            accessibilityRole={onPressSender ? "button" : undefined}
+            accessibilityLabel={onPressSender ? `View ${senderName}'s profile` : undefined}
           >
-            {senderName}
-          </Text>
+            <Text
+              style={[styles.senderName, { color: colors.tint, fontFamily: Fonts.sans }]}
+            >
+              {senderName}
+            </Text>
+          </TouchableOpacity>
         )}
 
         <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
@@ -108,18 +118,20 @@ export default function SharedContentBubble(props: SharedContentBubbleProps) {
           </View>
         </TouchableOpacity>
 
-        <Text
-          style={[
-            styles.time,
-            {
-              color: timeColor,
-              fontFamily: Fonts.sans,
-              opacity: fromMe ? 0.75 : 1,
-            },
-          ]}
-        >
-          {time}
-        </Text>
+        {showTime && (
+          <Text
+            style={[
+              styles.time,
+              {
+                color: timeColor,
+                fontFamily: Fonts.sans,
+                opacity: fromMe ? 0.75 : 1,
+              },
+            ]}
+          >
+            {time}
+          </Text>
+        )}
       </View>
     </View>
   );

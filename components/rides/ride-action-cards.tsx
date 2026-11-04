@@ -15,23 +15,26 @@ export function RideActionCards({ onFindRide, onOfferRide }: RideActionCardsProp
   const colors = Colors[theme];
 
   return (
-    <View style={styles.actionRow}>
+    <View style={styles.actionList}>
       <TouchableOpacity
         accessibilityRole="button"
         onPress={onFindRide}
         style={[styles.actionCard, { backgroundColor: colors.tint, borderColor: colors.tint }]}
       >
         <View style={[styles.actionIcon, { backgroundColor: colors.onPrimary }]}>
-          <MaterialCommunityIcons name="car-search-outline" size={25} color={colors.tint} />
+          <MaterialCommunityIcons name="car-search-outline" size={26} color={colors.tint} />
         </View>
 
-        <AppText style={[styles.actionTitle, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
-          Find a Ride
-        </AppText>
+        <View style={styles.actionBody}>
+          <AppText style={[styles.actionTitle, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
+            Find a Ride
+          </AppText>
+          <AppText style={[styles.actionText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
+            Grab a seat, or request one if no ride fits.
+          </AppText>
+        </View>
 
-        <AppText style={[styles.actionText, { color: colors.onPrimary, fontFamily: Fonts?.sans }]}>
-          Search by route, date, time, or activity.
-        </AppText>
+        <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onPrimary} />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -39,49 +42,57 @@ export function RideActionCards({ onFindRide, onOfferRide }: RideActionCardsProp
         onPress={onOfferRide}
         style={[styles.actionCard, { backgroundColor: colors.cardBackground, borderColor: colors.outlineVariant }]}
       >
-        <View style={[styles.actionIcon, { backgroundColor: colors.primaryContainer }]}>
-          <MaterialCommunityIcons name="car-multiple" size={25} color={colors.onPrimary} />
+        <View style={[styles.actionIcon, { backgroundColor: colors.surfaceContainer }]}>
+          <MaterialCommunityIcons name="car-multiple" size={26} color={colors.tint} />
         </View>
 
-        <AppText style={[styles.actionTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-          Offer a Ride
-        </AppText>
+        <View style={styles.actionBody}>
+          <AppText style={[styles.actionTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
+            Offer a Ride
+          </AppText>
+          <AppText style={[styles.actionText, { color: colors.icon, fontFamily: Fonts?.sans }]}>
+            Driving somewhere? Share your empty seats.
+          </AppText>
+        </View>
 
-        <AppText style={[styles.actionText, { color: colors.icon, fontFamily: Fonts?.sans }]}>
-          Share seats for any trip or a public activity.
-        </AppText>
+        <MaterialCommunityIcons name="chevron-right" size={24} color={colors.tabIconDefault} />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actionRow: {
-    flexDirection: 'row',
+  actionList: {
     gap: 12,
   },
   actionCard: {
-    flex: 1,
-    minHeight: 160,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: 92,
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionBody: {
+    flex: 1,
+  },
   actionTitle: {
-    marginTop: 13,
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: '700',
   },
   actionText: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 17,
+    marginTop: 3,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

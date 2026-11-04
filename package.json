@@ -22,6 +22,7 @@
     "base64-arraybuffer": "^1.0.2",
     "expo": "^58.0.20",
     "expo-auth-session": "~58.0.15",
+    "expo-build-properties": "~58.0.12",
     "expo-clipboard": "~58.0.4",
     "expo-constants": "~58.0.13",
     "expo-dev-client": "~58.0.16",

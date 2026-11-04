@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -29,7 +29,8 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Unit tests
-        run: node --test scripts/test-rating-reminder.cjs scripts/test-ride-navigation.cjs scripts/test-ride-notifications.cjs scripts/test-ride-route.cjs scripts/test-ride-tracking.cjs scripts/test-router-initial-link.cjs scripts/test-signup-verification.cjs scripts/test-tutorial.cjs scripts/test-validate-driver-fields.cjs scripts/test-didit-webhook.cjs
+        # The *-db.cjs tests need @electric-sql/pglite, which isn't a dependency, so they're run locally only.
+        run: node --test $(ls scripts/test-*.cjs | grep -v -- '-db\.cjs$' | grep -v 'test-ride-database\.cjs$')
 
       - name: Verify the app bundles (catches Metro/syntax errors)
         run: npx expo export --platform android

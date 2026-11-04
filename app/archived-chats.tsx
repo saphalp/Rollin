@@ -1,5 +1,6 @@
 import { AppText } from "@/components/text";
 import ChatCards from "@/components/chats/ChatCards";
+import { ChatError } from '@/components/chats/chat-error';
 import { Colors } from "@/constants/theme";
 import { useConversations } from "@/hooks/use-conversations";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -7,13 +8,11 @@ import { router } from "expo-router";
 import { Alert, ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackButton } from "@/components/ui/back-button";
-import { useState } from "react";
 
 export default function ArchivedChatsScreen() {
   const colors = Colors[useColorScheme() ?? "light"];
   const insets = useSafeAreaInsets();
-  const { archivedConversations, loading, refresh, formatTime, deleteConversation } = useConversations();
-  const [refreshing, setRefreshing] = useState(false);
+  const { archivedConversations, loading, refreshing, error, refresh, formatTime, deleteConversation } = useConversations();
 
   function confirmDelete(conversationId: string) {
     Alert.alert(
@@ -24,16 +23,10 @@ export default function ArchivedChatsScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => void deleteConversation(conversationId),
+          onPress: () => { void deleteConversation(conversationId).catch(error => Alert.alert('Could not delete conversation', error.message)); },
         },
       ],
     );
-  }
-
-  async function onRefresh() {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
   }
 
   return (
@@ -46,11 +39,12 @@ export default function ArchivedChatsScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing && !loading} onRefresh={refresh} />}
       >
+        <ChatError message={error} onRetry={refresh} />
         {loading ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : archivedConversations.length === 0 ? (
+        ) : archivedConversations.length === 0 && !error ? (
           <AppText style={[styles.empty, { color: colors.icon }]}>
             No archived chats. Group chats are archived automatically when their activity ends.
           </AppText>
@@ -62,7 +56,8 @@ export default function ArchivedChatsScreen() {
                   user={conversation.title}
                   avatar={{ uri: conversation.avatarUri }}
                   last_message={conversation.lastMessage}
-                  is_read
+                  is_read={conversation.unreadCount === 0}
+                  unreadCount={conversation.unreadCount}
                   time={
                     conversation.lastMessageAt
                       ? formatTime(conversation.lastMessageAt)

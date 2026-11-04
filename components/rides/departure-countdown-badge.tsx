@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
@@ -17,6 +17,8 @@ export function DepartureCountdownBadge({ dateTime }: Props) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const [now, setNow] = useState(() => Date.now());
+  // 0 = normal shade, 1 = darker shade. Animated back and forth to make the badge flash.
+  const [pulse] = useState(() => new Animated.Value(0));
 
   // Re-check the time every 30 seconds so the countdown stays current.
   useEffect(() => {
@@ -24,29 +26,48 @@ export function DepartureCountdownBadge({ dateTime }: Props) {
     return () => clearInterval(timer);
   }, []);
 
-  if (!dateTime) return null;
-  const departure = new Date(dateTime).getTime();
-  if (Number.isNaN(departure)) return null;
+  const departure = dateTime ? new Date(dateTime).getTime() : NaN;
+  const minutesLeft = Number.isNaN(departure) ? null : Math.ceil((departure - now) / 60_000);
+  const visible = minutesLeft !== null && minutesLeft <= WINDOW_MINUTES;
+  const departed = minutesLeft !== null && minutesLeft <= 0;
+  // Only flash while the ride is leaving soon (not after it has departed).
+  const flashing = visible && !departed;
 
-  const minutesLeft = Math.ceil((departure - now) / 60_000);
-  if (minutesLeft > WINDOW_MINUTES) return null;
+  useEffect(() => {
+    if (!flashing) {
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 400, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 400, useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [flashing, pulse]);
 
-  const departed = minutesLeft <= 0;
+  if (!visible) return null;
+
   const label = departed
     ? 'Departed'
     : `Leaving in ${minutesLeft} ${minutesLeft === 1 ? 'min' : 'mins'}`;
   const color = departed ? colors.icon : colors.error;
 
+  // Fade between the light red and a deeper red while leaving soon.
+  const backgroundColor = departed
+    ? colors.surfaceContainerHigh
+    : pulse.interpolate({
+        inputRange: [0, 1],
+        outputRange: [colors.errorContainer, colors.errorPulse],
+      });
+
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: departed ? colors.surfaceContainerHigh : colors.errorContainer },
-      ]}
-    >
+    <Animated.View style={[styles.badge, { backgroundColor }]}>
       <MaterialCommunityIcons name={departed ? 'car-off' : 'timer-sand'} size={14} color={color} />
       <AppText style={[styles.text, { color, fontFamily: Fonts?.sans }]}>{label}</AppText>
-    </View>
+    </Animated.View>
   );
 }
 

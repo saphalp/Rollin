@@ -2,9 +2,12 @@ import { AccountStateGate } from '@/components/account/AccountStateGate';
 import { SplashScreenController } from '@/components/splash';
 import { GuidedTourProvider } from '@/components/tutorial/guided-tour-provider';
 import { Colors, Fonts } from '@/constants/theme';
+import { useAppAnalytics } from '@/hooks/use-app-analytics';
 import { useAuthContext } from '@/hooks/use-auth-context';
+import { trackError } from '@/lib/analytics';
 import AuthProvider from '@/providers/auth-provider';
-import { Stack, type Href } from 'expo-router';
+import { ErrorBoundary as RouterErrorBoundary, Stack, type ErrorBoundaryProps, type Href } from 'expo-router';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, PaperProvider, configureFonts } from 'react-native-paper';
 import 'react-native-reanimated';
@@ -58,6 +61,7 @@ export function RootNavigator() {
         <Stack.Screen name="edit-profile/index" />
         <Stack.Screen name="edit-profile/driver" />
         <Stack.Screen name="campus-events" />
+        <Stack.Screen name="add-campus-calendar" />
         <Stack.Screen name="campus-event/[id]" />
         <Stack.Screen name="host-campus-event/[id]" />
         <Stack.Screen name="report" />
@@ -92,7 +96,15 @@ export function RootNavigator() {
   );
 }
 
+// Expo Router renders this when a screen throws. It records the error, then shows the
+// router's standard error screen.
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  useEffect(() => { trackError(props.error, 'boundary'); }, [props.error]);
+  return <RouterErrorBoundary {...props} />;
+}
+
 export default function RootLayout() {
+  useAppAnalytics();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

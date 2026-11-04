@@ -105,4 +105,25 @@ test('email-login SQL enforces session isolation, expiration, guesses, cooldowns
   assert.equal(await value('select public.login_email_verified()'),false,'deleted session cannot access data');
   await login(1);
   await assert.rejects(db.exec("insert into public.profiles values ('10000000-0000-4000-8000-000000000099','other')"),/row-level security/,'existing ownership policies still apply');
+
+  // The login-code switch: on by default, and turning it off approves any live session.
+  await db.exec('reset role');
+  const toggle = readFileSync('supabase/migrations/20261030130000_login_code_toggle.sql','utf8');
+  await db.exec(toggle); await db.exec(toggle); // safe to re-run in SQL editor
+  await db.query('insert into auth.sessions values ($1,$2,null)',[session(9),user]);
+  await login(9);
+  assert.equal(await value('select public.login_email_verified()'),false,'code still required by default');
+  await db.exec('reset role; update login_security.settings set require_login_code = false');
+  await login(9);
+  assert.equal(await value('select public.login_email_verified()'),true,'password-only login when switched off');
+  assert.equal((await db.query('select * from public.profiles')).rows.length,1,'switched off: data reachable without a code');
+  await db.exec(`reset role; delete from auth.sessions where id='${session(9)}'`);
+  await login(9);
+  assert.equal(await value('select public.login_email_verified()'),false,'switched off: signed-out sessions stay blocked');
+  await db.exec('reset role; update login_security.settings set require_login_code = true');
+  await db.query('insert into auth.sessions values ($1,$2,null)',[session(9),user]);
+  await login(9);
+  assert.equal(await value('select public.login_email_verified()'),false,'switching back on requires a code again');
+  await db.exec('reset role; set role authenticated');
+  await assert.rejects(db.query('select * from login_security.settings'),/permission denied/,'clients cannot read or change the switch');
 });

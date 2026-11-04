@@ -18,6 +18,8 @@ const cors = {
 const reply = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: cors });
 
+const recentAnnouncementIds = new Set<string>();
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return reply({ error: 'Use POST.' }, 405);
@@ -42,6 +44,14 @@ Deno.serve(async (req: Request) => {
       return reply({ error: 'A valid announcement ID is required.' }, 400);
     }
     const announcementId = body.announcementId;
+    if (recentAnnouncementIds.has(announcementId)) {
+      return reply({ ok: true, sent: 0, deduplicated: true });
+    }
+    recentAnnouncementIds.add(announcementId);
+    if (recentAnnouncementIds.size > 500) {
+      const iter = recentAnnouncementIds.values();
+      for (let i = 0; i < 100; i++) recentAnnouncementIds.delete(iter.next().value);
+    }
 
     const { data: announcement, error: loadError } = await client
       .from('announcements')

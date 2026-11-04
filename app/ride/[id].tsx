@@ -164,6 +164,7 @@ export default function RideDetailsScreen() {
     }
 
     async function handleRequest() {
+        if (submitting || requestLoading) return;
         if ((alternatePickup || ride?.pickupMode === 'individual') && !pickupAddress.trim()) {
             Alert.alert('Pickup address required', 'Enter the address you want the driver to approve.');
             return;
@@ -179,6 +180,7 @@ export default function RideDetailsScreen() {
     }
 
     function handleCancelRequest() {
+        if (submitting || requestLoading) return;
         Alert.alert(
             'Cancel request?',
             'You can choose another ride after cancelling.',

@@ -8,6 +8,11 @@ const useInAppArrival = Platform.OS === 'web' ||
         Constants.executionEnvironment === ExecutionEnvironment.StoreClient);
 
 let configured = false;
+const notifiedArrivalRides = new Set<string>();
+
+export function resetNotifiedArrivalRides(): void {
+    notifiedArrivalRides.clear();
+}
 
 export async function configureRideNotifications(): Promise<void> {
     if (configured || useInAppArrival) {
@@ -41,7 +46,14 @@ export async function configureRideNotifications(): Promise<void> {
     configured = true;
 }
 
-export async function notifyDriverArrived(): Promise<void> {
+export async function notifyDriverArrived(rideId?: string): Promise<void> {
+    if (rideId) {
+        if (notifiedArrivalRides.has(rideId)) {
+            return;
+        }
+        notifiedArrivalRides.add(rideId);
+    }
+
     if (useInAppArrival) {
         if (Platform.OS !== 'web') {
             Alert.alert('Your driver has arrived',
@@ -61,6 +73,7 @@ export async function notifyDriverArrived(): Promise<void> {
             sound: 'default',
             data: {
                 type: 'ride-arrival',
+                ...(rideId ? { rideId } : {}),
             },
         },
         trigger: null,

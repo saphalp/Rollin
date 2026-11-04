@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
     cancelRideRequest,
@@ -12,6 +12,7 @@ export function useRideRequest(ride: RideOffer | null) {
     const [request, setRequest] = useState<RideRequest | null>(null);
     const [loading, setLoading] = useState(Boolean(ride));
     const [submitting, setSubmitting] = useState(false);
+    const submittingRef = useRef(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(
         null,
     );
@@ -54,10 +55,11 @@ export function useRideRequest(ride: RideOffer | null) {
     }, [loadRequest, ride]);
 
     const requestSeat = useCallback(async (pickupAddress?: string) => {
-        if (!ride) {
+        if (!ride || submittingRef.current) {
             return;
         }
 
+        submittingRef.current = true;
         setSubmitting(true);
         setErrorMessage(null);
 
@@ -72,15 +74,17 @@ export function useRideRequest(ride: RideOffer | null) {
             );
             throw error;
         } finally {
+            submittingRef.current = false;
             setSubmitting(false);
         }
     }, [ride]);
 
     const cancelSeatRequest = useCallback(async () => {
-        if (!request) {
+        if (!request || submittingRef.current) {
             return;
         }
 
+        submittingRef.current = true;
         setSubmitting(true);
         setErrorMessage(null);
 
@@ -95,6 +99,7 @@ export function useRideRequest(ride: RideOffer | null) {
             );
             throw error;
         } finally {
+            submittingRef.current = false;
             setSubmitting(false);
         }
     }, [request]);

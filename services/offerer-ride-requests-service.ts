@@ -207,7 +207,7 @@ export function subscribeToRidePassengerRequests(
 ) {
     const channel = supabase
         .channel(
-            `offerer-requests-${rideId}-${Date.now()}`,
+            `offerer-requests-${rideId}`,
         )
         .on(
             'postgres_changes',

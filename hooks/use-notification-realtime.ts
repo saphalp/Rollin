@@ -23,11 +23,13 @@ export function useNotificationRealtime(
     callbackRef.current = onInsert;
   }, [onInsert]);
 
+  const seenIds = useRef<Map<string, number>>(new Map());
+
   useEffect(() => {
     if (!currentUserId) return;
 
     const channel = supabase
-      .channel(`notifications-realtime-${currentUserId}-${Date.now()}`)
+      .channel(`notifications-realtime-${currentUserId}`)
       .on(
         "postgres_changes",
         {
@@ -37,13 +39,30 @@ export function useNotificationRealtime(
           filter: `user_id=eq.${currentUserId}`,
         },
         (payload) => {
-          callbackRef.current(payload.new as NotificationPayload);
+          const item = payload.new as NotificationPayload;
+          if (!item?.id) return;
+
+          const now = Date.now();
+          const lastSeen = seenIds.current.get(item.id);
+          if (lastSeen && now - lastSeen < 15_000) {
+            return;
+          }
+          seenIds.current.set(item.id, now);
+
+          // Clean older entries
+          if (seenIds.current.size > 50) {
+            for (const [key, time] of seenIds.current) {
+              if (now - time > 30_000) seenIds.current.delete(key);
+            }
+          }
+
+          callbackRef.current(item);
         },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [currentUserId]);
 }

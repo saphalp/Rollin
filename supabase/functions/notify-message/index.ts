@@ -9,6 +9,8 @@ const cors = {
 const reply = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: cors });
 
+const recentMessageIds = new Set<string>();
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return reply({ error: 'Use POST.' }, 405);
@@ -32,6 +34,14 @@ Deno.serve(async (req: Request) => {
     if (typeof body?.messageId !== 'string' ||
       !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.messageId)) {
       return reply({ error: 'A valid message ID is required.' }, 400);
+    }
+    if (recentMessageIds.has(body.messageId)) {
+      return reply({ ok: true, sent: 0, deduplicated: true });
+    }
+    recentMessageIds.add(body.messageId);
+    if (recentMessageIds.size > 500) {
+      const iter = recentMessageIds.values();
+      for (let i = 0; i < 100; i++) recentMessageIds.delete(iter.next().value);
     }
 
     const admin = createClient(

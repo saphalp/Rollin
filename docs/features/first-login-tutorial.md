@@ -1,61 +1,57 @@
-# Interactive first-login tutorial
+# First-login Tutorial
 
-## User flow
+The tutorial shows new users how to get around Rollin. Each page starts with a short overview, then points out the main controls. Some steps ask the user to tap the real tab or icon so they get to try it themselves.
 
-The guide follows discover -> join or host -> arrange transportation -> coordinate -> revisit your plans. Each page starts with a floating overview note anchored to its actual bottom-tab icon. The note overlays the page without changing navigator or tab-bar height. Calendar places its overview beneath the calendar grid and legend and Notifications uses the bell, because those pages have no bottom tab.
+## What it covers
 
-Next progresses from each overview into its page details. Six navigation practice steps then ask the user to tap the actual Explore, Rides, Chats, or Profile tab, the calendar icon, or the notification bell. These steps hide Next and advance only after the requested route opens. There is no Show highlights/Next page branch. Back revisits the preceding step; Skip still dismisses the entire tour.
+1. **Home:** finding activities, searching, and saving or joining something.
+2. **Explore:** viewing activity photos and shared posts.
+3. **Calendar:** checking dates and the plans shown underneath.
+4. **Post:** starting a new activity.
+5. **Rides:** finding or offering a ride.
+6. **Chats:** direct messages and activity group chats.
+7. **Notifications:** updates and requests.
+8. **Profile:** hosted and attended activities, profile options, and account settings.
 
-1. Home: overview, search, categories and joining/saving.
-2. Explore: overview, activity photos and shared posts.
-3. Calendar: overview, date markers and activity lists.
-4. Post: overview, starting an activity form.
-5. Rides: overview, find/offer ride actions.
-6. Chats: overview, direct and activity conversations.
-7. Notifications: overview, reviewing updates and requests.
-8. Profile: overview, created/joined activities, avatar/account options.
+**Next** moves from a page overview into its details. **Back** returns to the previous step, and **Skip** closes the tour. When a step asks the user to open a tab or tap an icon, it waits for that action instead of showing Next.
 
-Overviews leave the page undimmed and usable. Detail steps focus the relevant section and dim its surroundings. Navigation practice uses four touch-blocking regions around the highlight, leaving the real control inside it touchable. It does not simulate the tap with a second navigation button. If the user navigates away during an overview, Return to this page restores its route. Back and Skip remain available during practice. The tour itself never publishes, joins, or sends anything; actions users choose on the live page behave normally. Empty accounts can complete the guide.
+Users can replay the tour from **App Tutorial** in the profile menu. It starts at Home and leaves them on the final tour page when they finish.
 
-Prompt text appears immediately; advancing never waits for a timer or exit animation. Native target coordinates are measured on animation frames, with no settling delay or loading-message timeout. Tab targets measure the native tab buttons, including both icons and labels, and stay registered even when their tabs are inactive. No extra wrapper changes the tab layout. Section highlights include their headings; My Activities is measured together with Hosted/Attended. Header icons use matching boxes with font padding disabled. Cutouts clip only at viewport edges; safe-area insets position the notes without shifting highlight centers. Ordinary page targets still unregister when unfocused. Missing measurements never block the prompt or the navigation controls.
+## How the highlights work
 
-Notes use their natural content height, full available width, and concise copy. There is no internal ScrollView or fixed card-height cap. The layout measures the resulting card to position it within the safe area and away from navigation targets.
+An overview leaves the page visible. Detail steps dim the surrounding screen and leave the relevant section highlighted. The app measures the actual control on the screen, including its icon, label, or section heading, so the highlight can follow its position.
 
-App Tutorial in either profile menu replays the tour from Home. Replay ends on the current tour screen, not the screen where it was launched. Push permission requests, ride location permission requests, and rating reminders are deferred while touring.
+The explanation sits outside the highlighted area. Tab notes sit above the matching tab, and the Calendar overview sits below the calendar and its legend. The tutorial does not push the bottom bar upward. Its white card grows to fit the text and buttons without an internal scroll area.
 
-## Persistence and failures
+The prompt appears right away. It does not wait for a timer or for Supabase to fetch tutorial text. The page underneath may still be loading its own data. During a practice step, taps outside the highlighted control are blocked; Back and Skip remain available.
 
-Supabase Auth user metadata `rollin_tutorial_v2` stores `outcome` (`completed` or `skipped`) and `finished_at`. Both outcomes suppress automatic display on later sessions and devices. This is a preference, never an authorization control. No migration, new key, or Supabase dashboard change is needed.
+We delay push-permission requests, ride location prompts, and rating reminders while the tour is open so they do not interrupt it.
 
-The version changed from v1 so users who saw the old slideshow receive the interactive tour once. Existing accounts without v2 also see it once. Replay does not rewrite the preference.
+## Remembering completion
 
-A failed lookup or eight-second timeout starts the tour. A failed save offers retry or Continue without saving, which dismisses it for the current session but may show it next time. Late lookup responses cannot reopen a dismissed tour. Signing into a different account resets the check.
+Finishing or skipping saves the choice on the user's Supabase account under `rollin_tutorial_v2`. It stores the outcome and completion time, so the tour stays dismissed on later logins and other devices. Replaying it does not change that saved choice.
 
-Targets register only while their screen is focused. The overlay waits for navigation/layout, measures native window coordinates relative to its own origin, and follows layout changes. Prompt text is independent of target measurement and has no loading state. When a target fills a small viewport, the explanation takes priority over a cutout; the card grows with its content.
+The version changed when we replaced the old slideshow with this interactive tour. Accounts that only completed the slideshow see the newer tour once.
 
-Tutorial buttons use native wrapping Text inside Pressable controls with no line limit or ellipsis. They have a minimum touch height, grow with their labels, and Back/Next stack on narrow screens or with larger system text. The card grows to contain its text and controls.
+If loading the preference fails or takes more than eight seconds, the app starts the tour. If saving fails, the user can retry or continue without saving. Continuing dismisses it for that session, but it may appear again next time. Changing accounts runs the check for the new account.
 
-## Verification
+This is a saved preference, not an account security check. It needs no extra SQL or server key.
 
-Automated checks: `node --test scripts/test-tutorial.cjs scripts/test-signup-verification.cjs`, `npx tsc --noEmit`, tutorial ESLint, Android export. Tests cover account persistence, navigation, Back, completion, replay, failed saves, late/unmounted lookups, and spotlight placement.
+## Checking changes
 
-Device smoke test still required:
+```powershell
+node --test scripts/test-tutorial.cjs scripts/test-signup-verification.cjs
+```
 
-1. Sign in with an account without v2 metadata and complete profile setup. Confirm the Home overview floats above the Home icon and leaves the live page at its normal size.
-2. Visit all eight page overviews and their detail sequence. At each navigation practice step, tap the highlighted real control and confirm it opens the page and advances exactly once. Tap outside the highlight to confirm it cannot activate another control. Confirm the tab bar never moves and each overview arrow points to its tab icon (or header anchor). Confirm each cutout aligns, targets scroll into view, and each page finishes its details before moving on. Check Back and Android hardware Back. Check that prompts appear immediately, including the first inactive Explore tab step.
-3. Rotate the phone and increase font size. Verify full Back/Next labels remain visible (never ellipsized), controls stack when needed, and every note shows its complete text and controls without internal scrolling.
-4. Finish, sign out/in, and confirm it stays dismissed. Repeat with Skip on another account.
-5. Replay from both profile menus and check it starts on Home. Verify tutorial navigation itself does not change activities, rides, messages, or notification status.
-6. Test an empty account and unavailable network. Confirm Next/Skip remain usable if a target cannot load and a failed save permits continuation.
+On a phone, go through all eight pages. Check that the highlights cover the whole control, page overviews leave the important content visible, and tapping a highlighted tab advances once. Try Back, Skip, replay, an empty account, and a failed connection. Increase the phone's text size and check that every prompt and button still fits.
 
-## Files
+Finish on one account and skip on another, then sign out and back in to confirm both choices were saved.
 
-- `lib/tutorial.ts`: account preference reads and writes.
-- `components/tutorial/tutorial-steps.ts`: content, routes, spotlight placement.
-- `components/tutorial/guided-tour-provider.tsx`: navigation and account lifecycle.
-- `components/tutorial/tour-target.tsx`: target registration and automatic scrolling.
-- `components/tutorial/tutorial.tsx`: dimmed overlay, cutout, and explanation controls.
-- `app/tutorial.tsx`: protected replay launcher.
-- `app/_layout.tsx`: provider above the live navigator.
+## Main files
 
-This covers the tutorial story. Login rate limiting and Google Calendar export remain separate work.
+- `components/tutorial/tutorial-steps.ts`: text and order of the tour.
+- `components/tutorial/guided-tour-provider.tsx`: starts the tour and moves between steps.
+- `components/tutorial/tour-target.tsx`: measures the controls to highlight.
+- `components/tutorial/tutorial.tsx`: highlight, dimmed area, and explanation card.
+- `lib/tutorial.ts`: loads and saves completion.
+- `app/tutorial.tsx`: opens the tour again from the profile menu.

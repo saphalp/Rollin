@@ -1,67 +1,87 @@
 # Getting Started
 
-This guide explains how to set up the Rollin development environment and run the application locally.
+You can try Rollin on an Android phone through Google Play. If you want to work on the app, the development setup is below.
 
-## Prerequisites
+## Try the app
 
-Before working on Rollin, you should have:
+Rollin has a demo/test build on Google Play. Open the [Rollin Play Store link](https://play.google.com/store/apps/details?id=com.rollin.app) on your Android phone. The app's package name is `com.rollin.app`.
 
-- Git
-- Node.js and npm
-- Visual Studio Code or another code editor
-- An Android emulator or physical Android device
-- Access to the Rollin Supabase project
+If the page is unavailable or you cannot install it, contact the team for testing access and the current installation link. Access may depend on which Google account you use and how the test release is set up.
 
-Rollin currently uses Expo SDK 54, React Native, TypeScript, and Expo Router.
+After installing:
 
-## Repository Setup
+1. Open Rollin and create an account, or sign in if you already have one.
+2. For email signup, enter the code sent to your inbox. If login verification is enabled, a fresh login also asks for a login code.
+3. Complete your profile if you are new to the app.
+4. Follow the tutorial or skip it and explore. You can replay it later from the profile menu.
 
-Clone the public Rollin repository through either GitHub, or by following the steps below:
+You do not need Node.js, Expo Go, or the source code to use the Play Store build.
+
+## Work on the app
+
+You will need Git, Node.js and npm, a code editor, and an Android phone or emulator. Ask a teammate for the project settings and access needed for your task.
+
+The project currently uses Expo SDK 58, React Native, and TypeScript. Use the versions in `package.json` and `package-lock.json` when setting up your copy.
+
+### Get the code
+
+Start from `dev`, where we combine and test changes. `main` is for production.
 
 ```powershell
-git clone https://github.com/saphalp/Rollin.git
+git clone --branch dev https://github.com/saphalp/Rollin.git
 cd Rollin
+npm ci
+git switch -c your-feature-name
 ```
 
-Install the JavaScript dependencies:
+If you already have the project, keep your local changes safe before switching branches or pulling. See [Development Workflow](development-workflow.md).
 
-```powershell
-npm install
-```
+### Add the project settings
 
-When developing or editing code, create or switch to a feature branch before making changes:
-
-```powershell
-git switch -c descriptive-branch-name
-```
-
-## Environment Configuration
-
-The app needs a `.env.local` file in the project root with the following variables:
+Create `.env.local` in the project folder:
 
 ```text
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=
 ```
 
-These values connect the app to Supabase and should be received from a project administrator. Both variables are public client configuration, but the team's actual project values should be kept in the local environment file rather than copied into this documentation. Supabase service-role keys, SMTP passwords, and other administrative credentials must never be placed in the client application.
+Ask a teammate for the values. The Supabase settings connect the app to our backend. The Google Places key is used for address suggestions. Keep the file local; it is ignored by Git.
 
-## Running the Application
+Values beginning with `EXPO_PUBLIC_` are included in the app. Never put a Supabase service-role key, Resend key, or another server secret there. Those belong in Supabase's server settings.
 
-Start the Expo development server:
+### Run your changes on Android
+
+For full feature testing, use a development build made for this project. Ask the team for the current build, or build it locally if you have Android Studio and the Android SDK set up:
 
 ```powershell
-npx expo start
+npx expo run:android
 ```
 
-The Expo terminal provides options for opening the project on a connected device, emulator, or web browser. Follow the provided documentation in the Expo terminal.
+Once the development build is installed, start the server with:
 
-## Running on Each Platform
+```powershell
+npx expo start --dev-client
+```
 
-### Android
+Open the project in that development build. Keep the terminal running while you test. The Play Store demo is a separate installed build; it does not load your local edits from this server.
 
-Android is supported through an emulator or compatible physical device.
+For a quick check in a compatible version of Expo Go, use:
 
-### iOS
+```powershell
+npx expo start --go
+```
 
-The project includes iOS support, but native iOS builds require macOS and Xcode. The team should document the devices and iOS versions that have been tested.
+If your phone cannot reach the computer over Wi-Fi, try:
+
+```powershell
+npx expo start --go --tunnel
+```
+
+If scanning the QR code opens a browser error, copy the current `exp://...` address shown beside **Metro** into Expo Go's URL field. The address changes between sessions, so use the one from the running terminal.
+
+Expo Go cannot test every feature. Remote push notifications on Android and features that need extra native modules require a development or installed app build. See [Expo's CLI guide](https://docs.expo.dev/more/expo-cli/) for the available startup options.
+
+### Database changes
+
+Most day-to-day work uses the shared Supabase project. Pulling code does not apply SQL files or deploy Edge Functions. If your feature needs one of those changes, read its setup page and check with the team before applying it to the shared project.

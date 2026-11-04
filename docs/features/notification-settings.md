@@ -1,58 +1,34 @@
-# Mute Chats and Notification Settings
+# Muting Chats and Notification Settings
 
-## Purpose
+Users can mute one conversation or turn off chat push notifications altogether. Messages still arrive in the chat; muting changes the notification, not the conversation.
 
-Users can mute individual chats and choose which kinds of notifications they get. Chat push notifications respect both, so a muted chat or a turned-off category stays quiet.
+## Mute a chat
 
-## Assumptions
+Open the conversation and tap the bell in its header. A crossed-out bell means it is muted. Tap again to unmute it. This affects only your account, not the other members.
 
-- Muting is per chat and per user. Muting a chat only affects your own notifications.
-- Every notification type is on by default.
-- Muted chats still receive messages. Only the push notification is skipped.
-- Activity announcements are always delivered, even when a chat is muted or a setting is off.
-- Right now only the **Chat messages** setting changes push behavior. The other settings are saved, ready for when those pushes are added.
+## Change notification preferences
 
-## Decisions
+Open the profile menu and choose **Notifications**. Changes are saved as each setting is switched on or off. Missing settings use the default: notifications on and chats unmuted.
 
-### Two small tables
+The **Chat messages** setting is checked by the chat push function. The other category settings are stored too, but do not assume every notification sender uses them without checking its implementation. Activity announcements bypass these category and chat mute settings; delivery can still fail because of device permissions or a missing push token.
 
-`notification_settings` has one row per user with a true/false column for each type (`chat_messages`, `activity_updates`, `ride_updates`, `follow_requests`). `muted_conversations` has one row per muted chat. Missing rows mean the default: notifications on and the chat unmuted, so new users need no setup.
+## How chat pushes are sent
 
-### Mute checked on the server
+After saving a message, the app calls `notify-message` with its ID. The server confirms the caller sent it, finds the other members, and skips people who muted the chat or disabled chat messages. Everyone else with a usable token can receive the sender's name and message preview.
 
-When a message is sent, the app calls the `notify-message` edge function with the message ID. The function confirms the caller sent the message, finds the other participants, skips anyone who muted the chat or turned off chat messages, and pushes to the rest. Checking on the server means a sender's app can't push to someone who muted them.
+Checking preferences on the server prevents the sender's phone from overriding someone else's mute. Users can read and change only their own settings.
 
-### Users control only their own rows
+`notification_settings` stores the category choices. `muted_conversations` stores which chats each user muted. The setup is in `supabase/migrations/20261012120000_notification_settings.sql`.
 
-RLS on both tables limits every read and write to `user_id = auth.uid()`, so users can see and change only their own settings.
+## Problems we ran into
 
-## Technical Hurdles
+Push registration failed at first because signed-in users did not have permission to save rows in `push_tokens`. The server also needed permission to read messages, chat members, and profiles. Check those grants when recreating the backend.
 
-- No device was saving its push token because `push_tokens` had no grant for `authenticated`. Fixed with `grant select, insert, update on public.push_tokens to authenticated`. This fixed push for every feature, not just chat.
-- `notify-message` needed `select` grants on `messages`, `conversation_participants`, and `profiles` for `service_role`.
-- During testing, a "missing" push turned out to be a chat that was still muted, which confirmed the mute worked.
+During testing, a missing push once turned out to be a still-muted chat. When checking delivery, look at both the app's preferences and the phone's notification permission. Use a development or installed Android build for remote push testing; Expo Go does not support it.
 
-## Feature Workflow
+## Main files
 
-**Muting a chat:**
-1. Open a chat and tap the bell in the header.
-2. The bell changes to a crossed-out bell, and a row is added to `muted_conversations`.
-3. Tap it again to unmute.
-
-**Changing notification settings:**
-1. Open the profile sidebar and tap **Notifications**.
-2. Turn any type on or off. Each change is saved right away to `notification_settings`.
-
-**When a message is sent:**
-1. The message is saved, then the app calls `notify-message`.
-2. Recipients who muted the chat or turned off chat messages are skipped.
-3. Everyone else gets a push with the sender's name and a preview of the message.
-
-## Relevant files
-
-- `supabase/migrations/20261012120000_notification_settings.sql`: `notification_settings` and `muted_conversations` tables, RLS, and grants
-- `supabase/functions/notify-message/index.ts`: sends chat pushes and skips muted or opted-out users
-- `app/notification-settings.tsx`: Notifications settings screen
-- `components/chats/ConversationHeader.tsx`: mute bell in the chat header
-- `app/chat/[id].tsx`: loads and toggles mute, calls `notify-message` after sending
-- `components/profile-sidebar.tsx`: Notifications link in the sidebar
+- `app/notification-settings.tsx`: category switches.
+- `components/chats/ConversationHeader.tsx` and `app/chat/[id].tsx`: mute control.
+- `supabase/functions/notify-message/index.ts`: push recipients and preference checks.
+- `components/profile-sidebar.tsx`: link to settings.

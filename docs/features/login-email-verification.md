@@ -1,51 +1,103 @@
-# Email verification for fresh logins
+# Email Login Verification
 
-Status: implemented locally; requires the database changes, Edge Function deployments and secrets below. No live Supabase settings were changed while implementing this feature.
+When this feature is enabled, signing in with a password or Google is followed by an emailed code. The user enters it on **Verify your login** before opening Rollin. Approved sessions stay signed in across app restarts. Logging out or using another device requires a new approval.
 
-## User flow
+Signup confirmation and password recovery still use their own Supabase emails. A signup that starts a new session can also reach the login-code screen. **Back to login** signs out only the current device.
 
-1. Sign in with email/password (or Google).
-2. Rollin automatically emails a six-digit login code to the confirmed account email.
-3. Enter the code on **Verify your login**. After approval, continue to onboarding or the app.
-4. Closing and reopening the app keeps an approved session signed in. Logout or another device creates a new session that needs its own code.
+## Code limits
 
-Codes expire after ten minutes and are single-use. Five wrong guesses invalidate that challenge. Resending replaces the previous code, with a 60-second cooldown and limits of five sends per 15 minutes and 20 per day per account. These are code protections, not the deferred password-attempt lockout feature.
+- Codes last ten minutes and can be used once.
+- Five wrong guesses invalidate the code.
+- Sending a new code replaces the old one.
+- Resend has a 60-second wait, with at most five sends in 15 minutes and 20 per day per account.
 
-**Back to login** signs out only this device. Existing signup-confirmation and password-reset emails retain their current Supabase templates. A signup that creates a new session also reaches the login-code screen. Password recovery remains accessible, then signs out after changing the password.
+These limits apply to login codes. They do not implement the separate password-attempt lockout story.
 
-## Turning the login code on or off
+## Turning it on or off
 
-One database switch decides whether fresh logins need the emailed code. It's on by default.
-Apply `supabase/migrations/20261030130000_login_code_toggle.sql` once (after the two
-login-email migrations), then flip it in the Supabase SQL editor:
+The backend setting `require_login_code` controls this feature. It defaults to on. After the two login-email migrations, apply `supabase/migrations/20261030130000_login_code_toggle.sql` to add the switch.
+
+Then use the Supabase SQL Editor to change it:
 
 ```sql
--- Password (or Google) sign-in only:
+-- Allow password or Google sign-in without the extra code:
 update login_security.settings set require_login_code = false;
--- Require the emailed code again:
+
+-- Require a code again:
 update login_security.settings set require_login_code = true;
 ```
 
-- **Off:** `login_email_verified()` approves any live Auth session, so the app skips **Verify
-  your login** and the API, RLS and Edge Function checks all pass without a code. Signing out
-  or revoking a session still blocks it.
-- **On:** a session needs a verified code, exactly as described above. Sessions that signed in
-  while the switch was off were never verified: their requests are blocked right away, and
-  the app shows the code screen on its next launch or sign-in.
-- No app release or redeploy is needed. The app asks the server on sign-in and launch, so a
-  change applies to the next sign-in, relaunch, or session refresh. A device that is open at
-  the moment of the switch keeps its current screen until then.
-- The switch lives in the private `login_security` schema: clients can't read or change it.
+The app checks the setting during sign-in, launch, and session refresh; no new app release is needed. With it off, a valid signed-in session passes the login check. With it back on, sessions that never verified a code lose access to protected requests until they do. An app that is already open may stay on its current screen until its next check.
 
-## Security scope
+Users cannot change this setting from the app. It lives in the private `login_security` database schema.
 
-This is custom email verification for access to Rollin, not Supabase native MFA/AAL2. Supabase issues an AAL1 session after the primary sign-in. Approval is stored on the server against that session ID and current email; neither client storage nor editable user metadata can approve it.
+## What this protects
 
-After activation, the Data API pre-request check blocks unverified authenticated requests, including security-definer RPCs and views. Restrictive RLS policies add checks to existing public tables, Storage objects and Realtime private-message authorization. Five user-facing Edge Functions also check approval before privileged actions. The status RPC and code function remain available to pending sessions. Existing ownership/driver/participant checks still apply after email verification.
+We built a custom email check around access to Rollin's data. The server saves approval against the Supabase session ID and current email. A flag on the phone or editable profile metadata cannot approve a session.
 
-**Limitation:** this does not add a second-factor requirement to Supabase Auth's own account-management endpoints. A person with the password can still obtain an underlying Auth session and perform operations Auth permits at AAL1, potentially including password changes. Public/anonymous content also remains public. Do not describe this as native MFA or complete protection against account takeover. Native Supabase MFA or a different authentication architecture is needed to cover that boundary.
+After enforcement is enabled, database access checks and the updated server functions reject unapproved sessions. Existing rules still decide who owns an activity, belongs to a chat, or can offer a ride.
 
-Future user-facing Edge Functions must call `requireVerifiedLogin` before privileged operations. New tables need the restrictive policy below, in addition to their normal access policies, especially when accessed through Realtime/Storage rather than REST:
+This is **not Supabase's built-in MFA**. Supabase creates its normal first-step session, called AAL1, before our code check. Its own account-management endpoints are outside this extra check. Someone who knows the password may still perform operations that Supabase Auth allows at that level, including password changes. Public content also remains public. Do not describe the feature as complete protection against account takeover or as an AAL2 session.
+
+## Backend setup
+
+Check which steps are already installed before changing the shared project. Enabling enforcement affects everyone using it, including older app builds that do not have the code screen. Make the updated app available to the team and test email delivery before enabling that step.
+
+### 1. Add the verification tables and functions
+
+Run the complete `supabase/migrations/202610140001_login_email.sql` file in Supabase's SQL Editor. It creates the private verification data and server-only functions. Sessions already present when this file runs are approved once so existing users can stay signed in. Later sessions need their own approval.
+
+Do not run the enforcement file yet. If the team uses the migration CLI instead of the SQL Editor, follow that workflow and check the recorded migration history first.
+
+### 2. Add server secrets
+
+In **Edge Functions → Secrets**, set:
+
+| Name | Value |
+|---|---|
+| `RESEND_API_KEY` | A Resend key allowed to send from the verified Rollin domain |
+| `LOGIN_EMAIL_FROM` | `Rollin <no-reply@rollin-app.org>` |
+| `LOGIN_CODE_SECRET` | A new random secret of at least 32 characters |
+
+Generate a secret with:
+
+```powershell
+node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Copy it directly into the secret field. Keep all three settings on the server, outside the repository and `EXPO_PUBLIC_` variables. Supabase supplies the function's project URL and service-role credentials.
+
+Login emails are sent through Resend's API. They do not use the signup or password-reset templates, so those templates do not need changing for this feature.
+
+### 3. Deploy the functions
+
+Replace `YOUR_PROJECT_REF` with the intended project's reference ID:
+
+```powershell
+npx supabase login
+npx supabase functions deploy login-email --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy announce --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy leave-activity --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy ride-route --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy notify-message --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy didit-create-session --project-ref YOUR_PROJECT_REF
+```
+
+These deploy backend functions; they do not push Git commits. The `login-email` function has gateway JWT verification disabled in `supabase/config.toml` because it verifies the supplied token itself with `getUser` and `getClaims`. The database also checks that the session still exists. Keep those checks inside the function.
+
+### 4. Test, then enable enforcement
+
+Test a fresh login, receiving a code, rejecting an incorrect code, and accepting the correct one in the updated app.
+
+Once that works, run the complete `supabase/migrations/202610140002_enforce_login_email.sql` file. It adds the database/API checks. If the project already has a pre-request hook, the script stops instead of replacing it; the hooks must be combined before retrying.
+
+Test again with enforcement on. Check activities, rides, chats, announcements, uploads, and driver verification. An unapproved session should be limited to the approval check through the Data API, while protected data and functions should work after verification. Also check that another device needs its own code and that an approved device stays signed in after reopening.
+
+Email sends count toward Resend's allowance, and function calls count toward Supabase's allowance. This setup does not need a paid Auth hook, but the providers' sending and usage limits still apply.
+
+## Adding more protected features
+
+New user-facing Edge Functions need `requireVerifiedLogin` before privileged work. New tables also need a login check alongside their normal access rules, especially for access through Storage or Realtime:
 
 ```sql
 create policy require_login_email on public.YOUR_TABLE
@@ -54,49 +106,7 @@ using ((select public.login_email_verified()))
 with check ((select public.login_email_verified()));
 ```
 
-## Setup and rollout
-
-Use a test Supabase project first if available. **Activating enforcement affects everyone using that Supabase project. Older app versions cannot complete fresh logins afterward.** Make the updated app available to teammates before activating it on the shared project. Sessions that already exist when the core migration runs are explicitly approved once to preserve current logins; future sessions are not.
-
-1. In Supabase **SQL Editor**, run `supabase/migrations/202610140001_login_email.sql` once. It creates the private verification tables and service-only verification functions. Do not run the enforcement file yet. Use your team's normal migration workflow instead if the project's remote migration history is already synchronized; do not blindly apply unrelated historical migrations.
-
-2. In Supabase **Edge Functions → Secrets**, add:
-
-   | Name | Value |
-   | --- | --- |
-   | `RESEND_API_KEY` | A Resend API key with permission to send from the verified Rollin domain. Reuse the existing server secret if already configured. |
-   | `LOGIN_EMAIL_FROM` | `Rollin <no-reply@rollin-app.org>` |
-   | `LOGIN_CODE_SECRET` | A new random secret of at least 32 characters. Generate 32 random bytes with the command below. |
-
-   ```powershell
-   node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))"
-   ```
-
-   Copy the generated value directly into the Supabase secret field. Do not paste these secrets into chat, source files, or `EXPO_PUBLIC_` variables. The Edge Function's Supabase URL and service-role credentials are supplied by Supabase. Your existing Auth SMTP/Resend configuration is separate: this function sends through Resend's API and does not use the Auth email templates. No template edit is needed.
-
-3. Deploy the new function and all five updated user-facing functions. Replace `YOUR_PROJECT_REF` with the intended Supabase project's reference ID. These commands deploy backend code; they do not commit or push Git changes.
-
-   ```powershell
-   npx supabase login
-   npx supabase functions deploy login-email --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy announce --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy leave-activity --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy ride-route --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy notify-message --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy didit-create-session --project-ref YOUR_PROJECT_REF
-   ```
-
-   `supabase/config.toml` disables gateway JWT verification for `login-email` only. That function validates the bearer token itself through `getUser` and `getClaims`, then the database checks the session still exists. Do not disable authentication checks inside the function.
-
-4. Start the updated app and test a fresh login, email delivery, code rejection and successful verification. At this stage the new app checks approval, but blanket database enforcement has not been activated yet.
-
-5. Once the functions and updated app are ready, run `supabase/migrations/202610140002_enforce_login_email.sql` once in SQL Editor. It adds API/RLS enforcement and reloads the API configuration. If another pre-request hook is configured, the script deliberately fails rather than replacing it; combine the hooks before retrying. Run the whole file as one transaction through the migration runner/SQL Editor.
-
-6. Repeat login testing with enforcement active. Check activities, rides, chats/announcements, private uploads and driver verification. Confirm a pending session can call only the approval check through the Data API, cannot read protected rows or invoke user-facing functions, and starts working after entering the correct code. Check another device still needs its own code. Refresh/reopen the approved device and verify no new prompt appears.
-
-Email delivery uses your Resend sending allowance and function calls use your Supabase allowance. This feature does not require a paid Auth hook, but delivery is subject to the project's actual provider limits.
-
-## Local validation
+## Local checks
 
 ```powershell
 npm install --prefix .expo/login-security-validation --no-package-lock --ignore-scripts @electric-sql/pglite@0.5.9
@@ -106,4 +116,4 @@ npx tsc --noEmit
 npx expo export --platform android --output-dir .expo/login-email-export
 ```
 
-The SQL tests execute both migrations against an isolated in-memory PostgreSQL instance with test Auth/Storage/Realtime schemas. They do not connect to Supabase. Handler tests mock Resend and Auth; they do not send emails. These checks cannot confirm the live project's policies, secrets, domain configuration, mobile appearance or actual email delivery. The rollout checks above are still required.
+The SQL tests use a temporary local PostgreSQL database. The function tests use fake Auth and Resend responses. They do not change Supabase or send email, so the device and delivery checks above are still needed.

@@ -1,92 +1,58 @@
-# Activity Creation and Discovery
+# Activities and Discovery
 
-## Purpose
+Activities are the main way students make plans in Rollin. Someone posts what they want to do, and other students can join, talk in the group chat, and arrange a ride.
 
-Allow users to create activities for other students to join and discover activities posted by others. The Home feed shows public activities and private activities created by people the user follows. Explore intentionally shows all activities as a discovery surface, while the calendar gives users a broader view of upcoming activities across any month.
+## Create or edit an activity
 
-## Assumptions
+1. Open **Post**.
+2. Fill in the title, category, location, date, time, and capacity. Add a description and photo if needed.
+3. Choose public or private, and whether ride sharing is available.
+4. Tap **Create Activity**. After it saves, the form clears and the app returns to Home.
 
-- Every activity must have a title, category, location, and date/time before it can be posted.
-- A location string is geocoded to latitude/longitude at creation time so the activity can later appear on a map.
-- Activity images are optional. If no image is uploaded, a category-based placeholder image is shown.
-- Private activities are limited to followed hosts on the Home feed, but they remain discoverable on Explore. Joining a private activity requires the host to accept a request.
-- The calendar shows all activities regardless of event type so users can see a broader picture of what is happening.
+An activity must have a valid date and time. Hosts can open their activity and choose Edit to change its details or image. The app also saves location coordinates so the activity can appear on a map.
 
-## Decisions
+## Find something to do
 
-- **Image upload via FormData to the Supabase Storage REST API directly** — the Supabase JS SDK's `upload()` method failed in React Native because it requires an `ArrayBuffer`, which is not reliably available in the RN environment. Posting a `FormData` object with the local file URI directly to the Storage REST endpoint works around this.
-- **`event_type` column (`public` / `private`) instead of a boolean** — a string enum leaves room for future types (e.g. `invite-only`) without a migration.
-- **`ride_sharing` boolean for the primary activity flow** — activity creation and detail screens only need to know whether ride sharing is enabled. The older Find a Ride route still reads the `rides_available` seat count, so both fields remain in the current code and serve different parts of the application.
-- **Social graph filter on the home feed using the `follows` table** — private activities are filtered server-side using a Supabase `.or()` query that checks `event_type = public OR (event_type = private AND host_id IN (followed_ids))`. This keeps the logic in one query rather than fetching everything and filtering client-side.
-- **Calendar fetches all activities with no date range filter** — an earlier per-month fetch was causing activities near month boundaries to disappear due to UTC/local timezone mismatches. Fetching everything once on screen open and using the device's local timezone for date keys (`localDateKey()`) is simpler and more reliable.
+**Home** shows public activities and private activities from followed hosts. Use the category buttons or title search to narrow the list. The Featured carousel highlights three activities, with more listed under Recommended for you.
 
-## Technical Hurdles
+Featured ranking considers attendance, saves, views, and ride availability. Activities with open spots come before full ones, and only activities that have not started qualify. If the ranking request fails, Home falls back to date order.
 
-- **Image upload producing empty files** — `fetch(localUri).blob()` and `base64 → ArrayBuffer` decode both silently produced empty uploads in React Native. Fixed by using `FormData` with the raw local URI posted to the Supabase Storage REST API with an `Authorization` header and `x-upsert: true`.
-- **Calendar dots appearing on the wrong day** — `date_time` is stored in UTC. Slicing the first 10 characters of the ISO string gave the UTC date, not the local date. For example, an activity at 10 PM EST (Nov 30) was stored as Dec 1 UTC, making its dot appear on Dec 1 in the calendar. Fixed with a `localDateKey()` helper that uses `getFullYear()`, `getMonth()`, and `getDate()` to build the key from local time.
-- **Geocoding on Android requiring explicit permission** — `expo-location`'s `geocodeAsync` requires foreground location permission on Android before it will run. Added a permission request step with a user-facing explanation before calling the geocoder.
+**Explore** is the photo-post feed. Users can see posts linked to activities and tap the activity tag to open the event. Its results follow post and author privacy rules. See [Explore Posts on Activities](activity-explore-posts.md).
 
-## Feature Workflow
+The calendar shows your plans by date and includes filters for created, joined, and all accessible activities. It can also show your rides. See [Calendar and Upcoming Plans](calendar-agenda.md) and [Calendar Export](calendar-export.md).
 
-**Creating an activity:**
-1. User opens the Post tab.
-2. Fills in title, description, category (pill selector), location (text), date/time, max attendees, event type (public/private), and ride sharing toggle.
-3. Optionally picks a photo from their library.
-4. Taps "Create Activity":
-   - If an image was selected, it is uploaded via `FormData` to `activity-images` storage bucket; the returned public URL is saved as `image_url`.
-   - The location string is geocoded to `latitude`/`longitude` via `expo-location`.
-   - A row is inserted into the `activities` table with all fields.
-5. On success the form resets and the user is returned to the home feed.
+## Open and join an activity
 
-**Editing an activity:**
-1. Host opens the activity detail screen and taps "Edit".
-2. All fields are pre-filled from the existing activity row.
-3. Host can change any field, including swapping the hero image.
-4. Save triggers the same FormData upload (if image changed) and an `update` on the `activities` row.
+The detail page shows the host, date, time, location, capacity, and description. You can open the host's profile or expand the attendee list to see who is going.
 
-**Discovering activities (Home feed):**
-1. On load, the app fetches the current user's followed users from the `follows` table.
-2. Activities are queried: public ones for everyone, plus private ones whose `host_id` is in the followed list.
-3. The three highest-scoring results appear in the "Featured" carousel (`components/home/featured-carousel.tsx`): full-width square cards, one at a time, autoplay every 4s while Home is focused, swipe and dot navigation, and an infinite loop built from cloned edge slides. The rest appear as "Recommended for you".
-   - **Featured score** (`featured_activity_scores` RPC, `supabase/migrations/20261021130000_featured_activity_scores.sql`): 3 per attendee, 2 per save, 0.5 per unique viewer, 3 if ride sharing is enabled, and 2 per rider (pending/accepted/completed request on a non-cancelled ride offer for the activity). Only dated activities that haven't started yet qualify (the nightly expiry job leaves past activities `active` until midnight, so the client and RPC both check `date_time > now`). Full activities rank after every activity with open spots; ties go to the sooner activity (`rankFeatured` in `lib/featured-activities.ts`). If the RPC fails, Home falls back to date order.
-   - **Views** are recorded once per user per activity in `activity_views` via the `record_activity_view` RPC when the detail screen loads; the host's own views don't count. Saves and views are private per user, so the scoring RPC is `security definer` and only returns aggregate counts for activities the caller could see on Home.
-4. Category pills filter by category; the search bar filters by title client-side.
+Public activities can be joined directly. Private activities need the host to accept a request. Before joining, Rollin checks for [other plans within 60 minutes](schedule-conflicts.md) and lets the user decide whether to continue.
 
-**Exploring activities (Explore feed):**
-1. All activities are fetched regardless of `event_type` — Explore is the discovery surface where users can browse private activities before deciding to request access.
-2. Each card shows the host's avatar, name, post time, category, description, and event image.
+Full activities can have a [waitlist](activity-waitlist.md). Hosts can [send announcements](activity-announcements.md) and [cancel an event](event-cancellation.md). Activities with ride sharing enabled show [ride options](ride-sharing.md), and tagged photos appear in the Explore posts section.
 
-**Calendar view:**
-1. Opened from the calendar icon in the global header (top-right, next to the notification bell).
-2. My activities combines created/joined activities by default. Created, Joined and All activities filter both the calendar and upcoming agenda.
-3. Include my rides adds offered rides and accepted seats. Dots distinguish hosting (amber), other activities (blue), and rides (green).
-4. Tapping a date shows that day's plans; activity and ride cards open their respective details. The upcoming agenda groups future plans chronologically. Refresh runs on return, app resume, pull-to-refresh and live updates, with a foreground fallback. See [Calendar and agenda](calendar-agenda.md).
-5. **Export events** saves an `.ics` file with event-group and date filters. See [Calendar export](calendar-export.md) for Google Calendar import steps and scope.
+## Things we had to fix
 
-**Activity detail:**
-1. Shows hero image, title, host (tappable → host profile), date, time, location, capacity, ride sharing badge.
-2. "Who's joining" collapsible section lists attendees (avatar + name, tappable → their profile).
-3. Non-hosts can join public activities or request to join private activities. Hosts can edit the activity and access ride options when ride sharing is enabled.
-4. Before a join/request, [schedule conflict warnings](schedule-conflicts.md) compare the start time with joined and hosted activities within 60 minutes. Users can go back or continue; leaving never triggers the warning.
+Early photo uploads sometimes produced empty files on React Native. The activity form uploads through the Supabase Storage API using `FormData` rather than the upload approach that caused that problem.
 
-## Interface Details
+Calendar dots also used to appear on the wrong day for some late-night activities. The database saves times in UTC, but the calendar now groups them using the phone's local date.
 
-- **Hero image**: full-bleed background with a dark overlay so text is always readable. Falls back to a category-specific placeholder from picsum.photos.
-- **Category pills**: horizontal scroll row on both the home feed and the post form.
-- **Attendee count**: shown as `joined / max` throughout (feed cards, detail screen, calendar event rows).
-- **Dot colors on calendar**: yellow = your event, blue = someone else's event. A legend is shown below the calendar grid.
+On Android, converting a typed location into coordinates needs location permission. The form asks before making that request.
 
-## Relevant Files
+## Development notes
 
-| File | Role |
+Activities are stored in `activities`; attendees are linked through `rsvps`. Private requests use `activity_join_requests`. `event_type` stores public/private, and `ride_sharing` controls the activity's ride options. Older ride screens also use `rides_available`, so check both uses before removing either field.
+
+`supabase/migrations/202610130001_require_activity_date.sql` enforces dates for new activities and date changes. Older undated activities need their hosts to set a date.
+
+Featured scoring is defined in `20261021130000_featured_activity_scores.sql`: 3 points per attendee, 2 per save, 0.5 per unique viewer, 3 for ride sharing, and 2 per qualifying rider. Ties favor the earlier activity. `record_activity_view` records one view per user and activity, excluding the host. The ranking function returns totals for eligible activities rather than exposing individual saves or views.
+
+## Main files
+
+| File | What it does |
 |---|---|
-| `app/(tabs)/post.tsx` | Activity creation form |
-| `app/(tabs)/index.tsx` | Home feed with featured + recommended sections |
-| `components/home/featured-carousel.tsx` | Auto-sliding, looping Featured carousel on Home |
-| `app/(tabs)/explore.tsx` | Explore feed (all activities, unfiltered) |
-| `app/activity/[id].tsx` | Activity detail screen with RSVP, join-request, attendee, editing, and ride-option behavior |
-| `app/activity/edit/[id].tsx` | Activity edit form |
-| `app/calendar.tsx` | Calendar view with per-day activity list |
-| `components/activity-card.tsx` | Card used in the home feed recommended section |
-| `components/explore/post-card.tsx` | Card used in the Explore feed |
-| `components/Header.tsx` | Global header with calendar icon button |
+| `app/(tabs)/post.tsx` | Creates activities |
+| `app/(tabs)/index.tsx` | Home feed and filters |
+| `components/home/featured-carousel.tsx` | Featured activity carousel |
+| `app/(tabs)/explore.tsx` | Photo-post feed |
+| `app/activity/[id].tsx` | Activity details and joining |
+| `app/activity/edit/[id].tsx` | Host editing |
+| `app/calendar.tsx` | Calendar and upcoming plans |

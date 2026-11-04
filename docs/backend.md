@@ -1,61 +1,48 @@
-# Backend
+# Supabase and App Data
 
-## Backend Overview
+Rollin uses Supabase for accounts, the database, uploaded images, and live updates. The app connects with the project URL and publishable key in `.env.local`.
 
-Rollin uses Supabase as its primary backend. Supabase provides authentication, a PostgreSQL database, file storage, realtime database, and database functions.
+The database decides what each user can read or change. Hiding a button in the app is useful, but it cannot replace those checks. Supabase calls its table access rules **row-level security**, or **RLS**.
 
-Rollin connects to Supabase using a public project URL and publishable key. Authorization is enforced by Supabase policies and database rules rather than by trusting through Rollin's interface itself.
+## Accounts and profiles
 
-## Supabase Authentication
+Supabase Auth handles signup, passwords, Google sign-in, saved sessions, and logout. The `profiles` table stores the app-specific details: name, university, major, pictures, and verification badges.
 
-Supabase Authentication manages account creation, login, email confirmation, Google OAuth, password recovery, session persistence, and logout.
+The app loads that profile after login checks are complete. If required details are missing, it opens profile setup before the main tabs. Our separate emailed login-code feature is explained in [Email Login Verification](features/login-email-verification.md).
 
-After authentication, Rollin loads the matching row from the `profiles` table. The profile contains application-specific information that does not belong directly in the authentication record, including:
+## Main tables
 
-- Full name
-- University
-- Major
-- Profile-picture URL path
-- Educational-email verification state
-- Profile-completion state
+| Tables | What they store |
+|---|---|
+| `profiles`, `interests`, `profile_interests` | Profile details and selected interests |
+| `follows` | Follow requests and accepted connections |
+| `activities`, `rsvps`, `activity_join_requests` | Activities, attendees, and requests to join private activities |
+| `activity_photos`, `activity_photo_images`, `post_likes` | Explore posts, their photos, and likes |
+| `conversations`, `conversation_participants`, `messages` | Chats, their members, and message history |
+| `conversation_read_state`, `conversation_delivery_state` | How far each member has read or received messages |
+| `notifications` | Updates shown inside the app |
+| `rides_offered`, `ride_requests` | Rides offered by drivers and passenger seat requests |
+| `ride_wanted_requests` | Posts from people looking for a ride |
+| `ride_locations` | The latest shared location for a ride |
+| `ride_ratings`, `host_reviews` | Reviews after rides and activities |
+| `reports` | Reports for the moderation dashboard |
 
-The authentication provider uses the profile-completion value to decide whether the user should enter onboarding or the main application.
+This is a guide to the main tables, not a complete database definition. Some older tables and functions were created through the Supabase dashboard. The migration folder alone may not recreate the whole project; check the feature's setup notes when starting a new backend.
 
-## Database Tables and Relationships
+## Uploaded images
 
-The current tables used within Rollin include:
+- `avatars` holds profile and cover pictures. Profile rows store the file paths.
+- `activity-images` holds the main images on activities.
+- `activity-photos` holds photos shared through Explore.
 
-- `profiles` stores application profiles associated with authenticated users.
-- `activities` stores activities and references the hosting profile.
-- `rsvps` connects users to activities they have joined.
-- `activity_join_requests` stores pending, accepted, or rejected private-activity requests.
-- `follows` connects follower and followed profiles and stores request status.
-- `interests` stores available interest choices.
-- `profile_interests` connects profiles to selected interests.
-- `conversations` stores direct and activity-group conversations.
-- `conversation_participants` connects users to conversations.
-- `messages` stores messages associated with a conversation and sender.
-- `notifications` stores in-app notifications and related actors or activities.
-- `rides_offered` stores ride offers and their drivers.
-- `ride_requests` connects passengers to offered rides.
-- `ride_wanted_requests` stores requests from users looking for a ride.
-- `ride_locations` stores the latest live location for an active ride.
+The app currently uses public image URLs in these areas. Restricting a database row does not make an already shared image URL private. See [Explore Posts on Activities](features/activity-explore-posts.md) for that limitation.
 
-## Image Storage
+## Live updates
 
-Rollin currently uses Supabase Storage for uploaded images.
+Supabase Realtime tells the app when messages, notifications, ride details, and other subscribed data change. Screens also reload when reopened, and some check periodically in case an update was missed.
 
-The `avatars` bucket stores profile pictures and profile cover pictures (`profiles.profile_picture` / `profiles.cover_picture`). Profile records store the uploaded object path, and helper functions convert that path into a public URL.
+Server tasks live in `supabase/functions/`. These are called **Edge Functions** in Supabase. They handle work that should not run with a user's app permissions, such as sending email or notifying other people. Server secrets stay in Supabase.
 
-The `activity-images` bucket stores activity images. The resulting image URL is stored with the activity record.
+## Changing the backend
 
-## Realtime Features
-
-Supabase Realtime is used for features that need to update without manual refreshing, including:
-
-- Chat messages
-- Notifications
-- Follow-state changes
-- Ride offers and requests
-- Ride dashboard information
-- Live driver locations
+A migration is a saved SQL file that changes tables, functions, or access rules. It is separate from an app release. Applying SQL to the shared project affects everyone using it, so follow the feature's instructions and confirm which changes are already installed. Do the same for Edge Function deployments.

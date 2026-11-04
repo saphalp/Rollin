@@ -1,212 +1,103 @@
-## Purpose
+# Messaging and Notifications
 
-The purpose of this feature is to allow users to connect with each other and be able to send messages using the in-app chat window. Similarly, it also serves the purpose of connecting all the activity attendees by automatically creating a group chat.
-  
-## Assumptions
+Rollin has direct messages and activity group chats so students can make plans without leaving the app. Notifications bring together follow requests, activity requests, and other updates.
 
-- A user will only be expected to message people they follow
-- A user will be willing to join a group chat when they join an activity
-- A user will not feel the need to send images and other files using the chat feature
+## Starting a conversation
 
-## Decisions
+From a profile you follow, tap **Message** to open a direct chat. The server checks the accepted follow before creating the conversation. If the conversation already exists, the app opens it instead of making another one.
 
-The first step was to decide the database schema.
+Activity group chats are created with the activity, with the host as admin. Joining an activity adds the attendee to its chat; leaving removes them. The Chats tab shows direct and group conversations together, newest first.
 
-- **Follows** are tracked in a `follows` table with a `follower_id`, `following_id`, and a `status` of pending, accepted, or rejected. A follow request must be accepted before it counts as a real connection.
-- **Conversations** are split into a `conversations` table (a `type` of direct or group, and an optional linked `activity_id`) and a `conversation_participants` table listing who belongs to each conversation and their `role` (member or admin). Messages themselves live in a separate `messages` table tied to a conversation.
-- **Direct messages** are only ever created through a server-side function that checks the sender actually follows the recipient before opening a conversation. This keeps the "only message people you follow" rule enforced by the database
-- **Group chats** are created automatically the moment an activity is created, with the host set as admin. Members are added automatically when they join the activity, and removed automatically if they leave
-- **Notifications** are stored in one shared table with a `type` field that tells the app which kind of notification it is (a follow request, an accepted follow, an activity join request, and so on). This lets follow requests and activity join requests reuse the same accept/reject UI instead of building a separate system for each.
+Search filters existing conversations. After two characters, it also looks for people to start a direct message with.
 
-## Technical Hurdles
+## Sending and reading messages
 
-- **Names showing as "Rollin' User" instead of the real name.** The app tried to look up a person's profile through a shortcut join, but that shortcut only works when two tables are directly linked in the database. Conversation participants aren't linked to profiles that way, so the lookup failed and fell back to a placeholder name for every conversations. 
-- **Profile pictures showing an old or unrelated photo.** Every time someone uploaded a new profile picture, it was saved to the same file location as before. Because the photo's address never changed, the app's image cache kept showing the old photo everywhere except the profile screen itself. 
-- **Accepted or declined requests reappearing later.** Accepting or declining a follow or join request only marked it as read, it didn't remove it. The next time notifications were loaded, the same request would show up again.
- 
-## Feature Workflow
+Each conversation preview shows the latest message, its time, and an unread count. Counts above 99 show **99+**. Shared activities and posts have a readable preview, even when the message has no text.
 
-- **Following someone:** A user visits another user's profile and taps Follow. This creates a pending request, and the other user receives a notification with Accept and Reject actions. Once accepted, both users are notified and the two are  connected.
-- **Sending a direct message:** From a followed user's profile, the user taps Message. The app finds an existing conversation between the two people or create a new one, then opens the chat screen. Messages sent by one person appear for both in real time.
-- **Joining an activity's group chat:** As soon as an activity is created, its group chat exists with the host as admin. Activity attedees are automatically added to that activity's group chat. If they later leave the activity, they're automatically removed from the chat too.
-- **Getting notified:** Follow requests and activity join requests appear in the Notifications tab with Accept and Reject buttons.
+Opening a chat loads the newest 50 messages. Use **Load older messages** for more history. The page keeps your place when you load older messages, and the text box stays above the keyboard while typing.
 
+The send button waits while a message is being sent. Text clears after a successful save and stays in the box if sending fails. A saved message appears right away without waiting for a push notification. There is no offline message queue; after an uncertain connection failure, check the conversation before sending the same text again.
 
-## Interface Details
-- **Profile screen:** A Follow/Following/Requested button reflects the current relationship. A Message button only appears once the user is actually following that person.
-- **Chats tab:** A single list of all conversations, direct and group, each showing the other person's (or the activity's) name, photo, and a preview of the last message.
-- **Chat screen:** A back button, name, and photo at the top; messages appear as bubbles, aligned differently depending on who sent them. In a group chat, each message also shows the sender's name. A text field and send button sit at the bottom.
-- **Notifications tab:** A simple list taht shows the newest first. Follow and join requests show the requester's photo and name with Accept/Reject buttons. Other notifications are plain rows with a message and a timestamp with unread ones visually marked by a blue dot. Opening the tab marks every listed unread notification read (and any that arrive while it's open); the blue dots stay for that visit so new items stand out, and clear when the user leaves the tab.
-- **Header bell:** A small red dot appears on the bell icon in the tab header while the user has any notification with `is_read = false`. It clears as soon as the Notifications tab marks everything read (the screen signals the hook via `notifyNotificationsRead`), updates live through realtime inserts/updates and is rechecked on every navigation and when the app returns to the foreground (realtime can't deliver filtered deletes).
+The chat also shows when another person is typing. Long-press a message to react, reply, copy, forward, pin, or delete it:
 
-## Relevant Files
+- Reply keeps a reference to the original message. If that message is not loaded, the quote says it is unavailable.
+- Each person can add one reaction per message. Choosing it again removes it.
+- One message can be pinned at a time, with a banner under the header.
+- Forward sends the text to another active conversation.
+- **Delete for me** hides a message only for you. The sender can also delete it for everyone.
 
-| File | Role |
+## Sent, delivered, and seen
+
+The latest outgoing message can show **Sent**, **Delivered**, or **Seen**. In groups, the label can include how many members received or saw it. These labels also apply to shared activities and posts.
+
+Delivery means another member's app has acknowledged the message. Seen means the chat was open through that message; it does not prove someone read every word.
+
+The app marks incoming messages as read when the chat is open in the foreground and the user is at the bottom. New messages stay unread while the user is looking at older history or has the app in the background. Opening the latest messages clears earlier unread messages in that conversation too.
+
+Read progress is saved per account and chat, so it carries across devices. Your own messages and messages from before you joined the chat do not add to your unread count. The server uses actual message IDs to update progress; an older request cannot move it backwards.
+
+## Refresh, archived chats, and errors
+
+The chat list and open conversation listen for changes. They also reload when reopened, when the app returns to the foreground, and after reconnecting. A check every 30 seconds while open catches updates that may have been missed.
+
+Failed refreshes keep the loaded content and show Retry. Changing accounts clears old requests so another person's messages cannot appear. Shared content is loaded using the viewer's permissions; deleted or private content shows as unavailable.
+
+Archived activity chats keep their history but do not allow new messages. Deleting a conversation hides it only for your account. A newer message can bring it back. [Muting](notification-settings.md) controls push notifications separately from read status.
+
+## Notifications
+
+Follow and activity-join requests have Accept and Reject controls. Other updates show a message and time. Opening Notifications marks the listed unread items as read, including arrivals while the page is open. Blue dots stay visible during that visit so those items are easy to spot, then clear when the user leaves.
+
+The header bell has a red dot while unread notifications exist. It updates after reads and live changes, and checks again during navigation or when the app reopens.
+
+## Problems we ran into
+
+Conversation names originally showed as “Rollin' User” because a profile lookup assumed a database relationship that did not exist. We now load the needed profiles separately. Profile photos also used to stay cached after an upload; unique image paths fix that.
+
+Accepted and rejected requests once reappeared because handling them only marked them as read. Request decisions need to update the request itself as well as its notification.
+
+Loading history needs a consistent order. We use the saved timestamp and message ID together so messages with the same time are not skipped. Sending, live updates, and reconnects can return the same message, so the app keeps one copy per ID.
+
+## Supabase setup
+
+Check the shared project's setup before applying these files to a new environment:
+
+| File in `supabase/migrations/` | Adds |
 |---|---|
-| `app/(tabs)/chats.tsx` | Displays the user's direct and activity-group conversations |
-| `app/chat/[id].tsx` | Loads a conversation, sends messages, and renders incoming real-time messages |
-| `app/(tabs)/notifications.tsx` | Loads notifications and handles follow and activity-join request decisions |
-| `components/chats/ChatCards.tsx` | Renders a conversation preview in the chat list |
-| `components/chats/ConversationHeader.tsx` | Displays the conversation title, avatar, and back navigation |
-| `components/chats/MessageBubble.tsx` | Renders sent and received message bubbles |
-| `components/chats/MessageInput.tsx` | Provides the message composer and send action |
-| `components/notification-row.tsx` | Renders a standard read or unread notification |
-| `components/follow-request-row.tsx` | Renders follow-request accept and reject actions |
-| `components/activity-join-request-row.tsx` | Renders activity-join request accept and reject actions |
-| `hooks/use-conversations.ts` | Refreshes conversation summaries, unread counts, archives, and per-user deletion |
-| `hooks/use-chat-conversation.ts` | Loads message history, catches up after reconnect, sends messages, and acknowledges reads |
-| `services/messaging-service.ts` | Authenticated chat queries, shared-content previews, subscriptions, and read/write requests |
-| `lib/messaging.ts` | Message ordering, deduplication, preview text, and read-label formatting |
-| `hooks/use-notification-realtime.ts` | Subscribes to new notifications for the signed-in user |
-| `hooks/use-unread-notifications.ts` | Tracks whether the signed-in user has unread notifications, for the header bell's red dot |
-| `services/ride-notifications-service.ts` | Configures and sends local notifications used by live rides |
+| `20261027130000_conversation_archive_delete.sql` | Archived chats and per-user conversation deletion |
+| `20261029120000_chat_read_status.sql` | Read progress, conversation summaries, and message-history functions |
+| `20261030120000_reopen_deleted_conversations.sql` | Brings a hidden conversation back when a newer message arrives |
+| `20261103130000_chat_delivery_status.sql` | Delivery progress and acknowledgements |
 
-## Live conversations and read status (Sprint 6)
+The read-status and delivery files depend on the existing login-email verification functions. Run complete files in the SQL Editor and confirm success before testing. The read-status script can be rerun safely and adds the chat tables to Realtime when that publication exists. It does not replace the existing chat membership rules.
 
-The active and archived conversation lists show the latest message preview, its timestamp,
-and the number of unread incoming messages. Newest conversations move to the top. Shared
-activities and posts have readable previews even when their message content is empty.
-Unread counts above 99 display as `99+`.
+Some chat actions were created directly in the Supabase dashboard. The `message_reactions`, `conversation_pins`, and `hidden_chat_messages` tables, message reply/deletion columns, and `pin_chat_message`, `unpin_chat_message`, and `delete_chat_message` functions do not yet have a migration in this repository. Export their definitions from the existing project before trying to recreate them elsewhere.
 
-Focused chat screens subscribe to messages, conversation membership, archive state,
-per-user deletions, and read positions. Changes trigger a short debounced refresh. The
-screens also refresh on focus, foregrounding, and reconnect, with a 30-second foreground
-fallback for missed events (including filtered deletes). Silent refreshes keep existing
-content visible; failures show a Retry action instead of pretending the list is empty.
-Subscriptions, timers, and pending reads are cleaned up when leaving the screen or
-switching accounts.
+Chat pushes use the `notify-message` Edge Function and device push tokens. See [Notification Settings](notification-settings.md) for that setup. No extra secret is needed just for read or delivery status.
 
-### Read behavior
+## Main files
 
-- Read position belongs to the account and conversation and persists across devices.
-- Opening a chat at its latest messages acknowledges everything through that displayed
-  message. It does not require scrolling through every earlier message in the history.
-- Incoming messages are acknowledged while the chat is focused, the app is in the
-  foreground, and the user is at the bottom. Scrolling through older history does not
-  automatically acknowledge new messages arriving below it.
-- The server accepts a real message ID, looks up its timestamp, and moves the read
-  position forward atomically. Device clocks and older in-flight requests cannot rewind it.
-- Unread counts exclude the user's own messages and messages sent before their current
-  conversation membership began. Existing incoming history after joining initially counts
-  as unread until the conversation is opened; no historical reads are fabricated.
-- Sent messages display **Sent**, then **Read** for a direct chat or **Read by N** for a
-  group. Read means the recipient opened the conversation through that message; it is
-  not proof they read every word. These labels also apply to shared activities/posts.
-- Only current, email-verified conversation members can see its read positions. Only the
-  authenticated caller's position can be advanced. Leaving removes that membership's
-  read state.
+- `app/(tabs)/chats.tsx` and `components/chats/ChatCards.tsx`: the conversation list.
+- `app/chat/[id].tsx`: the open conversation.
+- `hooks/use-conversations.ts`: previews, counts, archives, and deletion.
+- `hooks/use-chat-conversation.ts`: history, sending, and read/delivery progress.
+- `services/messaging-service.ts` and `lib/messaging.ts`: database requests and message helpers.
+- `hooks/use-chat-actions.ts` and `services/chat-actions-service.ts`: reactions, replies, pins, and message deletion.
+- `app/(tabs)/notifications.tsx`: notification list and request decisions.
+- `hooks/use-unread-notifications.ts`: the header bell's unread dot.
 
-### History, sending, and errors
+## Testing
 
-The newest 50 messages load first, with **Load older messages** for earlier pages.
-Paging uses the timestamp and message ID together, including PostgreSQL microseconds,
-so equal timestamps do not drop messages. Reconnect catches up through every newer
-page. Messages from the send response and subsequent Realtime refreshes deduplicate by ID.
-Older-history loading preserves the scroll position instead of forcing it to the bottom.
-Date separators distinguish messages sent on different days.
-
-The chat adjusts for the keyboard on both Android and iOS. Message history shrinks
-while the composer stays above the keyboard; the extra bottom safe-area spacing is
-used only when the keyboard is closed. When already viewing the newest messages,
-the history stays at the bottom as the keyboard opens or the composer grows.
-
-The composer blocks duplicate taps while sending. Text clears only after a successful
-database response and stays available for retry after failure. A successful send appears
-without waiting for the Realtime echo; push-notification delivery does not determine
-whether the message was sent. As with other network writes, an ambiguous connection
-failure can require checking the history before retrying to avoid sending the same text
-twice. This is not an offline send queue.
-
-Archived group chats remain available for history, with the composer hidden. Deletion
-still hides the conversation only for the current user. A failed deletion leaves it in
-the list and shows an error. Muting still controls notifications separately from read state.
-
-Shared-content lookups continue to use the caller's normal Supabase permissions. If the
-shared activity or post is unavailable, the message displays an unavailable-content notice
-instead of inventing a working preview.
-
-### One-time Supabase setup
-
-Apply `supabase/migrations/20261029120000_chat_read_status.sql` **before running this
-updated chat UI**. It depends on the existing email-login verification functions and the
-archive/delete schema from `20261027130000_conversation_archive_delete.sql`.
-
-1. Open the correct Rollin Supabase project's **SQL Editor** and create a new query.
-2. Paste the complete contents of `20261029120000_chat_read_status.sql` and run it.
-3. Confirm the query succeeds. The script is transactional and can be run again safely.
-4. Restart the app and test with two signed-in accounts.
-
-The script creates `conversation_read_state` with RLS enabled, three RPC functions,
-and a message-order index. It adds the five chat tables to `supabase_realtime` if that
-publication exists and the tables are not already included. It preserves existing chat
-access policies and requires verified email-login sessions for the new operations.
-No new secret, Edge Function deployment, paid service, or dependency is required.
-If the publication does not exist in a non-Supabase test database, the application still
-has its polling fallback. Do not run every pending migration blindly just for this feature.
-
-### Message actions and chat search
-
-Long-pressing a message opens actions: react, reply, copy, forward, pin, and delete. They
-sit on top of the conversation layer above rather than replacing it. Reads and sends still
-go through `useChatConversation` and `messaging-service`.
-
-- **Reply:** `sendChatMessage` stores `reply_to_message_id`. The quote resolves from loaded
-  history, and shows "Original message unavailable" if the original isn't loaded.
-- **Delete:** "for me" hides the message through `hidden_chat_messages`. "For everyone" (sender
-  only) sets `messages.deleted_for_everyone`. Both go through the `delete_chat_message` RPC.
-- **Pin:** one pinned message per conversation (`conversation_pins`, through
-  `pin_chat_message` / `unpin_chat_message`), shown as a banner under the header.
-- **Reactions:** one per person per message (`message_reactions`). Picking the same
-  reaction again removes it.
-- **Forward:** sends the text as a new message to another active conversation.
-- **Display:** sender avatars on each run of messages, Today/Yesterday date dividers, and a
-  swipe-left gesture that reveals timestamps. The read receipt shows once, under your most
-  recent message.
-- **Header:** the title and avatar come from `loadChatInfo`, so a chat opened from a
-  notification still has a header.
-
-The Chats tab search filters existing conversations and, after two characters, also finds
-people to start a new direct message with.
-
-Deleting a conversation hides it only until a newer message arrives
-(`20261030120000_reopen_deleted_conversations.sql`). Deleting it again refreshes `deleted_at`.
-
-Relevant files: `hooks/use-chat-actions.ts`, `services/chat-actions-service.ts`,
-`components/chats/ForwardSheet.tsx`, `components/chats/MessageBubble.tsx`.
-
-> The `message_reactions`, `conversation_pins`, and `hidden_chat_messages` tables, the
-> `messages.reply_to_message_id` / `deleted_for_everyone` columns, and the `pin_chat_message`,
-> `unpin_chat_message`, and `delete_chat_message` RPCs were created in the Supabase dashboard
-> and have no migration in this repo yet. Export them with `supabase db pull` before setting
-> up a new environment.
-
-### Validation
-
-Automated tests:
-
-```sh
+```powershell
 node --test scripts/test-messaging.cjs scripts/test-messaging-db.cjs
 ```
 
-The database tests use isolated PGlite, never the live Supabase project. If it is not
-installed locally, install it outside the app's dependencies:
+The database tests use a temporary local database, not Supabase. If PGlite is missing, install it outside the app's dependencies:
 
-```sh
+```powershell
 npm install --prefix .expo/login-security-validation --no-package-lock --ignore-scripts @electric-sql/pglite@0.5.9
 ```
 
-Two-account acceptance checks after applying the SQL:
+Use two accounts on separate devices or emulators. Send messages while the other account is on the chat list, then open the conversation and check the count and Seen status. Repeat in a group. Check messages arriving while the recipient is in the background or reading older history.
 
-1. Keep B on the Chats tab. Send messages from A. B's preview, time, list order, and count
-   should update without pulling to refresh. A's own message does not add to A's count.
-2. Open the conversation on B. Its unread count clears and A sees Read. Repeat in a group
-   and check Read by N.
-3. Background B or scroll it into older history. Send another message from A. It should
-   remain unread until B returns to the foreground and reaches the bottom.
-4. Create more than 50 messages. Load older pages, return from the background after a
-   burst of messages, and check that history has no missing or duplicate messages.
-5. Disable networking and try sending. The text should remain with a visible error.
-   Restore networking and retry. Also test a failed history refresh and list refresh.
-6. Archive a group and delete a conversation for B. Verify archive/history and deletion
-   behavior, and that A's conversation remains. Sign out and switch accounts; the other
-   account's cached messages must not appear.
+Test more than 50 messages, a failed send, Retry, returning after a lost connection, an archived group, and deleting a conversation for only one user. Also check keyboard placement, message actions, shared private content, and switching accounts.

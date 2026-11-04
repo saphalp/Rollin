@@ -1,55 +1,36 @@
-# Design System
+# Design and Shared Components
 
-## Design Goals
+Rollin uses blue for its main actions, rounded cards, and consistent spacing. Screens should feel like parts of the same app, and the next action should be easy to find.
 
-Rollin’s interface is intended to appeal to modern-day college students.
+Use the shared colors in `constants/theme.ts` instead of adding a new color to each screen. Check both light and dark mode when changing a component.
 
-The interface should:
+## Colors
 
-- Use consistent colors and spacing
-- Make actions easy to identify
-- Provide clear states
-- Reuse existing components before introducing new visual patterns
-- Remain usable with different screen sizes
+These are some of the main light-theme colors. The theme file is the source to check when they change.
 
-## Color Palette
-
-The shared color definitions are stored in `constants/theme.ts`.
-
-Primary colors include:
-
-| Purpose | Color |
+| Use | Color |
 |---|---|
-| Primary electric blue | `#0058be` |
-| Primary container blue | `#2170e4` |
-| Main background | `#f0f3fa` |
-| Surface | `#f9f9ff` |
-| Primary text | `#191b23` |
-| Secondary text and icons | `#424754` |
-| Warm amber background | `#fea619` |
-| Warm amber text | `#855300` |
-| Error | `#ba1a1a` |
-| Verified badge | `#10B981` |
+| Main blue | `#0058be` |
+| Blue background for main controls | `#2170e4` |
+| Page background | `#f0f3fa` |
+| Card background | `#f9f9ff` |
+| Main text | `#191b23` |
+| Supporting text and icons | `#424754` |
+| Amber background | `#fea619` |
+| Amber text | `#855300` |
+| Error text | `#ba1a1a` |
 
-## Layout and Spacing
+## Layout and text
 
-Screens generally use:
+Keep related controls together and leave enough space to tap them. Pages should fit around the status bar, camera cutout, and bottom navigation. Forms need to stay usable when the keyboard opens.
 
-- Safe-area padding
-- Consistent horizontal margins
-- Rounded cards
-- Grouped sections
-- Clear separation between primary and supporting information
-- Scrollable layouts for content that may exceed screen height
+Buttons must show their full labels. Do not cut **Next** or **Back** down to an ellipsis. Check larger phone text settings as well as the default size. Loading, empty, and error messages should say what is happening and give the user a useful next step.
 
-Forms should remain scrollable while the keyboard is open.
+## Back buttons
 
+Use `BackButton` from `components/ui/back-button.tsx`. It shows the shared blue chevron and goes back to the previous page. If there is no page to return to, it uses `fallbackHref`, which defaults to the main tabs.
 
-## Back Navigation
-
-Every screen uses the shared `BackButton` (`components/ui/back-button.tsx`): a blue (`tint`) chevron with no text label. Don't hand-roll a back button or rely on the native header's default back button.
-
-- Custom headers render `<BackButton />`. By default it goes back, or replaces to `fallbackHref` (default `/(tabs)`) when there is no history; pass `onPress` to run your own back logic.
-- Native Stack headers set `headerBackVisible: false` and `headerLeft: () => <BackButton />` so iOS doesn't show a "Back" label and Android doesn't show its arrow.
-- Over photos or maps, use `variant="floating"` for a round card background that stays readable on the image.
-- To center a header title, size the empty spacer on the right with `BACK_BUTTON_SIZE`.
+- In a custom header, render `<BackButton />`. Pass `onPress` if the screen needs its own back action.
+- In a Stack header, set `headerBackVisible: false` and use `headerLeft: () => <BackButton />`.
+- Over a photo or map, use `variant="floating"` so the button has a readable background.
+- Use `BACK_BUTTON_SIZE` for the spacer on the other side when centering a header title.

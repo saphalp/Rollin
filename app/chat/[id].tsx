@@ -3,21 +3,37 @@ import ForwardSheet from '@/components/chats/ForwardSheet';
 import MessageBubble from '@/components/chats/MessageBubble';
 import MessageInput from '@/components/chats/MessageInput';
 import SharedContentBubble from '@/components/chats/SharedContentBubble';
+import TypingIndicator from '@/components/chats/TypingIndicator';
 import { ChatError } from '@/components/chats/chat-error';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
 import { Colors } from '@/constants/theme';
+import { useAuthContext } from '@/hooks/use-auth-context';
 import { useChatActions } from '@/hooks/use-chat-actions';
 import { useChatConversation } from '@/hooks/use-chat-conversation';
-import { useAuthContext } from '@/hooks/use-auth-context';
-import { formatMessageDay, messageDay, messageReadLabel } from '@/lib/messaging';
+import { formatMessageDay, messageDay, messageStatus } from '@/lib/messaging';
 import { supabase } from '@/lib/supabase';
-import type { ChatMessage } from '@/services/messaging-service';
+import { subscribeToTyping, type ChatMessage, type TypingPayload } from '@/services/messaging-service';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, AppState, Keyboard, KeyboardAvoidingView, PanResponder, Platform, Pressable,
-  ScrollView, StyleSheet, Text, View, useColorScheme, type ScrollViewInstance } from 'react-native';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  AppState,
+  Keyboard,
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  type ScrollViewInstance,
+} from 'react-native';
 
 export default function ChatConversationScreen() {
   const params = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
@@ -35,6 +51,8 @@ function previewText(message: ChatMessage, deleted: boolean) {
 
 function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?: string }) {
   const colors = Colors[useColorScheme() ?? 'light'];
+  const { profile } = useAuthContext();
+  const myName = profile?.full_name?.trim() || undefined;
   const chat = useChatConversation(id);
   const actions = useChatActions(id, chat.userId, chat.messages.map(message => message.id));
   const [input, setInput] = useState('');
@@ -43,11 +61,19 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
   const [muted, setMuted] = useState(false);
   const [muteBusy, setMuteBusy] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
   const scrollRef = useRef<ScrollViewInstance>(null);
   const atBottom = useRef(true);
   const latest = chat.messages.at(-1);
   const latestRef = useRef(chat);
   useEffect(() => { latestRef.current = chat; }, [chat]);
+
+  const typingTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const stopTypingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingSubscriptionRef = useRef<{
+    sendTyping: (payload: TypingPayload) => void;
+    unsubscribe: () => void;
+  } | null>(null);
 
   const visibleMessages = useMemo(
     () => chat.messages.filter(message => !actions.hiddenIds.has(message.id)),
@@ -55,7 +81,7 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
   const messageById = useMemo(() => new Map(chat.messages.map(message => [message.id, message])), [chat.messages]);
   const isDeleted = (message: ChatMessage) => !!message.deleted_for_everyone || actions.deletedIds.has(message.id);
   const pinnedMessage = visibleMessages.find(message => message.id === actions.pinnedId && !isDeleted(message));
-  // Read receipts show once, under this user's most recent message.
+  // Status receipts show once, under this user's most recent message.
   const lastOwnId = [...visibleMessages].reverse().find(message => message.sender_id === chat.userId)?.id;
 
   // Swipe left to reveal timestamps in the right gutter, then spring back.
@@ -92,6 +118,105 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
     return () => subscription.remove();
   }, []);
 
+  // Subscribe to typing broadcasts
+  useEffect(() => {
+    if (!id || !chat.userId) return;
+
+    const timeouts = typingTimeouts.current;
+
+    const sub = subscribeToTyping(id, (payload: TypingPayload) => {
+      if (!payload || payload.userId === chat.userId) return;
+
+      if (payload.isTyping) {
+        const existing = timeouts.get(payload.userId);
+        if (existing) clearTimeout(existing);
+
+        const timer = setTimeout(() => {
+          timeouts.delete(payload.userId);
+          setTypingUsers(prev => {
+            if (!prev.has(payload.userId)) return prev;
+            const next = new Map(prev);
+            next.delete(payload.userId);
+            return next;
+          });
+        }, 4000);
+        timeouts.set(payload.userId, timer);
+
+        const displayName = payload.userName?.trim() || 'Someone';
+        setTypingUsers(prev => {
+          if (prev.get(payload.userId) === displayName) return prev;
+          const next = new Map(prev);
+          next.set(payload.userId, displayName);
+          return next;
+        });
+      } else {
+        const existing = timeouts.get(payload.userId);
+        if (existing) {
+          clearTimeout(existing);
+          timeouts.delete(payload.userId);
+        }
+        setTypingUsers(prev => {
+          if (!prev.has(payload.userId)) return prev;
+          const next = new Map(prev);
+          next.delete(payload.userId);
+          return next;
+        });
+      }
+    });
+
+    typingSubscriptionRef.current = sub;
+
+    return () => {
+      sub.unsubscribe();
+      typingSubscriptionRef.current = null;
+      timeouts.forEach(timer => clearTimeout(timer));
+      timeouts.clear();
+      setTypingUsers(new Map());
+    };
+  }, [id, chat.userId]);
+
+  const broadcastTyping = useCallback((isTyping: boolean) => {
+    if (!chat.userId || !typingSubscriptionRef.current) return;
+    typingSubscriptionRef.current.sendTyping({
+      userId: chat.userId,
+      userName: myName,
+      isTyping,
+    });
+  }, [chat.userId, myName]);
+
+  const handleInputChange = useCallback((text: string) => {
+    setInput(text);
+    if (!chat.userId) return;
+
+    if (text.trim().length > 0) {
+      broadcastTyping(true);
+      if (stopTypingTimeout.current) clearTimeout(stopTypingTimeout.current);
+      stopTypingTimeout.current = setTimeout(() => {
+        broadcastTyping(false);
+      }, 2500);
+    } else {
+      if (stopTypingTimeout.current) clearTimeout(stopTypingTimeout.current);
+      broadcastTyping(false);
+    }
+  }, [chat.userId, broadcastTyping]);
+
+  const handleBlur = useCallback(() => {
+    if (stopTypingTimeout.current) clearTimeout(stopTypingTimeout.current);
+    broadcastTyping(false);
+  }, [broadcastTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (stopTypingTimeout.current) clearTimeout(stopTypingTimeout.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typingUsers.size > 0 && atBottom.current) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [typingUsers.size]);
+
   async function toggleMute() {
     if (!chat.userId || muteBusy) return;
     setMuteBusy(true);
@@ -102,12 +227,16 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
     else setMuted(!muted);
     setMuteBusy(false);
   }
+
   function markVisibleRead() {
     if (atBottom.current && latest) void chat.markRead(latest.id);
   }
+
   async function send() {
     const text = input.trim();
     const replyId = replyingTo?.id ?? null;
+    if (stopTypingTimeout.current) clearTimeout(stopTypingTimeout.current);
+    broadcastTyping(false);
     if (await chat.send(text, replyId)) {
       // Keep anything typed while the send was in flight.
       setInput(current => current.trim() === text ? '' : current);
@@ -116,12 +245,14 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
       scrollRef.current?.scrollToEnd({ animated: true });
     }
   }
+
   function loadOlder() { atBottom.current = false; void chat.loadOlder(); }
 
   async function runAction(work: () => Promise<void>, title: string) {
     try { await work(); }
     catch (error) { Alert.alert(title, error instanceof Error ? error.message : 'Please try again.'); }
   }
+
   function confirmDelete(message: ChatMessage) {
     const fromMe = message.sender_id === chat.userId;
     const remove = (forEveryone: boolean) => {
@@ -136,133 +267,194 @@ function Conversation({ id, name, avatar }: { id: string; name?: string; avatar?
   }
 
   const headerName = chat.info?.title ?? name ?? 'Chat';
-  return <AppView style={styles.container}>
-    {/* Include the custom header so keyboard measurements start at the screen origin. */}
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-    <ConversationHeader name={headerName} avatar={{ uri: chat.info?.avatarUri ?? avatar ?? '' }} muted={muted} onToggleMute={toggleMute}
-      onPressProfile={chat.info?.otherUserId ? () => router.push(`/profile/${chat.info!.otherUserId}`)
-        : chat.info?.activity_id ? () => router.push(`/activity/${chat.info!.activity_id}`) : undefined} />
-      {pinnedMessage && (
-        <View style={[styles.pinBanner, { backgroundColor: colors.surfaceContainerHigh, borderBottomColor: colors.outlineVariant }]}>
-          <Ionicons name="pin" size={17} color={colors.tint} />
-          <View style={styles.container}>
-            <Text style={[styles.pinTitle, { color: colors.tint }]}>Pinned message</Text>
-            <Text numberOfLines={1} style={{ color: colors.text }}>{previewText(pinnedMessage, false)}</Text>
-          </View>
-          <Pressable onPress={() => { void runAction(() => actions.togglePin(pinnedMessage.id), 'Could not change pin'); }}
-            accessibilityLabel="Unpin message" hitSlop={8}>
-            <Ionicons name="close" size={20} color={colors.icon} />
-          </Pressable>
-        </View>
-      )}
-      <ChatError message={chat.error} onRetry={chat.refresh} />
-      <ChatError message={chat.readError} onRetry={markVisibleRead} />
-      {chat.loading ? <ActivityIndicator color={colors.tint} style={styles.container} /> :
-        <ScrollView ref={scrollRef} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.messages}
-          keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-          onLayout={() => {
-            if (atBottom.current) scrollRef.current?.scrollToEnd({ animated: false });
-          }}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }} scrollEventThrottle={100}
-          onContentSizeChange={() => {
-            if (atBottom.current) { scrollRef.current?.scrollToEnd({ animated: false }); markVisibleRead(); }
-          }}
-          onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
-            atBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40;
-            markVisibleRead();
-          }}>
-          <ChatError message={chat.historyError} onRetry={loadOlder} />
-          {chat.loaded && chat.hasOlder && chat.messages.length > 0 && (
-            <Pressable onPress={loadOlder} disabled={chat.loadingOlder} accessibilityRole="button" style={styles.historyButton}>
-              <AppText style={{ color: colors.tint, fontWeight: '700' }}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</AppText>
-            </Pressable>
-          )}
-          {chat.loaded && !visibleMessages.length && <AppText style={styles.notice}>No messages yet. Say hello!</AppText>}
-          <Animated.View style={{ transform: [{ translateX: swipeOffset }] }} {...swipeResponder.panHandlers}>
-          {visibleMessages.map((message, index) => {
-            const fromMe = message.sender_id === chat.userId;
-            const senderName = !fromMe && chat.info?.type === 'group' ? message.senderName : undefined;
-            const onPressSender = !fromMe ? () => router.push(`/profile/${message.sender_id}`) : undefined;
-            const time = new Date(message.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            const read = message.id === lastOwnId && chat.userId && chat.info
-              ? messageReadLabel(message, chat.userId, chat.info.type, chat.info.receipts) : undefined;
-            const previous = visibleMessages[index - 1];
-            const next = visibleMessages[index + 1];
-            const showDate = !previous || messageDay(previous.created_at) !== messageDay(message.created_at);
-            // Show the sender's avatar on the last message of each run from them.
-            const showAvatar = !fromMe && (!next || next.sender_id !== message.sender_id
-              || messageDay(next.created_at) !== messageDay(message.created_at));
-            const deleted = isDeleted(message);
-            const messageReactions = actions.reactions.filter(r => r.message_id === message.id);
-            const reply = message.reply_to_message_id ? messageById.get(message.reply_to_message_id) : undefined;
+  const typingNames = [...typingUsers.values()];
+  const typingSubtitle = typingNames.length > 0
+    ? (chat.info?.type === 'group' ? `${typingNames.join(', ')} is typing…` : 'typing…')
+    : undefined;
 
-            let bubble;
-            if (deleted) {
-              bubble = <View style={[styles.deletedRow, { justifyContent: fromMe ? 'flex-end' : 'flex-start' }]}>
-                <Text style={[styles.deletedText, { color: colors.icon, borderColor: colors.outlineVariant }]}>This message was deleted</Text>
-              </View>;
-            } else if (message.type === 'activity' && message.sharedActivity) {
-              bubble = <SharedContentBubble kind="activity" fromMe={fromMe} time={time} showTime={false} senderName={senderName}
-                onPressSender={onPressSender} title={message.sharedActivity.title} hostName={message.sharedActivity.hostName}
-                imageUrl={message.sharedActivity.imageUrl} onPress={() => router.push(`/activity/${message.sharedActivity!.id}`)} />;
-            } else if (message.type === 'post' && message.sharedPost) {
-              bubble = <SharedContentBubble kind="post" fromMe={fromMe} time={time} showTime={false} senderName={senderName}
-                onPressSender={onPressSender} posterName={message.sharedPost.posterName} caption={message.sharedPost.caption}
-                imageUrl={message.sharedPost.imageUrl} onPress={() => router.push(`/post/${message.sharedPost!.id}`)} />;
-            } else {
-              const text = message.type === 'text' ? message.content ?? '' : 'This shared content is no longer available.';
-              bubble = <MessageBubble text={text} fromMe={fromMe} time={time} showTime={false} senderName={senderName}
-                avatarUri={message.senderAvatar} showAvatar={showAvatar} onPressSender={onPressSender}
-                replyPreview={message.reply_to_message_id ? {
-                  senderName: reply?.sender_id === chat.userId ? 'You' : reply?.senderName ?? "Rollin' User",
-                  text: reply ? previewText(reply, isDeleted(reply)) : 'Original message unavailable',
-                } : undefined}
-                onReply={() => setReplyingTo(message)}
-                onForward={() => setForwardText(text)}
-                onPin={() => { void runAction(() => actions.togglePin(message.id), 'Could not change pin'); }}
-                isPinned={actions.pinnedId === message.id}
-                onDelete={() => confirmDelete(message)}
-                reactions={[...new Set(messageReactions.map(r => r.emoji))].map(emoji => ({
-                  emoji,
-                  count: messageReactions.filter(r => r.emoji === emoji).length,
-                  mine: messageReactions.some(r => r.emoji === emoji && r.user_id === chat.userId),
-                }))}
-                onReact={emoji => { void runAction(() => actions.react(message.id, emoji), 'Reaction failed'); }} />;
-            }
-            return <Fragment key={message.id}>
-              {showDate && <View style={styles.dateDivider}>
-                <Text style={[styles.dateLabel, { color: colors.icon, backgroundColor: colors.surfaceContainerHigh }]}>
-                  {formatMessageDay(message.created_at)}
-                </Text>
-              </View>}
-              <View style={styles.swipeRow}>
-                <Text style={[styles.swipeTime, { color: colors.icon }]}>{time}</Text>
-                {bubble}
-              </View>
-              {read && <AppText style={[styles.receipt, { color: colors.icon }]}>{read}</AppText>}
-            </Fragment>;
-          })}
-          </Animated.View>
-        </ScrollView>}
-      <ChatError message={chat.sendError} onRetry={() => void send()} />
-      {chat.info?.is_archived ? <AppText style={styles.notice}>This conversation is archived. You can still read its history.</AppText> :
-        <MessageInput value={input} onChangeText={setInput} onSend={() => void send()}
-          keyboardVisible={keyboardVisible}
-          disabled={!chat.loaded || !!chat.error || chat.sending} sending={chat.sending}
-          replyingTo={replyingTo ? {
-            senderName: replyingTo.sender_id === chat.userId ? 'yourself' : replyingTo.senderName ?? headerName,
-            text: previewText(replyingTo, isDeleted(replyingTo)),
-          } : null}
-          onCancelReply={() => setReplyingTo(null)} />}
-    </KeyboardAvoidingView>
-    <ForwardSheet text={forwardText} userId={chat.userId} onClose={() => setForwardText(null)} />
-  </AppView>;
+  return (
+    <AppView style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <ConversationHeader
+          name={headerName}
+          avatar={{ uri: chat.info?.avatarUri ?? avatar ?? '' }}
+          subtitle={typingSubtitle}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onPressProfile={chat.info?.otherUserId ? () => router.push(`/profile/${chat.info!.otherUserId}`)
+            : chat.info?.activity_id ? () => router.push(`/activity/${chat.info!.activity_id}`) : undefined}
+        />
+        {pinnedMessage && (
+          <View style={[styles.pinBanner, { backgroundColor: colors.surfaceContainerHigh, borderBottomColor: colors.outlineVariant }]}>
+            <Ionicons name="pin" size={17} color={colors.tint} />
+            <View style={styles.container}>
+              <Text style={[styles.pinTitle, { color: colors.tint }]}>Pinned message</Text>
+              <Text numberOfLines={1} style={{ color: colors.text }}>{previewText(pinnedMessage, false)}</Text>
+            </View>
+            <Pressable onPress={() => { void runAction(() => actions.togglePin(pinnedMessage.id), 'Could not change pin'); }}
+              accessibilityLabel="Unpin message" hitSlop={8}>
+              <Ionicons name="close" size={20} color={colors.icon} />
+            </Pressable>
+          </View>
+        )}
+        <ChatError message={chat.error} onRetry={chat.refresh} />
+        <ChatError message={chat.readError} onRetry={markVisibleRead} />
+        {chat.loading ? <ActivityIndicator color={colors.tint} style={styles.container} /> :
+          <ScrollView ref={scrollRef} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.messages}
+            keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+            onLayout={() => {
+              if (atBottom.current) scrollRef.current?.scrollToEnd({ animated: false });
+            }}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }} scrollEventThrottle={100}
+            onContentSizeChange={() => {
+              if (atBottom.current) { scrollRef.current?.scrollToEnd({ animated: false }); markVisibleRead(); }
+            }}
+            onScroll={({ nativeEvent: { contentOffset, contentSize, layoutMeasurement } }) => {
+              atBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40;
+              markVisibleRead();
+            }}>
+            <ChatError message={chat.historyError} onRetry={loadOlder} />
+            {chat.loaded && chat.hasOlder && chat.messages.length > 0 && (
+              <Pressable onPress={loadOlder} disabled={chat.loadingOlder} accessibilityRole="button" style={styles.historyButton}>
+                <AppText style={{ color: colors.tint, fontWeight: '700' }}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</AppText>
+              </Pressable>
+            )}
+            {chat.loaded && !visibleMessages.length && <AppText style={styles.notice}>No messages yet. Say hello!</AppText>}
+            <Animated.View style={{ transform: [{ translateX: swipeOffset }] }} {...swipeResponder.panHandlers}>
+              {visibleMessages.map((message, index) => {
+                const fromMe = message.sender_id === chat.userId;
+                const senderName = !fromMe && chat.info?.type === 'group' ? message.senderName : undefined;
+                const onPressSender = !fromMe ? () => router.push(`/profile/${message.sender_id}`) : undefined;
+                const time = new Date(message.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                const status = message.id === lastOwnId && chat.userId && chat.info
+                  ? messageStatus(message, chat.userId, chat.info.type, chat.info.receipts, chat.info.deliveries)
+                  : undefined;
+                const previous = visibleMessages[index - 1];
+                const next = visibleMessages[index + 1];
+                const showDate = !previous || messageDay(previous.created_at) !== messageDay(message.created_at);
+                const showAvatar = !fromMe && (!next || next.sender_id !== message.sender_id
+                  || messageDay(next.created_at) !== messageDay(message.created_at));
+                const deleted = isDeleted(message);
+                const messageReactions = actions.reactions.filter(r => r.message_id === message.id);
+                const reply = message.reply_to_message_id ? messageById.get(message.reply_to_message_id) : undefined;
+
+                let bubble;
+                if (deleted) {
+                  bubble = <View style={[styles.deletedRow, { justifyContent: fromMe ? 'flex-end' : 'flex-start' }]}>
+                    <Text style={[styles.deletedText, { color: colors.icon, borderColor: colors.outlineVariant }]}>This message was deleted</Text>
+                  </View>;
+                } else if (message.type === 'activity' && message.sharedActivity) {
+                  bubble = <SharedContentBubble kind="activity" fromMe={fromMe} time={time} showTime={false} senderName={senderName}
+                    onPressSender={onPressSender} title={message.sharedActivity.title} hostName={message.sharedActivity.hostName}
+                    imageUrl={message.sharedActivity.imageUrl} onPress={() => router.push(`/activity/${message.sharedActivity!.id}`)} />;
+                } else if (message.type === 'post' && message.sharedPost) {
+                  bubble = <SharedContentBubble kind="post" fromMe={fromMe} time={time} showTime={false} senderName={senderName}
+                    onPressSender={onPressSender} posterName={message.sharedPost.posterName} caption={message.sharedPost.caption}
+                    imageUrl={message.sharedPost.imageUrl} onPress={() => router.push(`/post/${message.sharedPost!.id}`)} />;
+                } else {
+                  const text = message.type === 'text' ? message.content ?? '' : 'This shared content is no longer available.';
+                  bubble = <MessageBubble text={text} fromMe={fromMe} time={time} showTime={false} senderName={senderName}
+                    avatarUri={message.senderAvatar} showAvatar={showAvatar} onPressSender={onPressSender}
+                    replyPreview={message.reply_to_message_id ? {
+                      senderName: reply?.sender_id === chat.userId ? 'You' : reply?.senderName ?? "Rollin' User",
+                      text: reply ? previewText(reply, isDeleted(reply)) : 'Original message unavailable',
+                    } : undefined}
+                    onReply={() => setReplyingTo(message)}
+                    onForward={() => setForwardText(text)}
+                    onPin={() => { void runAction(() => actions.togglePin(message.id), 'Could not change pin'); }}
+                    isPinned={actions.pinnedId === message.id}
+                    onDelete={() => confirmDelete(message)}
+                    reactions={[...new Set(messageReactions.map(r => r.emoji))].map(emoji => ({
+                      emoji,
+                      count: messageReactions.filter(r => r.emoji === emoji).length,
+                      mine: messageReactions.some(r => r.emoji === emoji && r.user_id === chat.userId),
+                    }))}
+                    onReact={emoji => { void runAction(() => actions.react(message.id, emoji), 'Reaction failed'); }} />;
+                }
+                return (
+                  <Fragment key={message.id}>
+                    {showDate && (
+                      <View style={styles.dateDivider}>
+                        <Text style={[styles.dateLabel, { color: colors.icon, backgroundColor: colors.surfaceContainerHigh }]}>
+                          {formatMessageDay(message.created_at)}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.swipeRow}>
+                      <Text style={[styles.swipeTime, { color: colors.icon }]}>{time}</Text>
+                      {bubble}
+                    </View>
+                    {status && (
+                      <View style={styles.receiptRow}>
+                        <Ionicons
+                          name={status.status === 'sent' ? 'checkmark' : 'checkmark-done'}
+                          size={14}
+                          color={status.status === 'seen' ? colors.tint : colors.icon}
+                        />
+                        <AppText
+                          style={[
+                            styles.receipt,
+                            { color: status.status === 'seen' ? colors.tint : colors.icon },
+                          ]}
+                        >
+                          {status.label}
+                        </AppText>
+                      </View>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </Animated.View>
+            {typingUsers.size > 0 && (
+              <TypingIndicator
+                userName={chat.info?.type === 'group' ? typingNames[0] : undefined}
+                isGroup={chat.info?.type === 'group'}
+              />
+            )}
+          </ScrollView>
+        }
+        <ChatError message={chat.sendError} onRetry={() => void send()} />
+        {chat.info?.is_archived ? (
+          <AppText style={styles.notice}>This conversation is archived. You can still read its history.</AppText>
+        ) : (
+          <MessageInput
+            value={input}
+            onChangeText={handleInputChange}
+            onBlur={handleBlur}
+            onSend={() => void send()}
+            keyboardVisible={keyboardVisible}
+            disabled={!chat.loaded || !!chat.error || chat.sending}
+            sending={chat.sending}
+            replyingTo={replyingTo ? {
+              senderName: replyingTo.sender_id === chat.userId ? 'yourself' : replyingTo.senderName ?? headerName,
+              text: previewText(replyingTo, isDeleted(replyingTo)),
+            } : null}
+            onCancelReply={() => setReplyingTo(null)}
+          />
+        )}
+      </KeyboardAvoidingView>
+      <ForwardSheet text={forwardText} userId={chat.userId} onClose={() => setForwardText(null)} />
+    </AppView>
+  );
 }
+
 const styles = StyleSheet.create({
-  container: { flex: 1 }, messages: { paddingVertical: 12, gap: 4 },
+  container: { flex: 1 },
+  messages: { paddingVertical: 12, gap: 4 },
   historyButton: { alignSelf: 'center', padding: 14 },
   notice: { textAlign: 'center', padding: 20 },
-  receipt: { alignSelf: 'flex-end', fontSize: 11, lineHeight: 14, paddingHorizontal: 16, marginTop: -2 },
+  receiptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 3,
+    paddingHorizontal: 16,
+    marginTop: -2,
+  },
+  receipt: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
   pinBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
   pinTitle: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
   deletedRow: { flexDirection: 'row', paddingHorizontal: 15, marginTop: 10 },
@@ -270,6 +462,5 @@ const styles = StyleSheet.create({
   dateDivider: { alignItems: 'center', paddingVertical: 12 },
   dateLabel: { fontSize: 12, fontWeight: '600', overflow: 'hidden', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 5 },
   swipeRow: { width: '100%', position: 'relative' },
-  // Sits past the right edge until the chat is swiped left.
   swipeTime: { position: 'absolute', right: -73, top: 0, bottom: 0, width: 68, textAlign: 'center', textAlignVertical: 'center', fontSize: 10, fontWeight: '500' },
 });

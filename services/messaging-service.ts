@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
-import { conversationPreview, type MessagePosition, type ReadPosition } from '@/lib/messaging';
+import { conversationPreview, type MessagePosition, type ReadPosition, type DeliveryPosition } from '@/lib/messaging';
 
 export type ConversationSummary = {
   id: string; type: 'direct' | 'group'; title: string; avatarUri: string;
@@ -17,7 +17,7 @@ export type ChatMessage = MessagePosition & {
 };
 export type ChatInfo = {
   type: 'direct' | 'group'; activity_id: string | null; is_archived: boolean;
-  otherUserId?: string; receipts: ReadPosition[];
+  otherUserId?: string; receipts: ReadPosition[]; deliveries: DeliveryPosition[];
   // Resolved here so a chat opened from a notification or deep link still has a header.
   title?: string; avatarUri?: string;
 };
@@ -28,7 +28,7 @@ export function notifyChatChanged() { listeners.forEach(listener => listener());
 export function subscribeToChats(onChange: () => void, conversationId?: string) {
   listeners.add(onChange);
   const channel = supabase.channel(`chats-${conversationId ?? 'list'}-${Math.random().toString(36).slice(2)}`);
-  for (const table of ['messages', 'conversations', 'conversation_participants', 'deleted_conversations', 'conversation_read_state']) {
+  for (const table of ['messages', 'conversations', 'conversation_participants', 'deleted_conversations', 'conversation_read_state', 'conversation_delivery_state']) {
     const filter = conversationId && table !== 'conversations' ? `conversation_id=eq.${conversationId}` : undefined;
     channel.on('postgres_changes', { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) }, onChange);
   }
@@ -73,6 +73,8 @@ export async function loadChatInfo(id: string, userId: string, signal: AbortSign
   const { data: receipts, error: readError } = await supabase.from('conversation_read_state')
     .select('user_id, last_read_at, last_read_message_id').eq('conversation_id', id).abortSignal(signal);
   if (readError) throw new Error('Could not load message read status. Please try again.');
+  const { data: deliveries } = await supabase.from('conversation_delivery_state')
+    .select('user_id, last_delivered_at, last_delivered_message_id').eq('conversation_id', id).abortSignal(signal);
   let otherUserId: string | undefined;
   if (data.type === 'direct') {
     const { data: other, error: otherError } = await supabase.from('conversation_participants').select('user_id')
@@ -91,7 +93,7 @@ export async function loadChatInfo(id: string, userId: string, signal: AbortSign
     title = activity?.title?.trim() || 'Activity chat';
     avatarUri = activity?.image_url || `https://picsum.photos/seed/${activity?.category || 'social'}/240/240`;
   }
-  return { ...data, otherUserId, receipts: receipts ?? [], title, avatarUri };
+  return { ...data, otherUserId, receipts: receipts ?? [], deliveries: deliveries ?? [], title, avatarUri };
 }
 
 export async function loadMessagePage(id: string, signal: AbortSignal, cursor?: MessagePosition, newer = false): Promise<ChatMessage[]> {
@@ -149,4 +151,50 @@ export async function sendChatMessage(conversationId: string, userId: string, co
   // The persisted message succeeds independently of push-notification delivery.
   void supabase.functions.invoke('notify-message', { body: { messageId: data.id } }).catch(() => {});
   return data as ChatMessage;
+}
+
+export async function markChatDelivered(conversationId: string, messageId: string) {
+  try {
+    const { error } = await supabase.rpc('mark_conversation_delivered', {
+      p_conversation_id: conversationId,
+      p_message_id: messageId,
+    });
+    if (!error) notifyChatChanged();
+  } catch {
+    // Deliveries fail silently without disrupting the chat experience
+  }
+}
+
+export type TypingPayload = {
+  userId: string;
+  userName?: string;
+  isTyping: boolean;
+};
+
+export function subscribeToTyping(
+  conversationId: string,
+  onTyping: (payload: TypingPayload) => void
+) {
+  const channel = supabase.channel(`typing:${conversationId}`, {
+    config: { broadcast: { self: false } },
+  });
+
+  channel
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (payload) onTyping(payload as TypingPayload);
+    })
+    .subscribe();
+
+  return {
+    sendTyping: (payload: TypingPayload) => {
+      void channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload,
+      });
+    },
+    unsubscribe: () => {
+      void supabase.removeChannel(channel);
+    },
+  };
 }

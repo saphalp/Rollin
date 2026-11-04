@@ -20,6 +20,7 @@ interface MessageInputProps {
   keyboardVisible?: boolean;
   replyingTo?: { senderName: string; text: string } | null;
   onCancelReply?: () => void;
+  onBlur?: () => void;
 }
 
 export default function MessageInput({
@@ -31,6 +32,7 @@ export default function MessageInput({
   keyboardVisible = false,
   replyingTo,
   onCancelReply,
+  onBlur,
 }: MessageInputProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
@@ -73,6 +75,7 @@ export default function MessageInput({
           editable={!disabled}
           value={value}
           onChangeText={onChangeText}
+          onBlur={onBlur}
           placeholder="Message"
           placeholderTextColor={colors.icon}
           multiline

@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ConversationHeader from "@/components/chats/ConversationHeader";
+import { formatPostDate } from "@/components/explore/post-card";
 import { PostImageCarousel } from "@/components/explore/post-image-carousel";
 import { OverflowMenu } from "@/components/report/overflow-menu";
 import { ShareSheet } from "@/components/share/share-sheet";
@@ -35,18 +36,6 @@ type PostDetail = {
   likeCount: number;
   likedByMe: boolean;
 };
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "Yesterday";
-  return `${days}d ago`;
-}
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -134,7 +123,7 @@ function PostDetailView({ post }: { post: PostDetail }) {
       <ConversationHeader
         name={post.userName}
         avatar={{ uri: post.avatarUrl }}
-        subtitle={timeAgo(post.createdAt)}
+        subtitle={formatPostDate(post.createdAt)}
         right={
           isOwnPost ? undefined : (
             <OverflowMenu

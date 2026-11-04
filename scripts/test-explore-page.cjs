@@ -92,50 +92,60 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
   assert.deepEqual(Array.from(deduplicatePosts([], []), p => p.id), []);
 });
 
-test('PostCard timeAgo correctly handles just now, yesterday, days, and invalid dates', () => {
-  const source = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
-  assert.ok(source.includes('Number.isNaN(timestamp)'), 'timeAgo must check for NaN timestamps');
+test('PostCard formatPostDate formats seconds, minutes, hours, 1-6d ago, then month/day or month/day/year', () => {
+  const { formatPostDate } = transpileAndRun('components/explore/post-card.tsx', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => [initial, () => {}],
+    },
+    'expo-image': { Image: 'Image' },
+    'expo-router': { router: { push: () => {} } },
+    'react-native': {
+      StyleSheet: { create: (s) => s },
+      TouchableOpacity: 'TouchableOpacity',
+      View: 'View',
+    },
+    '@/components/explore/full-screen-image-viewer': { FullScreenImageViewer: () => null },
+    '@/components/explore/post-image-carousel': { PostImageCarousel: () => null },
+    '@/components/report/overflow-menu': { OverflowMenu: () => null },
+    '@/components/share/share-sheet': { ShareSheet: () => null },
+    '@/components/text': { AppText: () => null },
+    '@/components/ui/icon-symbol': { IconSymbol: () => null },
+    '@/constants/theme': { Colors: { light: {}, dark: {} }, Fonts: { sans: 'System' } },
+    '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
+    '@/hooks/use-post-like': { usePostLike: () => ({ liked: false, count: 0, toggle: () => {} }) },
+  });
 
-  function timeAgo(dateStr) {
-    const timestamp = new Date(dateStr).getTime();
-    if (Number.isNaN(timestamp)) return "";
-    const diff = Date.now() - timestamp;
-    if (diff < 60000) return "Just now";
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days === 1) return "Yesterday";
-    return `${days}d ago`;
-  }
+  const now = Date.now();
 
-  // Future timestamp due to clock skew
-  const future = new Date(Date.now() + 5000).toISOString();
-  assert.equal(timeAgo(future), 'Just now');
+  // 1. Seconds (< 60s): Xs ago
+  assert.equal(formatPostDate(new Date(now - 15000).toISOString()), '15s ago');
+  assert.equal(formatPostDate(new Date(now - 45000).toISOString()), '45s ago');
+  assert.equal(formatPostDate(new Date(now + 2000).toISOString()), '1s ago');
 
-  // Just now
-  const justNow = new Date(Date.now() - 30000).toISOString();
-  assert.equal(timeAgo(justNow), 'Just now');
+  // 2. Minutes (< 60m): Xm ago
+  assert.equal(formatPostDate(new Date(now - 5 * 60000).toISOString()), '5m ago');
+  assert.equal(formatPostDate(new Date(now - 45 * 60000).toISOString()), '45m ago');
 
-  // Minutes
-  const tenMins = new Date(Date.now() - 10 * 60000).toISOString();
-  assert.equal(timeAgo(tenMins), '10m ago');
+  // 3. Hours (< 24h): Xh ago
+  assert.equal(formatPostDate(new Date(now - 2 * 3600000).toISOString()), '2h ago');
+  assert.equal(formatPostDate(new Date(now - 22 * 3600000).toISOString()), '22h ago');
 
-  // Hours
-  const twoHours = new Date(Date.now() - 2 * 3600000).toISOString();
-  assert.equal(timeAgo(twoHours), '2h ago');
+  // 4. 1 to 6 days: 1d ago ... 6d ago
+  assert.equal(formatPostDate(new Date(now - 25 * 3600000).toISOString()), '1d ago');
+  assert.equal(formatPostDate(new Date(now - 3 * 86400000).toISOString()), '3d ago');
+  assert.equal(formatPostDate(new Date(now - 6 * 86400000).toISOString()), '6d ago');
 
-  // Yesterday
-  const yesterday = new Date(Date.now() - 26 * 3600000).toISOString();
-  assert.equal(timeAgo(yesterday), 'Yesterday');
+  // 5. Older than 6 days (current year): month/day
+  const day14 = new Date(now - 14 * 86400000);
+  assert.equal(formatPostDate(day14.toISOString()), `${day14.getMonth() + 1}/${day14.getDate()}`);
 
-  // Days
-  const threeDays = new Date(Date.now() - 75 * 3600000).toISOString();
-  assert.equal(timeAgo(threeDays), '3d ago');
+  // 6. Previous year: month/day/year
+  assert.equal(formatPostDate('2025-11-04T12:00:00Z'), '11/4/2025');
+  assert.equal(formatPostDate('2024-03-16T08:30:00Z'), '3/16/2024');
 
-  // Invalid date
-  assert.equal(timeAgo('invalid-date'), '');
+  // 7. Invalid date
+  assert.equal(formatPostDate('invalid-date'), '');
 });
 
 test('usePostLike synchronizes with changed props and handles toggle', async () => {
@@ -291,21 +301,27 @@ test('full-screen image viewer supports pinch zoom, page counter, and safe close
   assert.ok(viewerSource.includes('handleDoubleTap'), 'Must support double tap zoom for cross-platform Android & iOS');
 });
 
-test('post card has modern compact activity tag, accessible touch targets, and full-screen viewer', () => {
+test('post card has activity badge beside username, Home badge style, expandable caption, and formatted date', () => {
   const cardSource = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
 
-  // Header and author metadata
-  assert.ok(cardSource.includes('width: 42'), 'Avatar should be ~42px');
-  assert.ok(cardSource.includes('height: 42'), 'Avatar height should be ~42px');
-  assert.ok(cardSource.includes('timeAgo(post.createdAt)'), 'Must display formatted timestamp');
+  // 1. Header and author metadata
+  assert.ok(cardSource.includes('width: 42'), 'Avatar should be 42px');
+  assert.ok(cardSource.includes('height: 42'), 'Avatar height should be 42px');
+  assert.ok(cardSource.includes('formatPostDate(post.createdAt)'), 'Must display formatted timestamp using formatPostDate');
 
-  // Activity tag refinement
-  assert.ok(cardSource.includes('activityTag'), 'Activity tag style must be present');
-  assert.ok(cardSource.includes('numberOfLines={1}'), 'Activity tag title must truncate with numberOfLines={1}');
+  // 2. Activity badge in header beside username
+  assert.ok(cardSource.includes('authorRow'), 'Must group username and badge in authorRow');
+  assert.ok(cardSource.includes('activityBadge'), 'Activity badge style must be present');
+  assert.ok(cardSource.includes('secondaryContainer'), 'Badge must use Rollin Home secondaryContainer style');
+  assert.ok(cardSource.includes('onSecondaryContainer'), 'Badge must use Rollin Home onSecondaryContainer style');
 
-  // Action bar
+  // 3. Expandable caption
+  assert.ok(cardSource.includes('See more'), 'Must include See more for long captions');
+  assert.ok(cardSource.includes('See less'), 'Must include See less for expanded captions');
+  assert.ok(cardSource.includes('numberOfLines={isExpanded ? undefined : 2}'), 'Must default to max 2 lines');
+
+  // 4. Action bar & Full-screen viewer
   assert.ok(cardSource.includes('actionRow'), 'Action row must be present');
-  assert.ok(cardSource.includes('actionButton'), 'Action buttons must be present');
   assert.ok(cardSource.includes('FullScreenImageViewer'), 'Full screen image viewer must be integrated');
 });
 

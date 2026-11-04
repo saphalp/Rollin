@@ -1,7 +1,11 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useCallback, useState } from "react";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { FullScreenImageViewer } from "@/components/explore/full-screen-image-viewer";
 import { PostImageCarousel } from "@/components/explore/post-image-carousel";
@@ -27,18 +31,46 @@ export type PostViewModel = {
   likedByMe: boolean;
 };
 
-function timeAgo(dateStr: string): string {
+/**
+ * Formats post timestamp:
+ * - Seconds (< 1m): "Xs ago" (e.g., "5s ago", "45s ago")
+ * - Minutes (< 1h): "Xm ago" (e.g., "5m ago")
+ * - Hours (< 24h): "Xh ago" (e.g., "2h ago")
+ * - 1 to 6 days: "1d ago", "2d ago", ... "6d ago"
+ * - Older than 6 days:
+ *   - Current year: M/D (e.g., 11/4, 3/16)
+ *   - Prior years: M/D/YYYY (e.g., 11/4/2025, 3/16/2024)
+ * No leading zeros.
+ */
+export function formatPostDate(dateStr: string): string {
   const timestamp = new Date(dateStr).getTime();
   if (Number.isNaN(timestamp)) return "";
+
   const diff = Date.now() - timestamp;
-  if (diff < 60000) return "Just now";
+  const secs = Math.max(1, Math.floor(diff / 1000));
+  if (secs < 60) return `${secs}s ago`;
+
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}m ago`;
+
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
+
   const days = Math.floor(hours / 24);
-  if (days === 1) return "Yesterday";
-  return `${days}d ago`;
+  if (days <= 6) {
+    return `${days}d ago`;
+  }
+
+  const date = new Date(timestamp);
+  const postYear = date.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  if (postYear === currentYear) {
+    return `${month}/${day}`;
+  }
+  return `${month}/${day}/${postYear}`;
 }
 
 type Props = {
@@ -62,16 +94,24 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
+  // Expandable caption state
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+
+  const handleTextLayout = useCallback((e: any) => {
+    if (e.nativeEvent?.lines && e.nativeEvent.lines.length > 2) {
+      setCanExpand(true);
+    }
+  }, []);
+
+  const isLongCaption =
+    post.caption != null &&
+    (post.caption.length > 80 || post.caption.includes("\n"));
+
   const handlePhotoPress = (index: number) => {
     setSelectedPhotoIndex(index);
     setViewerVisible(true);
   };
-
-  // Rich warm amber styling with strong contrast for the compact activity tag
-  const tagBg = isDark ? "rgba(254, 166, 25, 0.24)" : "#FEF3C7";
-  const tagBorder = isDark ? "rgba(254, 166, 25, 0.45)" : "#FDE68A";
-  const tagTextColor = isDark ? "#FDE68A" : "#92400E";
-  const tagIconColor = isDark ? "#FBBF24" : "#D97706";
 
   return (
     <View
@@ -83,35 +123,78 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         },
       ]}
     >
-      {/* Header: Author info & overflow menu */}
+      {/* Header: Avatar, Username + Activity Badge, Timestamp, and Menu */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          activeOpacity={0.8}
-          onPress={() => router.push(`/profile/${post.userId}`)}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${post.userName}'s profile`}
-        >
-          <Image
-            source={{ uri: post.avatarUrl }}
-            style={styles.avatar}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push(`/profile/${post.userId}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${post.userName}'s profile`}
+          >
+            <Image
+              source={{ uri: post.avatarUrl }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          </TouchableOpacity>
+
           <View style={styles.authorMeta}>
-            <AppText
-              style={[styles.userName, { color: colors.text, fontFamily: Fonts?.sans }]}
-              numberOfLines={1}
-            >
-              {post.userName}
-            </AppText>
+            <View style={styles.authorRow}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push(`/profile/${post.userId}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${post.userName}'s profile`}
+              >
+                <AppText
+                  style={[styles.userName, { color: colors.text, fontFamily: Fonts?.sans }]}
+                  numberOfLines={1}
+                >
+                  {post.userName}
+                </AppText>
+              </TouchableOpacity>
+
+              {/* Activity badge placed next to username */}
+              {post.activityTitle ? (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => router.push(`/activity/${post.activityId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View activity: ${post.activityTitle}`}
+                  style={[
+                    styles.activityBadge,
+                    { backgroundColor: colors.secondaryContainer },
+                  ]}
+                >
+                  <IconSymbol
+                    name="mappin"
+                    size={10.5}
+                    color={colors.onSecondaryContainer}
+                  />
+                  <AppText
+                    style={[
+                      styles.activityBadgeText,
+                      { color: colors.onSecondaryContainer, fontFamily: Fonts?.sans },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {post.activityTitle}
+                  </AppText>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Timestamp */}
             <AppText
               style={[styles.timePosted, { color: colors.outline, fontFamily: Fonts?.sans }]}
             >
-              {timeAgo(post.createdAt)}
+              {formatPostDate(post.createdAt)}
             </AppText>
           </View>
-        </TouchableOpacity>
+        </View>
 
         <OverflowMenu
           iconColor={colors.outline}
@@ -132,47 +215,41 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         />
       </View>
 
-      {/* Caption (if present) - taps to open post detail */}
+      {/* Caption (if present) with max 2 lines default and See more / See less */}
       {post.caption ? (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => router.push(`/post/${post.id}`)}
-          style={styles.captionContainer}
-        >
-          <AppText
-            style={[styles.caption, { color: colors.text, fontFamily: Fonts?.sans }]}
-            numberOfLines={3}
-          >
-            {post.caption}
-          </AppText>
-        </TouchableOpacity>
-      ) : null}
-
-      {/* Compact Activity Tag */}
-      {post.activityTitle ? (
-        <View style={styles.tagRow}>
+        <View style={styles.captionContainer}>
           <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => router.push(`/activity/${post.activityId}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`View activity: ${post.activityTitle}`}
-            style={[
-              styles.activityTag,
-              { backgroundColor: tagBg, borderColor: tagBorder },
-            ]}
+            activeOpacity={0.9}
+            onPress={() => router.push(`/post/${post.id}`)}
           >
-            <IconSymbol name="mappin" size={11} color={tagIconColor} />
             <AppText
-              style={[
-                styles.activityTagText,
-                { color: tagTextColor, fontFamily: Fonts?.sans },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+              style={[styles.caption, { color: colors.text, fontFamily: Fonts?.sans }]}
+              numberOfLines={isExpanded ? undefined : 2}
+              onTextLayout={handleTextLayout}
             >
-              {post.activityTitle}
+              {post.caption}
             </AppText>
           </TouchableOpacity>
+
+          {(canExpand || isLongCaption) && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setIsExpanded((prev) => !prev)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={isExpanded ? "Show less caption" : "Show more caption"}
+              style={styles.expandButton}
+            >
+              <AppText
+                style={[
+                  styles.expandText,
+                  { color: colors.outline, fontFamily: Fonts?.sans },
+                ]}
+              >
+                {isExpanded ? "See less" : "See more"}
+              </AppText>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
 
@@ -285,42 +362,50 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   userName: {
     fontSize: 14.5,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: -0.2,
+  },
+  activityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3.5,
+    borderRadius: 20,
+    paddingHorizontal: 7.5,
+    paddingVertical: 2.5,
+    maxWidth: 160,
+  },
+  activityBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: -0.1,
   },
   timePosted: {
     fontSize: 11.5,
-    marginTop: 1,
+    marginTop: 2,
   },
   captionContainer: {
     paddingHorizontal: 12,
-    paddingBottom: 6,
+    paddingBottom: 8,
   },
   caption: {
     fontSize: 13.5,
     lineHeight: 19,
   },
-  tagRow: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  activityTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4.5,
+  expandButton: {
+    marginTop: 3,
     alignSelf: "flex-start",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    maxWidth: "85%",
   },
-  activityTagText: {
+  expandText: {
     fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: -0.1,
+    fontWeight: "600",
   },
   mediaContainer: {
     paddingHorizontal: 8,

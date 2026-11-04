@@ -55,7 +55,7 @@ export default function BasicInfoCard({
           setUniversity(detected.name);
           setUniversities([{ id: detected.id, name: detected.name }]);
         } else {
-          // Personal-email users select from the separate US directory.
+          // Personal-email users select from the separate US directory or supported campuses.
           // This directory does not grant campus-email verification or campus feeds.
           setLockedUniversity(null);
         }
@@ -74,9 +74,6 @@ export default function BasicInfoCard({
     // Show results only after the user starts typing.
     const query = search.trim();
     if (!query) {
-      setUniversities([]);
-      setSearching(false);
-      setDirectoryWarning(null);
       return;
     }
     let active = true;
@@ -91,19 +88,38 @@ export default function BasicInfoCard({
         request = request.ilike('name', `%${query.replace(/[%,_]/g, '')}%`);
         const { data, error } = await request;
         if (error) throw error;
-        if (active) {
-          setUniversities((data ?? []).map(item => ({ id: item.name, name: item.name })));
-          setDirectoryWarning(null);
-          setUniversityError(null);
+        const directoryResults = (data ?? []).map(item => ({ id: item.name, name: item.name }));
+        if (directoryResults.length > 0) {
+          if (active) {
+            setUniversities(directoryResults);
+            setDirectoryWarning(null);
+            setUniversityError(null);
+          }
+        } else {
+          // If no results in university_directory, search the supported universities fallback table
+          const sanitized = query.replace(/[%,_]/g, '');
+          const { data: fallback } = await supabase.from('universities')
+            .select('id, name')
+            .or(`name.ilike.%${sanitized}%,short_name.ilike.%${sanitized}%`)
+            .order('name', { ascending: true })
+            .limit(40);
+          if (active) {
+            setUniversities((fallback ?? []).map(row => ({ id: row.id, name: row.name })));
+            setDirectoryWarning(null);
+            setUniversityError(null);
+          }
         }
       } catch (error) {
-        // Older projects may only have the original campuses table. Keep it usable.
+        // Older projects or environments without university_directory fall back to universities table
         const message = (error && typeof error === 'object' && 'message' in error)
           ? String(error.message) : String(error);
         console.warn('[university] directory lookup failed:', message);
+        const sanitized = query.replace(/[%,_]/g, '');
         const { data: fallback, error: fallbackError } = await supabase.from('universities')
-          .select('id, name').ilike('name', `%${query.replace(/[%,_]/g, '')}%`)
-          .order('name', { ascending: true }).limit(40);
+          .select('id, name')
+          .or(`name.ilike.%${sanitized}%,short_name.ilike.%${sanitized}%`)
+          .order('name', { ascending: true })
+          .limit(40);
         if (active) {
           setUniversities((fallback ?? []).map(row => ({ id: row.id, name: row.name })));
           setDirectoryWarning(fallbackError
@@ -130,8 +146,8 @@ export default function BasicInfoCard({
       return;
     }
 
-    // Personal-email users may leave university blank. A nonblank selection must be from the directory.
-    // The save step validates nonblank selections against the full directory.
+    // Personal-email users may leave university blank. A nonblank selection must be from the directory or supported campuses.
+    // The save step validates nonblank selections against the full directory and fallback campuses table.
     // Search results are paginated, so do not require a selection in the current 40 rows.
 
     if (!major.trim()) {

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 let rideDashboardChannelCounter = 0;
 
 export type OfferedRideDashboardItem = {
@@ -369,15 +369,26 @@ export function subscribeToRideDashboard(
 
   for (const channel of channels) {
     channel.subscribe((status, error) => {
+      if (status === 'SUBSCRIBED') {
+        onChange();
+        return;
+      }
       if (
         status === 'CHANNEL_ERROR' ||
         status === 'TIMED_OUT'
       ) {
-        console.error(
-          '[ride-dashboard] realtime error:',
-          status,
-          error
-        );
+        if (isTransientRealtimeError(error)) {
+          console.warn(
+            '[ride-dashboard] realtime disconnected, will reconnect:',
+            error instanceof Error ? error.message : error
+          );
+        } else {
+          console.error(
+            '[ride-dashboard] realtime error:',
+            status,
+            error
+          );
+        }
       }
     });
   }

@@ -1,5 +1,4 @@
-
-import { supabase } from "@/lib/supabase";
+import { isTransientRealtimeError, supabase } from "@/lib/supabase";
 import { useEffect, useRef } from "react";
 import { useAuthContext } from "./use-auth-context";
 
@@ -89,11 +88,18 @@ export function useNotificationRealtime(
         status === "CHANNEL_ERROR" ||
         status === "TIMED_OUT"
       ) {
-        console.error(
-          "[notifications] realtime subscription error:",
-          status,
-          error
-        );
+        if (isTransientRealtimeError(error)) {
+          console.warn(
+            "[notifications] realtime subscription disconnected, will reconnect:",
+            error instanceof Error ? error.message : error
+          );
+        } else {
+          console.error(
+            "[notifications] realtime subscription error:",
+            status,
+            error
+          );
+        }
       }
     });
 

@@ -8,6 +8,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import { supabase } from '@/lib/supabase';
 
 type Props = {
@@ -25,6 +26,8 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
   const { profile } = useAuthContext();
   const [slideAnim] = useState(() => new Animated.Value(-SIDEBAR_WIDTH));
   const [sendingReset, setSendingReset] = useState(false);
+
+  const displayAvatar = profilePictureUrl ?? (profile?.profile_picture ? resolveAvatarUri(profile.profile_picture) : null);
 
   useEffect(() => {
     Animated.spring(slideAnim, {
@@ -93,8 +96,8 @@ export function ProfileSidebar({ visible, onClose, profilePictureUrl }: Props) {
             ]}
           >
             <View style={styles.profileSection}>
-              {profilePictureUrl ? (
-                <Image source={{ uri: profilePictureUrl }} style={styles.avatar} />
+              {displayAvatar ? (
+                <Image source={{ uri: displayAvatar }} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, { backgroundColor: colors.primaryContainer }]} />
               )}

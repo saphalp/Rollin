@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { isTransientRealtimeError, supabase } from '@/lib/supabase';
 import {
     ActivitySummary,
     DriverSummary,
@@ -269,8 +269,19 @@ export function subscribeToRideOffers(onChange: () => void) {
             onChange,
         )
         .subscribe((status, error) => {
+            if (status === 'SUBSCRIBED') {
+                onChange();
+                return;
+            }
             if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.error('Ride Realtime error:', status, error);
+                if (isTransientRealtimeError(error)) {
+                    console.warn(
+                        'Ride Realtime disconnected, will reconnect:',
+                        error instanceof Error ? error.message : error
+                    );
+                } else {
+                    console.error('Ride Realtime error:', status, error);
+                }
             }
         });
 

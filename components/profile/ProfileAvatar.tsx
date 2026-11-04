@@ -1,11 +1,13 @@
 import type { ImagePickerAsset } from "expo-image-picker";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 import { Button } from "react-native-paper";
 
 import AvatarCard from "@/components/profile/AvatarCard";
-import { getProfilePictureUrl } from "@/lib/profile/get-profile-picture";
-import { FALLBACK_AVATAR } from "@/lib/profile/resolve-avatar-uri";
+import { Colors } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { FALLBACK_AVATAR, resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { selectProfileImage } from "@/lib/profile/select-profile-image";
 import { uploadProfilePicture } from "@/lib/profile/upload-profile-picture";
 
@@ -16,32 +18,14 @@ type ProfileAvatarProps = {
 export default function ProfileAvatar({
   editable = false,
 }: ProfileAvatarProps) {
+  const scheme = useColorScheme() ?? "light";
+  const colors = Colors[scheme];
+  const { profile, refreshProfile } = useAuthContext();
+
   const [selectedImage, setSelectedImage] =
     useState<ImagePickerAsset | null>(null);
 
-  const [profilePictureUrl, setProfilePictureUrl] =
-    useState<string | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-
-  async function loadProfilePicture() {
-    try {
-      setIsLoading(true);
-
-      const url = await getProfilePictureUrl();
-
-      setProfilePictureUrl(url);
-    } catch (error) {
-      console.error("Unable to load profile picture:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadProfilePicture();
-  }, []);
 
   async function handleSelectImage() {
     const image = await selectProfileImage();
@@ -61,11 +45,11 @@ export default function ProfileAvatar({
     try {
       setIsUploading(true);
 
-      const uploadedPicture = await uploadProfilePicture(
-        selectedImage
-      );
+      await uploadProfilePicture(selectedImage);
 
-      setProfilePictureUrl(uploadedPicture.publicUrl);
+      // Refresh the shared auth profile state so the header, sidebar, and
+      // rest of the app immediately reflect the new profile picture.
+      await refreshProfile();
       setSelectedImage(null);
 
       Alert.alert(
@@ -92,16 +76,11 @@ export default function ProfileAvatar({
     }
   }
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  const avatarUrl = profile?.profile_picture
+    ? resolveAvatarUri(profile.profile_picture)
+    : null;
 
-  const displayedImage =
-    selectedImage?.uri ?? profilePictureUrl ?? FALLBACK_AVATAR;
+  const displayedImage = selectedImage?.uri ?? avatarUrl ?? FALLBACK_AVATAR;
 
   return (
     <View>
@@ -118,6 +97,8 @@ export default function ProfileAvatar({
             mode="outlined"
             onPress={() => setSelectedImage(null)}
             disabled={isUploading}
+            textColor={colors.text}
+            style={{ borderColor: colors.outlineVariant }}
           >
             Cancel
           </Button>
@@ -127,6 +108,8 @@ export default function ProfileAvatar({
             onPress={handleSaveImage}
             loading={isUploading}
             disabled={isUploading}
+            buttonColor={colors.tint}
+            textColor={colors.onPrimary}
           >
             Save Picture
           </Button>
@@ -137,12 +120,6 @@ export default function ProfileAvatar({
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    minHeight: 144,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   actions: {
     flexDirection: "row",
     justifyContent: "center",

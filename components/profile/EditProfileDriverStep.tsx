@@ -15,7 +15,7 @@ import { getDriverProfile, upsertDriverProfile } from '@/lib/profile/driver-prof
 import { startLicenseVerification } from '@/lib/profile/driver-verification';
 import { isDriverFieldsEmpty, validateDriverFields } from '@/lib/profile/validate-driver-fields';
 import { supabase } from '@/lib/supabase';
-import { getCurrentUniversity } from '@/lib/university';
+import { resolveProfileUniversity } from '@/lib/university';
 
 type Props = {
   userId: string;
@@ -130,26 +130,7 @@ export default function EditProfileDriverStep({ userId, basicInfo, onSaved }: Pr
         throw new Error('Name and major are required.');
       }
 
-      const assignedUniversity = await getCurrentUniversity();
-      let selectedUniversity: string;
-      if (assignedUniversity) {
-        selectedUniversity = assignedUniversity.name;
-      } else {
-        // Personal-email users can skip university or choose a real directory entry.
-        const requestedName = basicInfo.university.trim();
-        if (!requestedName) {
-          selectedUniversity = ''; // Empty string represents skipped university in existing profile schema.
-        } else {
-          const { data: option, error: universityError } = await supabase
-            .from('university_directory')
-            .select('name')
-            .eq('name', requestedName)
-            .maybeSingle();
-          if (universityError) throw universityError;
-          if (!option) throw new Error('Please select a university from the list.');
-          selectedUniversity = option.name;
-        }
-      }
+      const selectedUniversity = await resolveProfileUniversity(basicInfo.university);
 
       const { error } = await supabase
         .from('profiles')
@@ -226,7 +207,7 @@ export default function EditProfileDriverStep({ userId, basicInfo, onSaved }: Pr
         >
           <View style={styles.cardHeadingRow}>
             <AppText style={[styles.cardTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-              License &amp; Safety Check
+              License & Safety Check
             </AppText>
             <StatusPill
               label={verificationStatus === 'verified' ? 'Verified' : 'Action Required'}
@@ -267,7 +248,7 @@ export default function EditProfileDriverStep({ userId, basicInfo, onSaved }: Pr
           style={styles.finishButton}
           labelStyle={styles.finishButtonLabel}
         >
-          Save &amp; Complete Profile
+          Save & Complete Profile
         </Button>
       </View>
     </EditProfileShell>

@@ -31,3 +31,90 @@ export function officialUniversityLink(value: string, university: University | n
       && university.official_hosts.includes(url.hostname.toLowerCase()) ? url.href : null;
   } catch { return null; }
 }
+
+/**
+ * Resolves and validates a university name for a user profile.
+ * - If the user has a verified campus email recognized by the system, that assigned university is authoritative.
+ * - Otherwise, personal-email users can leave university blank or select a valid university
+ *   from either the full university directory or the supported universities fallback table.
+ */
+export async function resolveProfileUniversity(requestedName: string): Promise<string> {
+  let assigned: University | null = null;
+  try {
+    assigned = await getCurrentUniversity();
+  } catch {
+    // If the check fails or is unavailable, proceed to validate requestedName
+  }
+  if (assigned) {
+    return assigned.name;
+  }
+
+  const trimmed = requestedName.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  // 1. Check the main university directory
+  try {
+    const { data: option, error: directoryError } = await supabase
+      .from('university_directory')
+      .select('name')
+      .eq('name', trimmed)
+      .maybeSingle();
+
+    if (!directoryError && option?.name) {
+      return option.name;
+    }
+
+    if (!directoryError) {
+      const { data: ilikeOption, error: ilikeError } = await supabase
+        .from('university_directory')
+        .select('name')
+        .ilike('name', trimmed)
+        .maybeSingle();
+
+      if (!ilikeError && ilikeOption?.name) {
+        return ilikeOption.name;
+      }
+    }
+  } catch {
+    // university_directory table may not exist or query may fail; proceed to fallback
+  }
+
+  // 2. Check the fallback supported universities table
+  try {
+    const { data: fallback, error: fallbackError } = await supabase
+      .from('universities')
+      .select('name')
+      .eq('name', trimmed)
+      .maybeSingle();
+
+    if (!fallbackError && fallback?.name) {
+      return fallback.name;
+    }
+
+    const { data: fallbackIlike, error: fallbackIlikeError } = await supabase
+      .from('universities')
+      .select('name')
+      .ilike('name', trimmed)
+      .maybeSingle();
+
+    if (!fallbackIlikeError && fallbackIlike?.name) {
+      return fallbackIlike.name;
+    }
+
+    const { data: shortMatch, error: shortError } = await supabase
+      .from('universities')
+      .select('name')
+      .ilike('short_name', trimmed)
+      .maybeSingle();
+
+    if (!shortError && shortMatch?.name) {
+      return shortMatch.name;
+    }
+  } catch {
+    // universities table query failed
+  }
+
+  throw new Error('Please select a university from the list.');
+}

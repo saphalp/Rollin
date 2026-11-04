@@ -51,6 +51,7 @@ export function LocationAutocompleteField({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   function generateToken() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -121,6 +122,8 @@ export function LocationAutocompleteField({
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
+    if (!focused) return;
+
     if (skipSearch.current) {
       skipSearch.current = false;
       return;
@@ -141,7 +144,7 @@ export function LocationAutocompleteField({
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [value, fetchSuggestions]);
+  }, [value, fetchSuggestions, focused]);
 
   async function handleSelect(suggestion: Suggestion) {
     setOpen(false);
@@ -209,6 +212,8 @@ export function LocationAutocompleteField({
           <TextInput
             value={value}
             onChangeText={onChangeText}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { setFocused(false); setOpen(false); }}
             placeholder={placeholder}
             placeholderTextColor={colors.outline}
             style={[styles.input, { color: colors.text, fontFamily: Fonts?.sans }]}

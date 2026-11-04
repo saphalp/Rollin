@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DateTimeField } from '@/components/post/date-time-field';
 import {
   LocationAutocompleteField,
   type PlaceSelection,
@@ -40,18 +41,6 @@ const CATEGORY_IMAGES: Record<string, string> = {
   grocery: 'https://picsum.photos/seed/grocery/900/500',
 };
 
-// Turns "10/28/2026" + "9:10 PM" into a Date.
-// Android can't read this format with new Date(), so we do it ourselves.
-function parseDateAndTime(dateText: string, timeText: string): Date | null {
-  const d = dateText.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  const t = timeText.replace(/\s+/g, ' ').trim().toUpperCase().match(/^(\d{1,2}):(\d{2}) ?(AM|PM)$/);
-  if (!d || !t) return null;
-
-  // 12 AM -> 0, 1-11 PM -> 13-23
-  const hours = (Number(t[1]) % 12) + (t[3] === 'PM' ? 12 : 0);
-  return new Date(Number(d[3]), Number(d[1]) - 1, Number(d[2]), hours, Number(t[2]));
-}
-
 
 export default function EditActivityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,8 +56,7 @@ export default function EditActivityScreen() {
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [selectedPlace, setSelectedPlace] = useState<PlaceSelection | null>(null);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [activityDateTime, setActivityDateTime] = useState<Date | null>(null);
   const [maxAttendees, setMaxAttendees] = useState('');
   const [rideSharing, setRideSharing] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
@@ -112,9 +100,7 @@ export default function EditActivityScreen() {
     setExistingImageUrl(data.image_url ?? null);
 
     if (data.date_time) {
-      const dt = new Date(data.date_time);
-      setDate(dt.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }));
-      setTime(dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+      setActivityDateTime(new Date(data.date_time));
     }
 
     setMaxAttendees(data.max_attendees ? String(data.max_attendees) : '');
@@ -193,12 +179,11 @@ export default function EditActivityScreen() {
   }
 
   async function performSave(allFuture: boolean) {
-    const parsedDate = parseDateAndTime(date, time);
-    if (!parsedDate) {
+    if (!activityDateTime || !Number.isFinite(activityDateTime.getTime())) {
       Alert.alert('Missing date and time', 'Please select when this activity starts.');
       return;
     }
-    const dateTime = parsedDate.toISOString();
+    const dateTime = activityDateTime.toISOString();
     setSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -476,17 +461,41 @@ export default function EditActivityScreen() {
               <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>Time and Capacity</AppText>
               <View style={styles.row}>
                 <View style={styles.rowItem}>
-                  <PostField label="Date" value={date} onChangeText={setDate} placeholder="Fri, Jul 12" />
+                  <DateTimeField
+                    label="Date"
+                    mode="date"
+                    value={activityDateTime}
+                    onChange={(selected) => {
+                      setActivityDateTime((prev) => {
+                        const next = new Date(prev ?? selected);
+                        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+                        return next;
+                      });
+                    }}
+                    placeholder="Select date"
+                  />
                 </View>
                 <View style={styles.rowItem}>
-                  <PostField label="Time" value={time} onChangeText={setTime} placeholder="7:00 PM" />
+                  <DateTimeField
+                    label="Time"
+                    mode="time"
+                    value={activityDateTime}
+                    onChange={(selected) => {
+                      setActivityDateTime((prev) => {
+                        const next = new Date(prev ?? selected);
+                        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+                        return next;
+                      });
+                    }}
+                    placeholder="Select time"
+                  />
                 </View>
               </View>
               <PostField label="Max Attendees" value={maxAttendees} onChangeText={setMaxAttendees} placeholder="10" keyboardType="numeric" />
               <RecurrenceField
                 value={recurrence}
                 onChange={(rule) => { setRecurrence(rule); setIsRecurring(rule.type !== 'none'); }}
-                baseDate={parseDateAndTime(date, time)}
+                baseDate={activityDateTime}
               />
             </View>
 

@@ -47,3 +47,4 @@ test('handles null and undefined gracefully', () => {
   assert.equal(isTransientRealtimeError(null), false);
   assert.equal(isTransientRealtimeError(undefined), false);
 });
+

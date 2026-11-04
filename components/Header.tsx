@@ -1,32 +1,28 @@
 import { TourTarget } from '@/components/tutorial/tour-target';
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ProfileSidebar } from "@/components/profile-sidebar";
 import { AppText } from "@/components/text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors, Fonts } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
-import { getProfilePictureUrl } from "@/lib/profile/get-profile-picture";
+import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 
 export default function Header() {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
+  const { profile } = useAuthContext();
 
-  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const hasUnread = useUnreadNotifications();
 
-  useEffect(() => {
-    async function loadProfilePicture() {
-      const url = await getProfilePictureUrl();
-      setProfilePicture(url);
-    }
-
-    loadProfilePicture();
-  }, []);
+  const profilePicture = profile?.profile_picture
+    ? resolveAvatarUri(profile.profile_picture)
+    : null;
 
   return (
     <View style={styles.header}>

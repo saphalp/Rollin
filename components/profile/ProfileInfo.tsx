@@ -21,6 +21,11 @@ export default function ProfileInfo({
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
+  const trimmedUniversity = university?.trim() ?? "";
+  const trimmedMajor = major?.trim() ?? "";
+  const hasUniversity = Boolean(trimmedUniversity);
+  const hasMajor = Boolean(trimmedMajor);
+
   return (
     <View style={styles.container}>
       <Text
@@ -30,21 +35,34 @@ export default function ProfileInfo({
         {name}
       </Text>
 
-      <View style={styles.metaRow}>
-        <Text
-          numberOfLines={1}
-          style={[styles.meta, { color: colors.text, fontFamily: Fonts.sans }]}
-        >
-          {university}
-        </Text>
-        <View style={[styles.dot, { backgroundColor: colors.icon }]} />
-        <Text
-          numberOfLines={1}
-          style={[styles.meta, { color: colors.icon, fontFamily: Fonts.sans }]}
-        >
-          {major}
-        </Text>
-      </View>
+      {(hasUniversity || hasMajor) && (
+        <View style={styles.metaRow}>
+          {hasUniversity && (
+            <Text
+              numberOfLines={1}
+              style={[styles.meta, { color: colors.text, fontFamily: Fonts.sans }]}
+            >
+              {trimmedUniversity}
+            </Text>
+          )}
+
+          {hasUniversity && hasMajor && (
+            <View
+              testID="university-major-dot"
+              style={[styles.dot, { backgroundColor: colors.icon }]}
+            />
+          )}
+
+          {hasMajor && (
+            <Text
+              numberOfLines={1}
+              style={[styles.meta, { color: colors.icon, fontFamily: Fonts.sans }]}
+            >
+              {trimmedMajor}
+            </Text>
+          )}
+        </View>
+      )}
 
       {(isEduVerified || isVerifiedDriver) && (
         <View style={styles.badgeRow}>

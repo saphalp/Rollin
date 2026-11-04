@@ -12,7 +12,8 @@ type ActivityCardProps = {
   date?: string;
   location?: string;
   isCampusEvent?: boolean;
-  host?: string;
+  hostName?: string;
+  hostAvatarUrl?: string;
   imageUrl?: string;
   attendeeCount?: number;
   maxAttendees?: number;
@@ -30,6 +31,8 @@ export function ActivityCard({
   date,
   location,
   isCampusEvent = false,
+  hostName,
+  hostAvatarUrl,
   imageUrl,
   attendeeCount,
   maxAttendees,
@@ -109,6 +112,16 @@ export function ActivityCard({
         <AppText style={[styles.title, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]} numberOfLines={2}>
           {title}
         </AppText>
+        {!!hostName && (
+          <View style={styles.hostRow}>
+            {hostAvatarUrl ? (
+              <Image source={{ uri: hostAvatarUrl }} style={[styles.hostAvatar, { borderColor: colors.onImageOverlay }]} contentFit="cover" />
+            ) : null}
+            <AppText numberOfLines={1} style={[styles.hostText, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>
+              Hosted by <AppText style={[styles.hostName, { color: colors.onImageOverlay, fontFamily: Fonts?.sans }]}>{hostName}</AppText>
+            </AppText>
+          </View>
+        )}
         <View style={styles.metaRow}>
           {date ? (
             <View style={styles.metaItem}>
@@ -149,7 +162,7 @@ export function ActivityCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    height: 200,
+    height: 228,
     overflow: 'hidden',
     justifyContent: 'space-between',
     padding: 12,
@@ -193,4 +206,8 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12 },
+  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hostAvatar: { width: 22, height: 22, borderRadius: 11, borderWidth: 1 },
+  hostText: { flex: 1, fontSize: 12, lineHeight: 16 },
+  hostName: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
 });

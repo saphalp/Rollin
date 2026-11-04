@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
-
+import { DepartureCountdownBadge } from '@/components/rides/departure-countdown-badge';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
@@ -120,6 +120,7 @@ export function ActivityRidesSection({ activityId }: { activityId: string }) {
                   <AppText numberOfLines={1} style={[styles.pickup, { color: colors.icon, fontFamily: Fonts?.sans }]}>
                     Pickup: {ride.pickupLocation}
                   </AppText>
+                  <DepartureCountdownBadge dateTime={ride.dateTime} />
                 </View>
 
                 {/* Seats left + Join */}

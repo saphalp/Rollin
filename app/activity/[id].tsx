@@ -1180,7 +1180,7 @@ export default function ActivityDetailScreen() {
 
 
           {/* Attendees */}
-          {activity.ride_sharing && !isPast && (
+          {activity.ride_sharing && !isPast && activity.status !== "cancelled" && (
             <ActivityRidesSection key={activity.id} activityId={activity.id} />
           )}
 
@@ -1401,7 +1401,7 @@ export default function ActivityDetailScreen() {
 
         {isHost ? (
           <>
-            {activity.ride_sharing && !isPast && (
+            {activity.ride_sharing && !isPast && activity.status !== "cancelled" && (
               <TouchableOpacity
                 onPress={() =>
                   setRideOptionsVisible(true)

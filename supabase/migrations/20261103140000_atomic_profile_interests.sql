@@ -38,3 +38,4 @@ revoke all on function public.set_profile_interests(uuid[]) from public;
 grant execute on function public.set_profile_interests(uuid[]) to authenticated;
 
 commit;
+

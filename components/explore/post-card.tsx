@@ -62,15 +62,16 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
-  function handlePhotoPress(index: number) {
+  const handlePhotoPress = (index: number) => {
     setSelectedPhotoIndex(index);
     setViewerVisible(true);
-  }
+  };
 
-  // Soft warm amber styling for the compact activity tag
-  const tagBg = isDark ? "rgba(254, 166, 25, 0.16)" : "rgba(254, 166, 25, 0.11)";
-  const tagBorder = isDark ? "rgba(254, 166, 25, 0.32)" : "rgba(254, 166, 25, 0.22)";
-  const tagTextColor = isDark ? "#FDBA74" : "#C2410C";
+  // Rich warm amber styling with strong contrast for the compact activity tag
+  const tagBg = isDark ? "rgba(254, 166, 25, 0.24)" : "#FEF3C7";
+  const tagBorder = isDark ? "rgba(254, 166, 25, 0.45)" : "#FDE68A";
+  const tagTextColor = isDark ? "#FDE68A" : "#92400E";
+  const tagIconColor = isDark ? "#FBBF24" : "#D97706";
 
   return (
     <View
@@ -131,7 +132,7 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         />
       </View>
 
-      {/* Caption (if present) */}
+      {/* Caption (if present) - taps to open post detail */}
       {post.caption ? (
         <TouchableOpacity
           activeOpacity={0.9}
@@ -160,7 +161,7 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
               { backgroundColor: tagBg, borderColor: tagBorder },
             ]}
           >
-            <IconSymbol name="mappin" size={11} color={tagTextColor} />
+            <IconSymbol name="mappin" size={11} color={tagIconColor} />
             <AppText
               style={[
                 styles.activityTagText,
@@ -183,67 +184,50 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         />
       </View>
 
-      {/* Action Bar: Likes, Comments / Details, and Share */}
+      {/* Action Bar: Likes and Share */}
       <View style={styles.actionRow}>
-        <View style={styles.actionGroupLeft}>
-          {/* Like button */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={toggle}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              liked ? `Unlike post, ${count} likes` : `Like post, ${count} likes`
-            }
+        {/* Like button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={toggle}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            liked ? `Unlike post, ${count} likes` : `Like post, ${count} likes`
+          }
+        >
+          <IconSymbol
+            name={liked ? "heart.fill" : "heart"}
+            size={22}
+            color={liked ? (isDark ? "#F87171" : "#EF4444") : colors.icon}
+          />
+          <AppText
+            style={[
+              styles.actionCount,
+              {
+                color: liked ? (isDark ? "#F87171" : "#EF4444") : colors.text,
+                fontFamily: Fonts?.sans,
+              },
+            ]}
           >
-            <IconSymbol
-              name={liked ? "heart.fill" : "heart"}
-              size={22}
-              color={liked ? (isDark ? "#F87171" : "#EF4444") : colors.icon}
-            />
-            <AppText
-              style={[
-                styles.actionCount,
-                {
-                  color: liked ? (isDark ? "#F87171" : "#EF4444") : colors.text,
-                  fontFamily: Fonts?.sans,
-                },
-              ]}
-            >
-              {count}
-            </AppText>
-          </TouchableOpacity>
+            {count}
+          </AppText>
+        </TouchableOpacity>
 
-          {/* Post Details / View Comments */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push(`/post/${post.id}`)}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="View post details"
-          >
-            <IconSymbol
-              name="bubble.left.fill"
-              size={19}
-              color={colors.icon}
-            />
-          </TouchableOpacity>
-
-          {/* Share button */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setShareSheetVisible(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Share post"
-          >
-            <IconSymbol
-              name="square.and.arrow.up"
-              size={19}
-              color={colors.icon}
-            />
-          </TouchableOpacity>
-        </View>
+        {/* Share button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => setShareSheetVisible(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Share post"
+        >
+          <IconSymbol
+            name="square.and.arrow.up"
+            size={20}
+            color={colors.icon}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Full Screen Photo Viewer Modal */}
@@ -329,13 +313,13 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 8.5,
-    paddingVertical: 3.5,
-    maxWidth: "80%",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    maxWidth: "85%",
   },
   activityTagText: {
-    fontSize: 11.5,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
     letterSpacing: -0.1,
   },
   mediaContainer: {
@@ -347,20 +331,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    paddingTop: 4,
+    paddingTop: 6,
     paddingBottom: 10,
-  },
-  actionGroupLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    minHeight: 36,
-    minWidth: 36,
+    minHeight: 40,
+    minWidth: 40,
     justifyContent: "center",
   },
   actionCount: {

@@ -43,6 +43,7 @@ function mount(fetch) {
     'react-native': { ActivityIndicator: 'Loading', TouchableOpacity: 'Button', View: 'View', StyleSheet: { create: x => x } },
     'expo-image': { Image: 'Image' },
     '@/components/ui/icon-symbol': { IconSymbol: 'Icon' },
+    '@/components/rides/departure-countdown-badge': { DepartureCountdownBadge: 'CountdownBadge' },
     '@/components/text': { AppText: 'Text' },
     '@/constants/theme': { Colors: { light: {} } },
     '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },

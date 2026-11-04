@@ -254,7 +254,8 @@ Decision: earlier, offering on a request created an unrelated ride and only flip
 ### Ride Lifecycle
 
 - Start Drive -> ride becomes 'in_progress', location sharing starts, and Google Maps opens with the planned stops.
-- Complete Trip -> ride and accepted requests become 'completed'.
+- Continue Drive -> while a ride is in progress, the ride page has one button that opens the drive screen. Pickups and completion happen there, not on the ride page.
+- Drive screen -> a progress card ("1 of 3 picked up") with a Navigate button, then a card per passenger (photo, pickup address, Mark as picked up; the next pickup is highlighted and can be reordered). Complete Ride appears only once every accepted passenger is picked up; completing marks the ride and accepted requests 'completed' and opens ratings.
 - Cancel Ride -> ride becomes 'cancelled.
 
 ## Interface Details

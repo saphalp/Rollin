@@ -33,7 +33,6 @@ import {
 
 import {
     cancelRide,
-    completeRide,
     startRide,
 } from '@/services/ride-lifecycle-service';
 
@@ -261,37 +260,6 @@ export default function RideDetailsScreen() {
         } finally {
             setTripBusy(false);
         }
-    }
-
-    function handleCompleteTrip() {
-        if (!ride) return;
-
-        Alert.alert(
-            'Complete trip?',
-            'This ride will move to your history.',
-            [
-                { text: 'Not Yet', style: 'cancel' },
-                {
-                    text: 'Complete',
-                    onPress: async () => {
-                        setTripBusy(true);
-
-                        try {
-                            await completeRide(ride.id);
-
-                            router.replace({ pathname: '/ride/ratings/[id]', params: { id: ride.id } });
-                        } catch (e) {
-                            Alert.alert(
-                                'Could not complete trip',
-                                e instanceof Error ? e.message : 'Something went wrong.',
-                            );
-                        } finally {
-                            setTripBusy(false);
-                        }
-                    },
-                },
-            ],
-        );
     }
 
     function handleCancelRide() {
@@ -613,48 +581,29 @@ export default function RideDetailsScreen() {
                             </TouchableOpacity>
                         )}
 
+                        {/* Pickups and completing the ride happen on the drive screen. */}
                         {ride.status === 'in_progress' && (
-                            <>
-                                <TouchableOpacity
-                                    onPress={() => openRideTracking(ride.id)}
+                            <TouchableOpacity
+                                onPress={() => openRideTracking(ride.id)}
+                                style={[
+                                    styles.mainButton,
+                                    { backgroundColor: colors.tint },
+                                ]}
+                            >
+                                <MaterialCommunityIcons
+                                    name="map-marker-path"
+                                    size={20}
+                                    color={colors.onPrimary}
+                                />
+                                <AppText
                                     style={[
-                                        styles.mainButton,
-                                        { backgroundColor: colors.tint },
+                                        styles.mainButtonText,
+                                        { color: colors.onPrimary },
                                     ]}
                                 >
-                                    <MaterialCommunityIcons
-                                        name="map-marker-path"
-                                        size={20}
-                                        color={colors.onPrimary}
-                                    />
-                                    <AppText
-                                        style={[
-                                            styles.mainButtonText,
-                                            { color: colors.onPrimary },
-                                        ]}
-                                    >
-                                        Start Drive
-                                    </AppText>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    disabled={tripBusy}
-                                    onPress={handleCompleteTrip}
-                                    style={[
-                                        styles.mainButton,
-                                        { backgroundColor: colors.tint },
-                                    ]}
-                                >
-                                    <AppText
-                                        style={[
-                                            styles.mainButtonText,
-                                            { color: colors.onPrimary },
-                                        ]}
-                                    >
-                                        Complete Trip
-                                    </AppText>
-                                </TouchableOpacity>
-                            </>
+                                    Continue Drive
+                                </AppText>
+                            </TouchableOpacity>
                         )}
 
                         {!['completed', 'cancelled'].includes(ride.status) && (

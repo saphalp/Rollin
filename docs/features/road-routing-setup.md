@@ -81,7 +81,8 @@ The key stays in Supabase. It should not be placed in an `EXPO_PUBLIC_` variable
 | `app/ride/offer.tsx` | Driver pickup choice when posting a ride |
 | `app/ride/[id].tsx` | Pickup requests, approval, starting and completing a ride |
 | `app/ride/tracking/[id].tsx` | Route overview and Google Maps handoff |
-| `components/rides/pickup-stops.tsx` | Remaining stops, pickup completion, and manual order |
+| `components/rides/drive/driver-pickup-panel.tsx` | Pickup progress, navigation to remaining stops, manual and optimized order, and Complete ride once everyone is picked up |
+| `components/rides/drive/passenger-pickup-card.tsx` | One passenger's card: photo, pickup address, status, Mark as picked up |
 | `services/ride-navigation-service.ts` | Builds and opens Google Maps links |
 | `services/ride-routing-service.ts` | Publishes a fresh position and requests a route |
 | `supabase/functions/ride-route/index.ts` | Orders pickups, calculates the road route, and saves it |

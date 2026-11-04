@@ -1,3 +1,4 @@
+import { resolveAvatarUri } from '@/lib/profile/resolve-avatar-uri';
 import { supabase } from '@/lib/supabase';
 
 export type OffererPassengerRequest = {
@@ -7,6 +8,17 @@ export type OffererPassengerRequest = {
     requesterName: string;
     pickupAddress: string | null;
     status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
+    createdAt: string | null;
+};
+
+/** An accepted passenger on a ride the driver is driving, for the pickup cards. */
+export type RidePassenger = {
+    requestId: string;
+    name: string;
+    avatarUrl: string;
+    pickupAddress: string | null;
+    pickedUpAt: string | null;
+    pickupOrder: number | null;
     createdAt: string | null;
 };
 
@@ -226,4 +238,61 @@ export function subscribeToRidePassengerRequests(
     return () => {
         void supabase.removeChannel(channel);
     };
+}
+export async function fetchRidePassengers(rideId: string): Promise<RidePassenger[]> {
+    const { data: requests, error } = await supabase
+        .from('ride_requests')
+        .select('id, requester_id, pickup_address, picked_up_at, pickup_order, created_at')
+        .eq('ride_id', rideId)
+        .eq('status', 'accepted');
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    if (!requests?.length) {
+        return [];
+    }
+
+    const requesterIds = [...new Set(requests.map((r) => r.requester_id).filter(Boolean))] as string[];
+    const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, profile_picture')
+        .in('id', requesterIds);
+
+    if (profilesError) {
+        throw new Error(profilesError.message);
+    }
+
+    const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+
+    return requests.map((request) => {
+        const profile = request.requester_id ? profileMap.get(request.requester_id) : undefined;
+
+        return {
+            requestId: request.id,
+            name: profile?.full_name?.trim() || 'Rollin user',
+            avatarUrl: resolveAvatarUri(profile?.profile_picture),
+            pickupAddress: request.pickup_address,
+            pickedUpAt: request.picked_up_at,
+            pickupOrder: request.pickup_order,
+            createdAt: request.created_at,
+        };
+    });
+}
+
+export async function markPassengerPickedUp(requestId: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_passenger_picked_up', { p_request_id: requestId });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+}
+
+export async function setPickupOrder(rideId: string, requestIds: string[]): Promise<void> {
+    const { error } = await supabase.rpc('set_pickup_order', { p_ride_id: rideId, p_request_ids: requestIds });
+
+    if (error) {
+        throw new Error(error.message);
+    }
 }

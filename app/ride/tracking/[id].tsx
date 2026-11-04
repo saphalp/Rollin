@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LiveRideMap from '@/components/rides/live-ride-map';
 import { RoadRouteSummary } from '@/components/rides/road-route-summary';
-import { PickupStops } from '@/components/rides/pickup-stops';
+import { DriverPickupPanel } from '@/components/rides/drive/driver-pickup-panel';
 import { completeRide } from '@/services/ride-lifecycle-service';
 import { LiveRideStatus } from '@/components/rides/live-ride-status';
 import { AppText } from '@/components/text';
@@ -298,8 +298,6 @@ export default function RideTrackingScreen() {
                     </View> : null}
                     {driveError ? <AppText accessibilityRole="alert">{driveError}</AppText> : null}
                     <RoadRouteSummary key={rideId} rideId={rideId} isDriver={isDriver} route={roadRoute} onRoute={setRoadRoute} />
-                    {isDriver && ride.status === 'in_progress' ? <PickupStops rideId={rideId} route={roadRoute}
-                        refresh={async (optimize = false) => { setRoadRoute(await fetchRoadRoute(rideId, optimize)); }} /> : null}
                     {!isDriver && <AppText style={{ fontSize: 12 }}>Location updates pause while the driver uses another app. Last update: {live.driverLocation?.updatedAt
                         ? new Date(live.driverLocation.updatedAt).toLocaleTimeString() : driverPublisher.lastLocation?.updatedAt
                             ? new Date(driverPublisher.lastLocation.updatedAt).toLocaleTimeString() : 'not available'}.</AppText>}
@@ -319,21 +317,35 @@ export default function RideTrackingScreen() {
                     ) : null}
 
                     {isDriver && ride.status === 'in_progress' ? <>
-                        <TouchableOpacity accessibilityRole="button" onPress={() => Alert.alert('Complete ride?',
-                            'Confirm everyone has arrived. You can rate your passengers next.', [
-                                { text: 'Not yet', style: 'cancel' },
-                                { text: 'Complete ride', onPress: () => void finishDrive() },
-                            ])} disabled={finishing}
-                            style={[styles.shareButton, { borderColor: colors.outlineVariant, marginTop: 0 }]}>
-                            <AppText style={{ color: colors.tint, fontWeight: '700' }}>{finishing ? 'Completing…' : 'Complete ride'}</AppText>
-                        </TouchableOpacity>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <AppText style={{ fontSize: 12, color: colors.icon }}>Location sharing {driverPublisher.sharing ? 'on' : 'paused'}</AppText>
-                            <TouchableOpacity onPress={() => void (driverPublisher.sharing ? driverPublisher.stopSharing() : driverPublisher.startSharing())}>
-                                <AppText style={{ color: colors.tint, padding: 8 }}>{driverPublisher.sharing ? 'Pause' : 'Resume'}</AppText>
+                        <View style={[styles.sharingRow, { backgroundColor: colors.surfaceContainer }]}>
+                            <MaterialCommunityIcons
+                                name={driverPublisher.sharing ? 'access-point' : 'access-point-off'}
+                                size={18}
+                                color={driverPublisher.sharing ? colors.tint : colors.icon}
+                            />
+                            <AppText style={[styles.sharingText, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                                {driverPublisher.sharing ? 'Passengers can see your location' : 'Location sharing paused'}
+                            </AppText>
+                            <TouchableOpacity
+                                accessibilityRole="button"
+                                hitSlop={8}
+                                onPress={() => void (driverPublisher.sharing ? driverPublisher.stopSharing() : driverPublisher.startSharing())}
+                            >
+                                <AppText style={[styles.sharingAction, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+                                    {driverPublisher.sharing ? 'Pause' : 'Resume'}
+                                </AppText>
                             </TouchableOpacity>
                         </View>
                         {driverPublisher.errorMessage ? <AppText accessibilityRole="alert">{driverPublisher.errorMessage}</AppText> : null}
+
+                        <DriverPickupPanel
+                            rideId={rideId}
+                            destination={ride.destination}
+                            route={roadRoute}
+                            refreshRoute={async (optimize = false) => { setRoadRoute(await fetchRoadRoute(rideId, optimize)); }}
+                            completing={finishing}
+                            onComplete={() => void finishDrive()}
+                        />
                     </> : null}
                 </ScrollView>
             )}
@@ -411,6 +423,24 @@ const styles = StyleSheet.create({
         marginTop: 4,
         fontSize: 12,
         lineHeight: 18,
+    },
+    sharingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
+    sharingText: {
+        flex: 1,
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    sharingAction: {
+        fontSize: 14,
+        lineHeight: 19,
+        fontWeight: '700',
     },
     shareButton: {
         minHeight: 52,

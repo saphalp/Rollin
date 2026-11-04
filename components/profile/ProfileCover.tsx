@@ -25,7 +25,15 @@ export default function ProfileCover({
 
   const [selectedImage, setSelectedImage] =
     useState<ImagePickerAsset | null>(null);
+  const [savedCoverUrl, setSavedCoverUrl] = useState<string | null>(null);
+  const [prevCoverPicture, setPrevCoverPicture] = useState(coverPicture);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Sync state if coverPicture prop changes without cascading effects
+  if (coverPicture !== prevCoverPicture) {
+    setPrevCoverPicture(coverPicture);
+    setSavedCoverUrl(null);
+  }
 
   async function handleSelectImage() {
     const image = await selectProfileImage({
@@ -45,11 +53,16 @@ export default function ProfileCover({
 
     try {
       setIsUploading(true);
-      await uploadCoverPicture(selectedImage);
-      // The cover is read from the auth context's profile row, so refresh it
-      // before clearing the preview to avoid flashing the old cover.
-      await refreshProfile();
+      const uploaded = await uploadCoverPicture(selectedImage);
+      setSavedCoverUrl(uploaded.publicUrl);
       setSelectedImage(null);
+      // The cover is read from the auth context's profile row, so refresh it
+      // to keep global auth context in sync.
+      await refreshProfile();
+      Alert.alert(
+        "Cover picture updated",
+        "Your background photo banner has been saved."
+      );
     } catch (error: unknown) {
       console.error("Cover picture upload failed:", error);
 
@@ -72,7 +85,7 @@ export default function ProfileCover({
 
   const source = selectedImage
     ? { uri: selectedImage.uri }
-    : resolveCoverSource(coverPicture);
+    : resolveCoverSource(savedCoverUrl ?? coverPicture);
 
   return (
     <View
@@ -140,6 +153,8 @@ const styles = StyleSheet.create({
     right: 8,
     flexDirection: "row",
     gap: 8,
+    zIndex: 10,
+    elevation: 4,
   },
   editButton: {
     margin: 0,

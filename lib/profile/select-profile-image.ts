@@ -30,15 +30,26 @@ export async function selectProfileImage({
           return;
         }
 
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ["images"],
-          allowsEditing: true,
-          aspect,
-          quality: 0.8,
-          base64: true,
-        });
+        let result: ImagePicker.ImagePickerResult;
+        try {
+          result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect,
+            quality: 0.8,
+            base64: true,
+          });
+        } catch (cropError) {
+          console.warn("Camera with editing failed, trying without crop:", cropError);
+          result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            allowsEditing: false,
+            quality: 0.8,
+            base64: true,
+          });
+        }
 
-        if (result.canceled || result.assets.length === 0) {
+        if (result.canceled || !result.assets || result.assets.length === 0) {
           resolve(null);
           return;
         }
@@ -71,15 +82,26 @@ export async function selectProfileImage({
           return;
         }
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          allowsEditing: true,
-          aspect,
-          quality: 0.8,
-          base64: true,
-        });
+        let result: ImagePicker.ImagePickerResult;
+        try {
+          result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect,
+            quality: 0.8,
+            base64: true,
+          });
+        } catch (cropError) {
+          console.warn("Gallery picker with editing failed, trying without crop:", cropError);
+          result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            allowsEditing: false,
+            quality: 0.8,
+            base64: true,
+          });
+        }
 
-        if (result.canceled || result.assets.length === 0) {
+        if (result.canceled || !result.assets || result.assets.length === 0) {
           resolve(null);
           return;
         }
@@ -97,20 +119,28 @@ export async function selectProfileImage({
       }
     };
 
-    Alert.alert(`Select ${label}`, "", [
+    Alert.alert(
+      `Select ${label}`,
+      "",
+      [
+        {
+          text: "Take Photo",
+          onPress: openCamera,
+        },
+        {
+          text: "Choose from Gallery",
+          onPress: openGallery,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => resolve(null),
+        },
+      ],
       {
-        text: "Take Photo",
-        onPress: openCamera,
-      },
-      {
-        text: "Choose from Gallery",
-        onPress: openGallery,
-      },
-      {
-        text: "Cancel",
-        style: "cancel",
-        onPress: () => resolve(null),
-      },
-    ]);
+        cancelable: true,
+        onDismiss: () => resolve(null),
+      }
+    );
   });
 }

@@ -22,7 +22,7 @@ export function RideHeader({ onHelpPress }: RideHeaderProps) {
             { color: colors.text, fontFamily: Fonts?.sans },
           ]}
         >
-          Ride Sharing
+          Rides
         </AppText>
 
         <AppText
@@ -31,23 +31,35 @@ export function RideHeader({ onHelpPress }: RideHeaderProps) {
             { color: colors.icon, fontFamily: Fonts?.sans },
           ]}
         >
-          Find a trip, share seats, and manage your rides.
+          Share the trip, split the drive.
         </AppText>
       </View>
 
       <TouchableOpacity
         accessibilityRole="button"
+        accessibilityLabel="How ride sharing works"
         onPress={onHelpPress}
         style={[
           styles.helpButton,
-          { backgroundColor: colors.primaryContainer },
+          {
+            backgroundColor: colors.cardBackground,
+            borderColor: colors.outlineVariant,
+          },
         ]}
       >
         <MaterialCommunityIcons
-          name="help"
-          size={22}
-          color={colors.onPrimary}
+          name="lightbulb-on-outline"
+          size={18}
+          color={colors.tint}
         />
+        <AppText
+          style={[
+            styles.helpText,
+            { color: colors.tint, fontFamily: Fonts?.sans },
+          ]}
+        >
+          How it works
+        </AppText>
       </TouchableOpacity>
     </View>
   );
@@ -57,25 +69,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
   },
   headerText: {
     flex: 1,
   },
   title: {
     fontSize: 28,
+    lineHeight: 34,
     fontWeight: "700",
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 2,
     fontSize: 14,
     lineHeight: 20,
   },
   helpButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  helpText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 });

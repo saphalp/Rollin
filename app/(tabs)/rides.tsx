@@ -23,7 +23,9 @@ import {
 } from '@/components/rides/ride-dashboard-cards';
 import { RideEmptyState } from '@/components/rides/ride-empty-state';
 import { RideHeader } from '@/components/rides/ride-header';
+import { RideHowItWorksSheet } from '@/components/rides/ride-how-it-works-sheet';
 import { RideMapCard } from '@/components/rides/ride-map-card';
+import { RideSummaryTiles } from '@/components/rides/ride-summary-tiles';
 import { RideTab, RideTabBar } from '@/components/rides/ride-tab-bar';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -75,6 +77,9 @@ export default function RidesScreen() {
 
   const [locationError, setLocationError] =
     useState<string | null>(null);
+
+  const [howItWorksVisible, setHowItWorksVisible] =
+    useState(false);
 
   const [rideIntent, setRideIntent] =
     useState<RideIntent | null>(null);
@@ -250,19 +255,6 @@ export default function RidesScreen() {
         id: rideId,
       },
     });
-  }
-
-  function showHowItWorks() {
-    Alert.alert(
-      'How ride sharing works',
-      [
-        'Offer a ride when you are already traveling somewhere and have extra seats.',
-        'Find rides posted by other Rollin users.',
-        'Passengers request a seat.',
-        'The person offering the ride accepts or declines requests.',
-        'Accepted passengers can use live location when the trip begins.',
-      ].join('\n\n'),
-    );
   }
 
   function renderLoading(
@@ -496,7 +488,7 @@ export default function RidesScreen() {
         ]}
       >
         <RideHeader
-          onHelpPress={showHowItWorks}
+          onHelpPress={() => setHowItWorksVisible(true)}
         />
 
         <RideTabBar
@@ -530,6 +522,14 @@ export default function RidesScreen() {
                 handleOfferRide
               }
             /></TourTarget>
+
+            <RideSummaryTiles
+              offeringCount={offeredRides.length}
+              requestCount={myRequests.length}
+              loading={dataLoading}
+              onOfferingPress={() => setActiveTab('offering')}
+              onRequestsPress={() => setActiveTab('requests')}
+            />
           </>
         )}
 
@@ -542,6 +542,11 @@ export default function RidesScreen() {
         {activeTab === 'history' &&
           renderHistoryTab()}
       </TourScrollView>
+
+      <RideHowItWorksSheet
+        visible={howItWorksVisible}
+        onClose={() => setHowItWorksVisible(false)}
+      />
 
       {rideIntent && (
         <AttendingActivityPickerSheet

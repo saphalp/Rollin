@@ -276,7 +276,6 @@ export function LocationAutocompleteField({
 const styles = StyleSheet.create({
   wrapper: {
     gap: 6,
-    zIndex: 50,
   },
   label: {
     fontSize: 14,
@@ -297,16 +296,13 @@ const styles = StyleSheet.create({
   spinner: {
     marginLeft: 8,
   },
+  // Rendered in the normal layout flow (not absolutely positioned) so it pushes the
+  // fields below it down instead of overlapping them; Android ignores zIndex across
+  // sibling views, which let neighboring inputs draw on top of an absolute dropdown.
   dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    maxHeight: 220,
     borderWidth: 1,
     borderRadius: 14,
     marginTop: 4,
-    zIndex: 100,
     overflow: 'hidden',
   },
   row: {

@@ -57,3 +57,9 @@ test('denied permission does not schedule a notification', async () => {
   await service.notifyDriverArrived();
   assert.ok(!calls.includes('schedule'));
 });
+test('notifyDriverArrived deduplicates repeated calls for the same rideId', async () => {
+  const { calls, service } = load('storeClient');
+  await service.notifyDriverArrived('ride-abc');
+  await service.notifyDriverArrived('ride-abc');
+  assert.equal(calls.filter(c => c === 'alert').length, 1);
+});

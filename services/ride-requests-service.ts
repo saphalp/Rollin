@@ -139,11 +139,21 @@ export async function fetchMyActivityRideRequest(
  * 6. For activity rides, a user may have only one
  *    active request for that activity.
  */
+const inFlightRideRequestLocks = new Map<string, Promise<RideRequest>>();
+
 export async function createRideRequest(
     ride: RideOffer,
     pickupAddress?: string,
 ): Promise<RideRequest> {
     const userId = await getAuthenticatedUserId();
+    const lockKey = `${userId}:${ride.id}`;
+    const existingLock = inFlightRideRequestLocks.get(lockKey);
+    if (existingLock) {
+        return existingLock;
+    }
+
+    const run = async () => {
+    try {
 
     /*
      * Never allow someone to request
@@ -313,6 +323,14 @@ export async function createRideRequest(
     return mapRideRequest(
         data as RawRideRequest,
     );
+    } finally {
+        inFlightRideRequestLocks.delete(lockKey);
+    }
+    };
+
+    const task = run();
+    inFlightRideRequestLocks.set(lockKey, task);
+    return task;
 }
 
 /**
@@ -402,7 +420,7 @@ export function subscribeToMyRideRequest(
 ) {
     const channel = supabase
         .channel(
-            `ride-request-${rideId}-${Date.now()}`,
+            `ride-request-${rideId}`,
         )
         .on(
             'postgres_changes',

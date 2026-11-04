@@ -58,39 +58,61 @@ export default function NotificationsScreen() {
     focusedRef.current = isFocused;
   }, [isFocused]);
 
+  const inFlightNotificationIds = useRef<Set<string>>(new Set());
+
   useNotificationRealtime(async (incoming) => {
-    if (notifications.some((n) => n.id === incoming.id)) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select(
-        'id, type, message, is_read, created_at, actor_id, activity_id, actor:profiles!actor_id(id, full_name, profile_picture)'
-      )
-      .eq('id', incoming.id)
-      .maybeSingle();
+    if (!incoming?.id) return;
+    if (inFlightNotificationIds.current.has(incoming.id)) return;
+    inFlightNotificationIds.current.add(incoming.id);
 
-    if (!data) return;
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select(
+          'id, type, message, is_read, created_at, actor_id, activity_id, actor:profiles!actor_id(id, full_name, profile_picture)'
+        )
+        .eq('id', incoming.id)
+        .maybeSingle();
 
-    // Arrived while the tab is open, so it's been seen: mark it read (keeping its dot for this visit).
-    if (focusedRef.current && !data.is_read) {
-      newThisVisit.current.add(data.id);
-      void markReadInDb([data.id]);
+      if (!data) return;
+
+      // Arrived while the tab is open, so it's been seen: mark it read (keeping its dot for this visit).
+      if (focusedRef.current && !data.is_read) {
+        newThisVisit.current.add(data.id);
+        void markReadInDb([data.id]);
+      }
+
+      setNotifications((prev) => {
+        if (prev.some((n) => n.id === data.id)) return prev;
+
+        // Deduplicate notifications with identical content arriving in rapid succession
+        const isDuplicate = prev.some(
+          (n) =>
+            n.actor?.id === data.actor_id &&
+            n.type === data.type &&
+            n.activityId === data.activity_id &&
+            n.message === data.message
+        );
+        if (isDuplicate) return prev;
+
+        return [
+          {
+            id: data.id,
+            type: data.type,
+            message: data.message,
+            timestamp: formatTimestamp(data.created_at),
+            isRead: data.is_read,
+            actor: data.actor as any,
+            activityId: data.activity_id,
+          },
+          ...prev,
+        ];
+      });
+    } finally {
+      setTimeout(() => {
+        inFlightNotificationIds.current.delete(incoming.id);
+      }, 10_000);
     }
-
-    setNotifications((prev) => {
-      if (prev.some((n) => n.id === data.id)) return prev;
-      return [
-        {
-          id: data.id,
-          type: data.type,
-          message: data.message,
-          timestamp: formatTimestamp(data.created_at),
-          isRead: data.is_read,
-          actor: data.actor as any,
-          activityId: data.activity_id,
-        },
-        ...prev,
-      ];
-    });
   });
 
   /** Loads the list and returns the ids of the unread notifications it shows. */
@@ -107,8 +129,25 @@ export default function NotificationsScreen() {
       return [];
     }
 
+    // Deduplicate notifications with identical type, actor_id, activity_id, and message
+    const seenContentKeys = new Set<string>();
+    const duplicateIdsToDelete: string[] = [];
+    const deduplicatedData = data.filter((n: any) => {
+      const key = `${n.type || ''}:${n.actor_id || ''}:${n.activity_id || ''}:${n.message || ''}`;
+      if (seenContentKeys.has(key)) {
+        duplicateIdsToDelete.push(n.id);
+        return false;
+      }
+      seenContentKeys.add(key);
+      return true;
+    });
+
+    if (duplicateIdsToDelete.length > 0) {
+      void supabase.from('notifications').delete().in('id', duplicateIdsToDelete);
+    }
+
     // Check status of follow requests in follows table
-    const followRequests = data.filter((n: any) => n.type === 'follow_request' && n.actor_id);
+    const followRequests = deduplicatedData.filter((n: any) => n.type === 'follow_request' && n.actor_id);
     const followStatusMap: Record<string, string> = {};
 
     if (currentUserId && followRequests.length > 0) {
@@ -127,7 +166,7 @@ export default function NotificationsScreen() {
     }
 
     // Check status of activity join requests
-    const joinRequests = data.filter(
+    const joinRequests = deduplicatedData.filter(
       (n: any) => n.type === 'activity_join_request' && n.activity_id && n.actor_id
     );
     const joinStatusMap: Record<string, string> = {};
@@ -147,7 +186,7 @@ export default function NotificationsScreen() {
     }
 
     // Filter out notifications for follow requests that were deleted/cancelled
-    const filtered = data.filter((n: any) => {
+    const filtered = deduplicatedData.filter((n: any) => {
       if (n.type === 'follow_request' && n.actor_id && currentUserId) {
         const status = followStatusMap[n.actor_id];
         // If the row no longer exists in follows, the request was cancelled or already removed

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+let rideDashboardChannelCounter = 0;
 
 export type OfferedRideDashboardItem = {
   id: string;
@@ -309,25 +310,83 @@ export async function fetchMyRideHistory(
   });
 }
 
-export function subscribeToRideDashboard(onChange: () => void) {
-  const ridesChannel = supabase
-    .channel(`dashboard-rides-${Date.now()}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rides_offered' }, onChange)
-    .subscribe();
 
-  const requestsChannel = supabase
-    .channel(`dashboard-requests-${Date.now()}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests' }, onChange)
-    .subscribe();
+export function subscribeToRideDashboard(
+  onChange: () => void
+) {
+  // Unique identifier for this subscription instance.
+  const subscriptionId = ++rideDashboardChannelCounter;
 
-  const wantedRequestsChannel = supabase
-    .channel(`dashboard-wanted-requests-${Date.now()}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_wanted_requests' }, onChange)
-    .subscribe();
+  const ridesChannel = supabase.channel(
+    `dashboard-rides-${subscriptionId}`
+  );
 
+  const requestsChannel = supabase.channel(
+    `dashboard-requests-${subscriptionId}`
+  );
+
+  const wantedRequestsChannel = supabase.channel(
+    `dashboard-wanted-requests-${subscriptionId}`
+  );
+
+  // Register listeners before subscribing.
+  ridesChannel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'rides_offered',
+    },
+    onChange
+  );
+
+  requestsChannel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'ride_requests',
+    },
+    onChange
+  );
+
+  wantedRequestsChannel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'ride_wanted_requests',
+    },
+    onChange
+  );
+
+  // Subscribe only after all callbacks are registered.
+  const channels = [
+    ridesChannel,
+    requestsChannel,
+    wantedRequestsChannel,
+  ];
+
+  for (const channel of channels) {
+    channel.subscribe((status, error) => {
+      if (
+        status === 'CHANNEL_ERROR' ||
+        status === 'TIMED_OUT'
+      ) {
+        console.error(
+          '[ride-dashboard] realtime error:',
+          status,
+          error
+        );
+      }
+    });
+  }
+
+  // Cleanup channels when subscriber unmounts.
   return () => {
-    void supabase.removeChannel(ridesChannel);
-    void supabase.removeChannel(wantedRequestsChannel);
-    void supabase.removeChannel(requestsChannel);
+    for (const channel of channels) {
+      void supabase.removeChannel(channel);
+    }
   };
 }
+

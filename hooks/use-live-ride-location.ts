@@ -1,5 +1,6 @@
 import { AppState } from 'react-native';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { notifyDriverArrived } from '@/services/ride-notifications-service';
@@ -21,6 +22,8 @@ type PassengerOptions = {
     pickup: Coordinates | null;
     useDeviceLocation?: boolean;
 };
+
+const notifiedArrivalsInMemory = new Set<string>();
 
 export function useLiveRideLocation({
     rideId,
@@ -196,15 +199,29 @@ export function useLiveRideLocation({
         Boolean(driverLocation?.isActive) && !isLocationStale(driverLocation?.updatedAt ?? null, now) && distanceKm != null && hasDriverArrived(distanceKm);
 
     useEffect(() => {
-        if (!arrived || notifiedArrival.current) {
+        if (!arrived || !rideId) {
+            return;
+        }
+
+        const key = `rollin:arrival-notified:v1:${rideId}`;
+        if (notifiedArrivalsInMemory.has(key) || notifiedArrival.current) {
             return;
         }
 
         notifiedArrival.current = true;
-        void notifyDriverArrived().catch((error) => {
-            console.warn('Arrival notification failed:', error);
-        });
-    }, [arrived]);
+        notifiedArrivalsInMemory.add(key);
+
+        void (async () => {
+            try {
+                const stored = await AsyncStorage.getItem(key);
+                if (stored) return;
+                await AsyncStorage.setItem(key, 'notified');
+                await notifyDriverArrived(rideId);
+            } catch (error) {
+                console.warn('Arrival notification failed:', error);
+            }
+        })();
+    }, [arrived, rideId]);
 
     return {
         driverLocation,

@@ -100,15 +100,25 @@ Deno.serve(async (req: Request) => {
       ? `${activity.title} was cancelled: ${reason}`
       : `${activity.title} was cancelled.`;
 
-    await admin.from('notifications').insert(
-      memberIds.map((id) => ({
-        user_id: id,
-        actor_id: user.id,
-        activity_id: activityId,
-        type: 'activity_cancelled',
-        message,
-      })),
-    );
+    const { data: existingNotifs } = await admin
+      .from('notifications')
+      .select('user_id')
+      .eq('activity_id', activityId)
+      .eq('type', 'activity_cancelled');
+    const alreadyNotified = new Set((existingNotifs ?? []).map((n) => n.user_id));
+    const toNotify = memberIds.filter((id) => !alreadyNotified.has(id));
+
+    if (toNotify.length > 0) {
+      await admin.from('notifications').insert(
+        toNotify.map((id) => ({
+          user_id: id,
+          actor_id: user.id,
+          activity_id: activityId,
+          type: 'activity_cancelled',
+          message,
+        })),
+      );
+    }
 
     // 5. Push notification.
     const { data: tokens } = await admin

@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   useColorScheme,
   View,
@@ -461,9 +462,15 @@ function UserProfileContent({ userId }: UserProfileProps) {
           onClose={() => setPickerVisible(false)}
           currentInterests={selectedNames}
           options={allInterestNames}
-          onSave={(next) => {
-            saveInterests(next);
+          onSave={async (next) => {
             setPickerVisible(false);
+            const success = await saveInterests(next);
+            if (!success) {
+              Alert.alert(
+                "Unable to save interests",
+                "Your interests could not be updated. Please try again."
+              );
+            }
           }}
         />
       )}

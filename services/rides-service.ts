@@ -289,3 +289,35 @@ export function subscribeToRideOffers(onChange: () => void) {
         void supabase.removeChannel(channel);
     };
 }
+
+/** Live changes to one ride (status, seats, time), e.g. the driver cancelling or starting it. */
+export function subscribeToRide(rideId: string, onChange: () => void) {
+    const channel = supabase
+        .channel(`ride-${rideId}-${Date.now()}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'rides_offered',
+                filter: `id=eq.${rideId}`,
+            },
+            onChange,
+        )
+        .subscribe((status, error) => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                if (isTransientRealtimeError(error)) {
+                    console.warn(
+                        'Ride Realtime disconnected, will reconnect:',
+                        error instanceof Error ? error.message : error
+                    );
+                } else {
+                    console.error('Ride Realtime error:', status, error);
+                }
+            }
+        });
+
+    return () => {
+        void supabase.removeChannel(channel);
+    };
+}

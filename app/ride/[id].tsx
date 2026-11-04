@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RideDetailCard } from '@/components/rides/ride-detail-card';
+import { PassengerSeatPanel } from '@/components/rides/passenger-seat-panel';
 import { RideRequestButton } from '@/components/rides/ride-request-button';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -39,7 +40,7 @@ import {
 import { closedRideStatus, isRideClosed } from '@/lib/ride-status';
 import { supabase } from '@/lib/supabase';
 import { stopDriverLocation } from '@/services/ride-tracking-service';
-import { fetchRideById } from '@/services/rides-service';
+import { fetchRideById, subscribeToRide } from '@/services/rides-service';
 import { RideOffer } from '@/types/rides';
 import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
@@ -144,6 +145,22 @@ export default function RideDetailsScreen() {
             void loadRide();
         });
     }, [isOfferer, rideId, loadRequests, loadRide]);
+
+    // Everyone viewing the ride sees the driver start, cancel, or complete it right away.
+    useEffect(() => {
+        if (!rideId) return;
+        return subscribeToRide(rideId, () => void loadRide());
+    }, [rideId, loadRide]);
+
+    // Catch anything realtime missed while another screen was open.
+    const focusedOnce = useRef(false);
+    useFocusEffect(useCallback(() => {
+        if (!focusedOnce.current) {
+            focusedOnce.current = true;
+            return;
+        }
+        void loadRide();
+    }, [loadRide]));
 
     function goBack() {
         router.canGoBack()
@@ -472,8 +489,10 @@ export default function RideDetailsScreen() {
                     { paddingBottom: insets.bottom + 30 },
                 ]}
             >
-                <RideDetailCard ride={ride} />
-                {request?.pickupAddress ? <AppText>Your requested pickup: {request.pickupAddress}</AppText> : null}
+                <RideDetailCard
+                    ride={ride}
+                    onDriverPress={() => router.push(`/profile/${ride.driverId}`)}
+                />
                 {ride.status === 'completed' && <TouchableOpacity onPress={() => router.push({ pathname: '/ride/ratings/[id]', params: { id: ride.id } })}
                     style={[styles.mainButton, { backgroundColor: colors.tint }]}>
                     <AppText style={{ color: colors.onPrimary }}>Rate this ride</AppText>
@@ -625,28 +644,7 @@ export default function RideDetailsScreen() {
                     </>
                 ) : (
                     <>
-                        {request && (
-                            <View
-                                style={[
-                                    styles.infoCard,
-                                    { backgroundColor: colors.surfaceContainer },
-                                ]}
-                            >
-                                <MaterialCommunityIcons
-                                    name={
-                                        request.status === 'accepted'
-                                            ? 'check-circle'
-                                            : 'clock-outline'
-                                    }
-                                    size={22}
-                                    color={colors.tint}
-                                />
-
-                                <AppText style={{ color: colors.text, fontWeight: '700' }}>
-                                    Request: {request.status.toUpperCase()}
-                                </AppText>
-                            </View>
-                        )}
+                        {request && <PassengerSeatPanel ride={ride} request={request} />}
 
                         {requestError && (
                             <AppText style={{ color: colors.error, textAlign: 'center' }}>
@@ -673,7 +671,7 @@ export default function RideDetailsScreen() {
                                         { color: colors.onPrimary },
                                     ]}
                                 >
-                                    Open Live Tracking
+                                    Track your driver
                                 </AppText>
                             </TouchableOpacity>
                         )}

@@ -41,11 +41,12 @@ export function RideRequestButton({
             style={[
                 styles.button,
                 {
+                    // Cancelling is destructive, so it's shown in red.
                     backgroundColor: canCancel
-                        ? colors.surfaceContainer
+                        ? colors.cardBackground
                         : colors.tint,
                     borderColor: canCancel
-                        ? colors.outlineVariant
+                        ? colors.error
                         : colors.tint,
                     opacity: loading || disabled ? 0.55 : 1,
                 },
@@ -53,7 +54,7 @@ export function RideRequestButton({
         >
             {loading ? (
                 <ActivityIndicator
-                    color={canCancel ? colors.tint : colors.onPrimary}
+                    color={canCancel ? colors.error : colors.onPrimary}
                 />
             ) : (
                 <AppText
@@ -61,7 +62,7 @@ export function RideRequestButton({
                         styles.label,
                         {
                             color: canCancel
-                                ? colors.tint
+                                ? colors.error
                                 : colors.onPrimary,
                             fontFamily: Fonts?.sans,
                         },

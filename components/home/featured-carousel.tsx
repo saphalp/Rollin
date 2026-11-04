@@ -25,7 +25,8 @@ export type FeaturedActivity = {
   title: string;
   date?: string;
   location?: string;
-  host?: string;
+  hostName?: string;
+  hostAvatarUrl?: string;
   imageUrl?: string;
   attendeeCount: number;
   maxAttendees: number;
@@ -256,17 +257,23 @@ function FeaturedCard({
       )}
 
       <View style={styles.overlay}>
-        {activity.host && (
-          <View style={styles.row}>
-            <View style={[styles.hostAvatar, { backgroundColor: colors.tint }]} />
-            <AppText style={[styles.meta, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
-              Hosted by {activity.host}
-            </AppText>
-          </View>
-        )}
         <AppText numberOfLines={2} style={[styles.title, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
           {activity.title}
         </AppText>
+        {!!activity.hostName && (
+          <View style={styles.row}>
+            {activity.hostAvatarUrl ? (
+              <Image
+                source={{ uri: activity.hostAvatarUrl }}
+                style={[styles.hostAvatar, { borderColor: colors.onImageOverlay }]}
+                contentFit="cover"
+              />
+            ) : null}
+            <AppText numberOfLines={1} style={[styles.meta, styles.shrink, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>
+              Hosted by <AppText style={[styles.meta, styles.hostName, { fontFamily: Fonts?.sans, color: colors.onImageOverlay }]}>{activity.hostName}</AppText>
+            </AppText>
+          </View>
+        )}
         {activity.date && (
           <View style={styles.row}>
             <IconSymbol name="calendar" size={14} color={colors.onImageOverlay} />
@@ -318,7 +325,8 @@ const styles = StyleSheet.create({
   rideBadgeText: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
   overlay: { gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hostAvatar: { width: 20, height: 20, borderRadius: 10 },
+  hostAvatar: { width: 24, height: 24, borderRadius: 12, borderWidth: 1 },
+  hostName: { fontWeight: '700' },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
   meta: { fontSize: 13, lineHeight: 18 },
   shrink: { flexShrink: 1 },

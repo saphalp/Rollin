@@ -10,43 +10,19 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { fetchFeaturedScores, rankFeatured, type FeaturedScore } from '@/lib/featured-activities';
+import { fetchFeaturedScores, rankFeatured } from '@/lib/featured-activities';
+import {
+  buildActivityQuery,
+  FEATURED_CANDIDATES,
+  fetchListPage,
+  PAGE_SIZE,
+  toActivity,
+  type Activity,
+  type FeedContext,
+} from '@/lib/home-activity-feed';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = ['All', 'Social', 'Sports', 'Music', 'Study', 'Outdoor', 'Gaming'];
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  social: 'https://picsum.photos/seed/social/900/500',
-  sports: 'https://picsum.photos/seed/sports/900/500',
-  music: 'https://picsum.photos/seed/music/900/500',
-  study: 'https://picsum.photos/seed/study/900/500',
-  outdoor: 'https://picsum.photos/seed/outdoor/900/500',
-  gaming: 'https://picsum.photos/seed/gaming/900/500',
-  grocery: 'https://picsum.photos/seed/grocery/900/500',
-};
-
-type Activity = {
-  id: string;
-  title: string;
-  category: string;
-  sortKey: string;
-  startsAt: number | null;
-  date?: string;
-  location?: string;
-  host?: string;
-  imageUrl?: string;
-  attendeeCount: number;
-  maxAttendees: number;
-  rideSharing?: boolean;
-  isCampusEvent?: boolean;
-  waitlistPosition?: number | null;
-  status?: 'active' | 'expired';
-};
-
-function formatDate(dateStr: string | null): string | undefined {
-  if (!dateStr) return undefined;
-  return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-}
 
 export default function HomeScreen() {
   const theme = useColorScheme() ?? 'light';
@@ -54,17 +30,37 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [featured, setFeatured] = useState<Activity[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [featuredScores, setFeaturedScores] = useState<Map<string, FeaturedScore>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const [feedError, setFeedError] = useState('');
   const generation = useRef(0);
+  // What the current list was loaded with, so Load more can fetch the next page of it.
+  const feedContext = useRef<FeedContext | null>(null);
+  // How many list activities are shown, so a background refresh keeps them all.
+  const loadedCount = useRef(PAGE_SIZE);
+  const listKey = useRef('');
+
+  // Search runs on the server, so wait until typing pauses.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchActivities = useCallback(async () => {
     const request = ++generation.current;
     const current = () => request === generation.current;
+    // A new category or search starts again from the first page.
+    const key = `${selectedCategory}|${debouncedSearch}`;
+    if (key !== listKey.current) {
+      listKey.current = key;
+      loadedCount.current = PAGE_SIZE;
+    }
     setLoading(true);
     setFeedError('');
     try {
@@ -84,47 +80,64 @@ export default function HomeScreen() {
       } else {
         setSavedIds(new Set());
       }
-      let query = supabase.from('activities')
-        .select('id, title, category, date_time, location, max_attendees, ride_sharing, event_type, image_url, status, source_campus_event_id, rsvps(id)')
-        .eq('status', 'active')
-        .order('date_time', { ascending: true }).order('id');
-      query = visibleHostIds.length > 0
-        ? query.or(`event_type.eq.public,and(event_type.eq.private,host_id.in.(${visibleHostIds.join(',')}))`)
-        : query.eq('event_type', 'public');
-      if (selectedCategory !== 'All') {
-        query = query.eq('category', selectedCategory.toLowerCase());
-      }
       const { data: spots } = await supabase.rpc('my_waitlist_positions');
       const positions = new Map<string, number>(
         (spots ?? []).map((s: any) => [s.activity_id, s.position_in_line]),
       );
+      const context: FeedContext = {
+        visibleHostIds, category: selectedCategory, search: debouncedSearch, positions, featuredIds: [],
+      };
 
-      const rows: any[] = [];
-      for (let offset = 0; ; offset += 500) {
-        const result = await query.range(offset, offset + 499);
-        if (!current()) return;
-        if (result.error) throw result.error;
-        rows.push(...(result.data ?? []));
-        if ((result.data?.length ?? 0) < 500) break;
-      }
-      const scores = await fetchFeaturedScores(rows.map(a => a.id));
+      // Featured: the best-scoring of the soonest upcoming activities.
+      const candidates = await buildActivityQuery(context)
+        .gt('date_time', new Date().toISOString())
+        .limit(FEATURED_CANDIDATES);
       if (!current()) return;
-      setFeaturedScores(scores);
-      setActivities(rows.map((a: any) => ({
-        id: a.id, title: a.title, category: a.category ?? 'social',
-        startsAt: a.date_time ? new Date(a.date_time).getTime() : null,
-        sortKey: a.date_time ? `${new Date(a.date_time).toLocaleDateString('sv-SE', { timeZone: 'America/Chicago' })}T${new Date(a.date_time).toLocaleTimeString('en-GB', { timeZone: 'America/Chicago', hour12: false })}` : '9999',
-        date: formatDate(a.date_time), location: a.location ?? undefined, imageUrl: a.image_url ?? CATEGORY_IMAGES[a.category],
-        attendeeCount: a.rsvps?.length ?? 0, maxAttendees: a.max_attendees ?? 10,
-        rideSharing: a.ride_sharing ?? false, isCampusEvent: !!a.source_campus_event_id, waitlistPosition: positions.get(a.id) ?? null, status: a.status ?? 'active',
-      })));
+      if (candidates.error) throw candidates.error;
+      const candidateActivities = (candidates.data ?? []).map(row => toActivity(row, positions));
+      const scores = await fetchFeaturedScores(candidateActivities.map(a => a.id));
+      if (!current()) return;
+      const nextFeatured = rankFeatured(candidateActivities, scores);
+      context.featuredIds = nextFeatured.map(a => a.id);
+
+      // The list: everything else, one page (or as many as were already loaded) at a time.
+      const count = Math.max(PAGE_SIZE, loadedCount.current);
+      const page = await fetchListPage(context, 0, count);
+      if (!current()) return;
+
+      feedContext.current = context;
+      loadedCount.current = page.activities.length;
+      setFeatured(nextFeatured);
+      setActivities(page.activities);
+      setHasMore(page.hasMore);
     } catch {
       if (current()) {
-        setActivities([]); setSavedIds(new Set());
+        setActivities([]); setFeatured([]); setSavedIds(new Set()); setHasMore(false);
         setFeedError('Unable to load Home. Pull down to retry.');
       }
     } finally { if (current()) setLoading(false); }
-  }, [selectedCategory]);
+  }, [selectedCategory, debouncedSearch]);
+
+  async function loadMore() {
+    const context = feedContext.current;
+    if (!context || loadingMore || !hasMore) return;
+    const request = generation.current;
+    setLoadingMore(true);
+    try {
+      const page = await fetchListPage(context, activities.length, PAGE_SIZE);
+      // Drop the page if the list was reloaded (new category, search, or refresh) meanwhile.
+      if (request !== generation.current) return;
+      const seen = new Set(activities.map(a => a.id));
+      const next = [...activities, ...page.activities.filter(a => !seen.has(a.id))];
+      loadedCount.current = next.length;
+      setActivities(next);
+      setHasMore(page.hasMore);
+    } catch {
+      if (request === generation.current) setFeedError('Could not load more activities. Try again.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useFocusEffect(useCallback(() => { void fetchActivities(); }, [fetchActivities]));
   useEffect(() => {
@@ -135,7 +148,7 @@ export default function HomeScreen() {
       if (nextKey === accountKey) return;
       accountKey = nextKey;
       ++generation.current;
-      setActivities([]); setSavedIds(new Set());
+      setActivities([]); setFeatured([]); setSavedIds(new Set());
       setTimeout(() => { if (active) void fetchActivities(); }, 0);
     });
     const foreground = AppState.addEventListener('change', state => {
@@ -185,15 +198,6 @@ export default function HomeScreen() {
       });
     }
   }
-
-  const filtered = activities.filter(activity => {
-    const matchesCategory = selectedCategory === 'All' || activity.category.toLowerCase() === selectedCategory.toLowerCase();
-    return matchesCategory && `${activity.title} ${activity.location ?? ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
-  }).sort((a, b) => a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id));
-
-  const featured = rankFeatured(filtered, featuredScores);
-  const featuredIds = new Set(featured.map(a => a.id));
-  const recommended = filtered.filter(a => !featuredIds.has(a.id));
 
   return (
     <AppView style={styles.container}>
@@ -254,9 +258,9 @@ export default function HomeScreen() {
         </ScrollView>
 
         {!!feedError && <AppText accessibilityRole="alert" style={{ color: colors.text }}>{feedError}</AppText>}
-        {loading && filtered.length === 0 ? (
+        {loading && activities.length === 0 && featured.length === 0 ? (
           <ActivityIndicator color={colors.tint} style={styles.loader} />
-        ) : filtered.length === 0 ? (
+        ) : activities.length === 0 && featured.length === 0 ? (
           <View style={styles.empty}>
             <AppText style={[styles.emptyText, { color: colors.outline, fontFamily: Fonts?.sans }]}>
               No activities found
@@ -274,14 +278,14 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* Recommended */}
-            {recommended.length > 0 && (
+            {/* Everything else, soonest first, a page at a time */}
+            {activities.length > 0 && (
               <>
                 <AppText style={[styles.sectionHeading, { color: colors.text, fontFamily: Fonts?.sans }]}>
-                  Recommended for you
+                  Upcoming activities
                 </AppText>
                 <View style={styles.cardList}>
-                  {recommended.map((activity) => (
+                  {activities.map((activity) => (
                     <ActivityCard
                       key={activity.id}
                       title={activity.title}
@@ -293,6 +297,8 @@ export default function HomeScreen() {
                       maxAttendees={activity.maxAttendees}
                       rideSharing={activity.rideSharing}
                       isCampusEvent={activity.isCampusEvent}
+                      hostName={activity.hostName}
+                      hostAvatarUrl={activity.hostAvatarUrl}
                       waitlistPosition={activity.waitlistPosition}
                       saved={savedIds.has(activity.id)}
                       onBookmarkPress={() => toggleSave(activity.id)}
@@ -300,6 +306,23 @@ export default function HomeScreen() {
                     />
                   ))}
                 </View>
+
+                {hasMore && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    disabled={loadingMore}
+                    onPress={() => void loadMore()}
+                    style={[styles.loadMore, { borderColor: colors.tint }, loadingMore && styles.loadMoreBusy]}
+                  >
+                    {loadingMore ? (
+                      <ActivityIndicator color={colors.tint} />
+                    ) : (
+                      <AppText style={[styles.loadMoreText, { color: colors.tint, fontFamily: Fonts?.sans }]}>
+                        Load more
+                      </AppText>
+                    )}
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </>
@@ -312,6 +335,21 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadMore: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreBusy: {
+    opacity: 0.6,
+  },
+  loadMoreText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
   container: { flex: 1 },
   content: {
     paddingBottom: 32,

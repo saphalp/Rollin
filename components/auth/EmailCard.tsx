@@ -10,6 +10,8 @@ interface EmailCardProps {
   onLoginClick: () => void;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function EmailCard({
   email,
   onNext,
@@ -19,6 +21,21 @@ export default function EmailCard({
   const colors = Colors[scheme];
 
   const [value, setValue] = useState(email);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleNext = () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+    setErrorMessage("");
+    onNext(trimmed.toLowerCase());
+  };
 
   return (
     <View
@@ -40,7 +57,11 @@ export default function EmailCard({
         mode="outlined"
         placeholder="example@latech.edu"
         value={value}
-        onChangeText={setValue}
+        error={Boolean(errorMessage)}
+        onChangeText={(text) => {
+          setValue(text);
+          if (errorMessage) setErrorMessage("");
+        }}
         autoCapitalize="none"
         keyboardType="email-address"
         style={[styles.input, { backgroundColor: colors.surface }]}
@@ -51,17 +72,24 @@ export default function EmailCard({
         theme={{ roundness: 15 }}
       />
 
-      <Text
-        style={[styles.helper, { color: colors.text, fontFamily: Fonts.sans }]}
-      >
-        Use your university email to get a verified badge
-      </Text>
+      {errorMessage ? (
+        <Text
+          testID="email-error-message"
+          style={[styles.errorText, { color: colors.error, fontFamily: Fonts.sans }]}
+        >
+          {errorMessage}
+        </Text>
+      ) : (
+        <Text
+          style={[styles.helper, { color: colors.text, fontFamily: Fonts.sans }]}
+        >
+          Use your university email to get a verified badge
+        </Text>
+      )}
 
       <Button
         mode="contained"
-        onPress={() => {
-          onNext(value);
-        }}
+        onPress={handleNext}
         buttonColor={colors.tint}
         textColor={colors.onPrimary}
         style={styles.nextButton}
@@ -126,6 +154,10 @@ const styles = StyleSheet.create({
   },
   helper: {
     fontSize: 14,
+  },
+  errorText: {
+    fontSize: 13,
+    marginTop: -4,
   },
   nextButton: {
     borderRadius: 12,

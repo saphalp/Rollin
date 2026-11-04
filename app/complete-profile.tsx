@@ -1,18 +1,23 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    TextInput,
-    useColorScheme,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  useColorScheme,
+  View,
 } from "react-native";
 
 import { AppText } from "@/components/text";
 import { Colors } from "@/constants/theme";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { completeProfile } from "@/lib/profile/complete-profile";
+import { upsertDriverProfile } from "@/lib/profile/driver-profile";
+import { supabase } from "@/lib/supabase";
 
 const interestsList = [
   "Sports",
@@ -30,11 +35,12 @@ const interestsList = [
 export default function CompleteProfileScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
+  const { profile, refreshProfile } = useAuthContext();
 
-  const [fullName, setFullName] = useState("");
+  const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [dateOfBirth, setDateOfBirth] = useState("");
-  const [university, setUniversity] = useState("");
-  const [major, setMajor] = useState("");
+  const [university, setUniversity] = useState(profile?.university ?? "");
+  const [major, setMajor] = useState(profile?.major ?? "");
 
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [isDriver, setIsDriver] = useState(false);
@@ -42,6 +48,10 @@ export default function CompleteProfileScreen() {
   const [vehicleMake, setVehicleMake] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [licensePlateNumber, setLicensePlateNumber] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
 
   const styles = getStyles(theme);
 
@@ -56,7 +66,7 @@ export default function CompleteProfileScreen() {
   };
 
   const handleNext = () => {
-    if (!fullName || !dateOfBirth || !university || !major) {
+    if (!fullName.trim() || !university.trim() || !major.trim()) {
       Alert.alert(
         "Missing Information",
         "Please complete your basic information before continuing."
@@ -67,51 +77,108 @@ export default function CompleteProfileScreen() {
     Alert.alert("Basic Info Saved", "Now choose your interests.");
   };
 
-  const handleFinish = () => {
-    if (!fullName || !dateOfBirth || !university || !major) {
+  const handleFinish = async () => {
+    if (isSaving) return;
+
+    if (!fullName.trim() || !university.trim() || !major.trim()) {
       Alert.alert(
         "Missing Information",
-        "Please fill out full name, date of birth, university, and major."
+        "Please fill out full name, university, and major."
       );
       return;
     }
 
-    if (selectedInterests.length < 3) {
-      Alert.alert("Choose Interests", "Please select at least 3 interests.");
-      return;
-    }
-
-    if (isDriver && (!vehicleMake || !vehicleModel || !vehicleYear)) {
+    if (
+      isDriver &&
+      (!vehicleMake.trim() ||
+        !vehicleModel.trim() ||
+        !vehicleYear.trim() ||
+        !vehicleColor.trim() ||
+        !licensePlateNumber.trim())
+    ) {
       Alert.alert(
         "Vehicle Information",
-        "Please complete vehicle make, model, and year."
+        "Please complete vehicle make, model, year, color, and license plate number."
       );
       return;
     }
 
-    const profileData = {
-      fullName,
-      dateOfBirth,
-      university,
-      major,
-      interests: selectedInterests,
-      driver: isDriver
-        ? {
-            vehicleMake,
-            vehicleModel,
-            vehicleYear,
+    try {
+      setIsSaving(true);
+
+      // 1. If driver details provided, upsert driver profile
+      if (isDriver) {
+        await upsertDriverProfile({
+          vehicleMake: vehicleMake.trim(),
+          vehicleModel: vehicleModel.trim(),
+          vehicleYear: vehicleYear.trim(),
+          vehicleColor: vehicleColor.trim(),
+          licensePlateNumber: licensePlateNumber.trim(),
+        });
+      }
+
+      // 2. Persist profile info and mark profile_completed = true in Supabase
+      await completeProfile({
+        fullName: fullName.trim(),
+        university: university.trim(),
+        major: major.trim(),
+      });
+
+      // 3. Save selected interests to Supabase if any
+      if (selectedInterests.length > 0) {
+        try {
+          const { data: interestRows } = await supabase
+            .from("interests")
+            .select("id, name")
+            .in("name", selectedInterests);
+
+          if (interestRows && interestRows.length > 0) {
+            const interestIds = interestRows.map((r) => r.id);
+            const { error: rpcError } = await supabase.rpc("set_profile_interests", {
+              p_interest_ids: interestIds,
+            });
+            if (rpcError) {
+              const { data: userData } = await supabase.auth.getUser();
+              if (userData?.user?.id) {
+                await supabase.from("profile_interests").upsert(
+                  interestIds.map((id) => ({
+                    profile_id: userData.user.id,
+                    interest_id: id,
+                  })),
+                  { onConflict: "profile_id,interest_id" }
+                );
+              }
+            }
           }
-        : null,
-    };
+        } catch (interestErr) {
+          console.error("[complete-profile] save interests failed:", interestErr);
+        }
+      }
 
-    console.log("Profile submitted:", profileData);
+      // 4. Refresh auth state so isProfileComplete becomes true
+      await refreshProfile();
 
-    Alert.alert("Profile Complete", "Your profile has been saved.");
-    router.replace("/(tabs)");
+      Alert.alert("Profile Complete", "Your profile has been saved.");
+      router.replace("/(tabs)");
+    } catch (error: unknown) {
+      console.error("[complete-profile] profile save failed:", error);
+      let message = "Unable to save your profile. Please try again.";
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof error.message === "string"
+      ) {
+        message = error.message;
+      }
+      Alert.alert("Profile setup failed", message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSkip = () => {
-    router.replace("/(tabs)");
+    router.replace("/(onboarding)");
   };
 
   return (
@@ -149,7 +216,7 @@ export default function CompleteProfileScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Date of Birth"
+        placeholder="Date of Birth (Optional)"
         placeholderTextColor={theme.outline}
         value={dateOfBirth}
         onChangeText={setDateOfBirth}
@@ -172,7 +239,7 @@ export default function CompleteProfileScreen() {
       />
 
       <AppText style={styles.sectionTitle}>Interests / Hobbies</AppText>
-      <AppText style={styles.helperText}>Select at least 3 interests.</AppText>
+      <AppText style={styles.helperText}>Select interests to connect with peers.</AppText>
 
       <View style={styles.chipContainer}>
         {interestsList.map((interest) => {
@@ -231,20 +298,53 @@ export default function CompleteProfileScreen() {
             onChangeText={setVehicleYear}
             keyboardType="number-pad"
           />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Vehicle Color"
+            placeholderTextColor={theme.outline}
+            value={vehicleColor}
+            onChangeText={setVehicleColor}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="License Plate Number"
+            placeholderTextColor={theme.outline}
+            value={licensePlateNumber}
+            onChangeText={setLicensePlateNumber}
+            autoCapitalize="characters"
+          />
         </View>
       )}
 
       <View style={styles.buttonRow}>
-        <Pressable style={styles.secondaryButton} onPress={handleSkip}>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={handleSkip}
+          disabled={isSaving}
+        >
           <AppText style={styles.secondaryButtonText}>Skip</AppText>
         </Pressable>
 
-        <Pressable style={styles.secondaryButton} onPress={handleNext}>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={handleNext}
+          disabled={isSaving}
+        >
           <AppText style={styles.secondaryButtonText}>Next</AppText>
         </Pressable>
 
-        <Pressable style={styles.primaryButton} onPress={handleFinish}>
-          <AppText style={styles.primaryButtonText}>Finish</AppText>
+        <Pressable
+          style={[styles.primaryButton, isSaving && { opacity: 0.7 }]}
+          onPress={() => void handleFinish()}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator color={theme.onPrimary} />
+          ) : (
+            <AppText style={styles.primaryButtonText}>Finish</AppText>
+          )}
         </Pressable>
       </View>
     </ScrollView>

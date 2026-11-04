@@ -229,7 +229,10 @@ export default function NotificationsScreen() {
       })
     );
     setLoading(false);
-    return filtered.filter((n: any) => !n.is_read).map((n: any) => n.id);
+    // Every unread row loaded, including duplicates and withdrawn follow requests hidden above:
+    // the header dot counts all unread rows, and those deletes can fail silently, so a hidden
+    // row left unread would keep the dot on with nothing new to show.
+    return data.filter((n: any) => !n.is_read).map((n: any) => n.id);
   }
 
   async function markReadInDb(ids: string[]) {

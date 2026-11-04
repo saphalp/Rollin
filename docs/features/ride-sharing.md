@@ -234,23 +234,55 @@ The ride offerer can then see the incoming request.
 
 - Accept: request becomes 'accepted and available seats decrease by 1.
 - Decline: request becomes 'rejected'.
-- Cancel: passenger request becomes 'cancelled.
+- Cancel: passenger request becomes 'cancelled'. When the passenger cancels it themselves, the driver gets a notification ("cancelled their seat" for an accepted seat, "withdrew their seat request" for a pending one). Requests cancelled because the ride or activity was cancelled don't notify the driver.
 - If seats reach 0, the ride status becomes 'full'.
+
+### Offering a Ride on a Passenger's Request
+
+A passenger who can't find a ride posts a request (`ride_wanted_requests`) with their pickup, destination, and time. Other students' open requests appear under **Requests → Requested by others** on the Rides tab (and in the available-rides list), so drivers don't have to search for them.
+
+Tapping a request opens the offer screen in request mode. The pickup, destination, and time are the passenger's and are shown read-only; the driver only chooses how many seats to offer (including the passenger's) and adds optional notes. Submitting calls the `offer_ride_for_wanted_request` RPC, which in one transaction:
+
+- creates the driver's ride with the request's pickup, destination, and time,
+- adds the passenger to that ride and accepts them through `accept_ride_request`, the same path as a driver accepting a seat request,
+- marks the request `fulfilled` and stores the ride in `offered_ride_id`.
+
+From then on it is an ordinary ride: the passenger sees an accepted seat under Requests, and Start Drive, pickups, live tracking, arrival notifications, completion, and ratings all work the same as for activity rides. A request can only be answered once, never by its own requester, and only by a verified driver.
+
+Decision: earlier, offering on a request created an unrelated ride and only flipped the request to `fulfilled`, so the passenger was never on the ride and the ride workflow never started. Doing it in a single RPC keeps the ride, the accepted seat, and the request status consistent.
 
 ### Ride Lifecycle
 
 - Start Drive -> ride becomes 'in_progress', location sharing starts, and Google Maps opens with the planned stops.
-- Complete Trip -> ride and accepted requests become 'completed'.
+- Continue Drive -> while a ride is in progress, the ride page has one button that opens the drive screen. Pickups and completion happen there, not on the ride page.
+- Drive screen -> a progress card ("1 of 3 picked up") with a Navigate button, then a card per passenger (photo, pickup address, Mark as picked up; the next pickup is highlighted and can be reordered). Complete Ride appears only once every accepted passenger is picked up; completing marks the ride and accepted requests 'completed' and opens ratings.
 - Cancel Ride -> ride becomes 'cancelled.
 
 ## Interface Details
+
+### Offering and Requests tabs
+
+Both Rides tabs are split into two subsections with a switch at the top, and neither is filtered by activity:
+
+- **Offering → Offered by you**: your active rides (open, full, or in progress).
+- **Offering → Offered by others**: open rides from other students that still have seats and haven't departed (the same set as the available-rides list). Tapping one opens the ride to request a seat.
+- **Requests → Requested by you**: your pending or accepted seat requests and your open ride requests.
+- **Requests → Requested by others**: pending seat requests on your rides (tap to accept or decline on the ride page) and other students' open ride requests (tap to offer them a ride).
+
+Every card shows a badge with its activity's title, or **Independent ride** when it isn't linked to an activity.
+
+### When a ride moves to History
+
+A ride is **closed** once it is completed, cancelled, or **expired**: still open or full 30 minutes after its departure time without the driver starting it (`RIDE_START_GRACE_MS` in `lib/ride-status.ts`). The grace period lets a driver who is running late still tap Start Drive; a ride already in progress never expires.
+
+Closed rides, seat requests on closed rides, and posted ride requests whose time has passed leave Offering and Requests and appear in History (expired ones with an **expired** status). Opening a closed ride shows it read-only: no accepting, declining, starting, cancelling, requesting, or tracking. A completed ride keeps its **Rate this ride** button.
 
 ## Relevant Files
 
 | File | Role |
 |---|---|
 | `app/(tabs)/rides.tsx` | Main ride dashboard for discovery, offers, requests, and history |
-| `app/ride/offer.tsx` | Creates standalone or activity-linked ride offers |
+| `app/ride/offer.tsx` | Creates standalone or activity-linked ride offers, or answers a passenger's ride request |
 | `app/ride/request.tsx` | Creates standalone or activity-linked wanted-ride requests |
 | `app/ride/available.tsx` | Lists and filters available offers and wanted-ride requests |
 | `app/ride/[id].tsx` | Displays ride details and manages passenger requests and ride status |
@@ -260,6 +292,10 @@ The ride offerer can then see the incoming request.
 | `navigation/ride-navigation.ts` | Centralizes navigation to ride search, details, and tracking routes |
 | `components/rides/ride-action-cards.tsx` | Presents Find a Ride and Offer a Ride actions |
 | `components/rides/ride-dashboard-cards.tsx` | Renders offer, request, and history cards on the ride dashboard |
+| `components/rides/ride-segmented-control.tsx` | "By you" / "By others" switch inside the Offering and Requests tabs |
+| `components/rides/ride-activity-badge.tsx` | Activity or "Independent ride" badge on ride and request cards |
+| `components/rides/offer/requested-ride-offer-form.tsx` | Read-only trip details plus seats and notes when answering a ride request |
+| `supabase/migrations/20261103120000_offer_ride_for_wanted_request.sql` | `offer_ride_for_wanted_request` RPC |
 | `components/rides/attending-activity-picker-sheet.tsx` | Selects an attended activity before finding or offering a ride |
 | `components/rides/available-ride-card.tsx` | Displays an available ride offer |
 | `components/rides/wanted-ride-card.tsx` | Displays a rider's wanted-ride request |

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Profile, useAuthContext } from "./use-auth-context";
 
 export function useProfile(userId: string | undefined) {
@@ -7,6 +7,7 @@ export function useProfile(userId: string | undefined) {
     claims,
     profile: myProfile,
     isLoading: authLoading,
+    refreshProfile,
   } = useAuthContext();
   const currentUserId = claims?.sub as string | undefined;
   const isOwnProfile = !!currentUserId && userId === currentUserId;
@@ -17,38 +18,45 @@ export function useProfile(userId: string | undefined) {
   const [isLoadingOther, setIsLoadingOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOther = useCallback(async () => {
     if (!userId || isOwnProfile) return;
-
-    let cancelled = false;
     setIsLoadingOther(true);
     setError(null);
-
-    (async () => {
-      const { data, error } = await supabase
+    try {
+      const { data, error: queryError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
 
-      if (cancelled) return;
-
-      if (error) {
-        setError(error.message);
+      if (queryError) {
+        setError(queryError.message);
         setOtherProfile(null);
       } else {
         setOtherProfile(data as Profile | null);
       }
+    } finally {
       setIsLoadingOther(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    }
   }, [userId, isOwnProfile]);
+
+  useEffect(() => {
+    if (!userId || isOwnProfile) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchOther();
+  }, [userId, isOwnProfile, fetchOther]);
+
+  const refresh = useCallback(async () => {
+    if (isOwnProfile) {
+      await refreshProfile();
+    } else {
+      await fetchOther();
+    }
+  }, [isOwnProfile, refreshProfile, fetchOther]);
 
   const profile = isOwnProfile ? myProfile : otherProfile;
   const isLoading = isOwnProfile ? authLoading : isLoadingOther;
 
-  return { profile, isLoading, isOwnProfile, error };
+  return { profile, isLoading, isOwnProfile, error, refresh };
 }

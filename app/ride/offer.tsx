@@ -14,6 +14,7 @@ import { Button, Text } from 'react-native-paper';
 import { OfferRideForm } from '@/components/rides/offer/offer-ride-form';
 import { OfferRideHeader } from '@/components/rides/offer/offer-ride-header';
 import { OfferRideIntroCard } from '@/components/rides/offer/offer-ride-intro-card';
+import { RequestedRideOfferForm } from '@/components/rides/offer/requested-ride-offer-form';
 import { AppText } from '@/components/text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppView } from '@/components/view';
@@ -22,7 +23,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getDriverProfile } from '@/lib/profile/driver-profile';
 import { supabase } from '@/lib/supabase';
 import { geocodeAddress } from '@/services/geocoding-service';
-import { fulfillWantedRequest } from '@/services/ride-wanted-requests-service';
+import {
+  fetchWantedRequest,
+  offerRideForWantedRequest,
+} from '@/services/ride-wanted-requests-service';
+import type { WantedRide } from '@/types/rides';
 
 type LinkedActivity = {
   id: string;
@@ -36,17 +41,22 @@ export default function OfferRideScreen() {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
 
-  const { activityId, pickupLocation: prefilledPickup, sourceRequestId } =
+  // sourceRequestId: the driver is answering a passenger's ride request, so the trip details
+  // come from that request instead of the form.
+  const { activityId, sourceRequestId } =
     useLocalSearchParams<{
       activityId?: string;
-      pickupLocation?: string;
       sourceRequestId?: string;
     }>();
 
   const [linkedActivity, setLinkedActivity] =
     useState<LinkedActivity | null>(null);
 
-  const [pickupLocation, setPickupLocation] = useState(prefilledPickup ?? '');
+  const [sourceRequest, setSourceRequest] = useState<WantedRide | null>(null);
+  const [sourceRequestError, setSourceRequestError] = useState<string | null>(null);
+  const [sourceRequestAttempt, setSourceRequestAttempt] = useState(0);
+
+  const [pickupLocation, setPickupLocation] = useState('');
   const [individualPickup, setIndividualPickup] = useState(false);
   const [destination, setDestination] = useState('');
   const [rideDateTime, setRideDateTime] =
@@ -117,6 +127,29 @@ export default function OfferRideScreen() {
       cancelled = true;
     };
   }, [activityId, activityAttempt]);
+
+  useEffect(() => {
+    if (!sourceRequestId) return;
+
+    let cancelled = false;
+
+    fetchWantedRequest(sourceRequestId)
+      .then((request) => {
+        if (cancelled) return;
+        if (!request || request.status !== 'open') {
+          setSourceRequestError('This ride request is no longer open.');
+          return;
+        }
+        setSourceRequest(request);
+      })
+      .catch(() => {
+        if (!cancelled) setSourceRequestError('Could not load this ride request. Check your connection and retry.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceRequestId, sourceRequestAttempt]);
 
   function goBack() {
     if (router.canGoBack()) {
@@ -248,14 +281,6 @@ export default function OfferRideScreen() {
         throw new Error(error.message);
       }
 
-      if (sourceRequestId) {
-        try {
-          await fulfillWantedRequest(sourceRequestId);
-        } catch (fulfillError) {
-          console.error('[offer] failed to mark request fulfilled:', fulfillError);
-        }
-      }
-
       Alert.alert(
         'Ride offer posted',
         'Your ride and map locations were saved successfully.',
@@ -278,6 +303,87 @@ export default function OfferRideScreen() {
     }
   }
 
+  async function handleOfferForRequest() {
+    if (saving || !sourceRequest) return;
+
+    const seats = Number.parseInt(availableSeats, 10);
+    if (!availableSeats.trim() || Number.isNaN(seats) || seats < 1) {
+      Alert.alert('Invalid seats', 'Offer at least one seat, counting the passenger who asked.');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const [pickup, destinationCoordinates] = await Promise.all([
+        geocodeAddress(sourceRequest.pickupLocation),
+        geocodeAddress(sourceRequest.destination),
+      ]);
+
+      const rideId = await offerRideForWantedRequest({
+        requestId: sourceRequest.id,
+        availableSeats: seats,
+        notes: notes.trim() || null,
+        pickup,
+        destination: destinationCoordinates,
+      });
+
+      Alert.alert(
+        'Ride offered',
+        `${sourceRequest.requester.name} is now a passenger on your ride. Start the drive from the ride page when it's time to pick them up.`,
+        [
+          {
+            text: 'View ride',
+            onPress: () => router.replace({ pathname: '/ride/[id]', params: { id: rideId } }),
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(
+        'Could not offer ride',
+        error instanceof Error ? error.message : 'Something went wrong.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function renderRequestOffer() {
+    if (sourceRequestError) {
+      return (
+        <>
+          <Text style={{ color: colors.text }}>{sourceRequestError}</Text>
+          <Button
+            textColor={colors.tint}
+            onPress={() => {
+              setSourceRequestError(null);
+              setSourceRequestAttempt((value) => value + 1);
+            }}
+          >
+            Retry
+          </Button>
+          <Button textColor={colors.tint} onPress={goBack}>Go back</Button>
+        </>
+      );
+    }
+
+    if (!sourceRequest) {
+      return <Text style={{ color: colors.text }}>Loading ride request…</Text>;
+    }
+
+    return (
+      <RequestedRideOfferForm
+        request={sourceRequest}
+        availableSeats={availableSeats}
+        onAvailableSeatsChange={setAvailableSeats}
+        notes={notes}
+        onNotesChange={setNotes}
+        saving={saving}
+        onSubmit={handleOfferForRequest}
+      />
+    );
+  }
+
   return (
     <AppView
       style={[
@@ -287,7 +393,10 @@ export default function OfferRideScreen() {
         },
       ]}
     >
-      <OfferRideHeader onBack={goBack} />
+      <OfferRideHeader
+        onBack={goBack}
+        subtitle={sourceRequestId ? 'Pick up a passenger who asked for a ride' : undefined}
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -307,7 +416,9 @@ export default function OfferRideScreen() {
             },
           ]}
         >
-          {verificationStatus === 'verified' ? (
+          {verificationStatus === 'verified' && sourceRequestId ? (
+            renderRequestOffer()
+          ) : verificationStatus === 'verified' ? (
             <>
               <OfferRideIntroCard
                 linkedActivityTitle={linkedActivity?.title}

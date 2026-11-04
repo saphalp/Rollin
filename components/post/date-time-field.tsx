@@ -49,7 +49,7 @@ export function DateTimeField({
       onChange(selected);
       return;
     }
-    if (selected) setDraft(selected);
+    setDraft(selected);
   }
 
   function confirm() {
@@ -90,7 +90,7 @@ export function DateTimeField({
           mode={mode}
           display="default"
           minimumDate={minimumDate}
-          onChange={handleChange}
+          onValueChange={handleChange}
           onDismiss={() => setVisible(false)}
         />
       )}
@@ -126,7 +126,7 @@ export function DateTimeField({
                 mode={mode}
                 display="spinner"
                 minimumDate={minimumDate}
-                onChange={handleChange}
+                onValueChange={handleChange}
                 textColor={colors.text}
                 style={styles.picker}
               />

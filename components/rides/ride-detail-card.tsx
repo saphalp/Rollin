@@ -1,14 +1,20 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { DepartureCountdownBadge } from '@/components/rides/departure-countdown-badge';
 import { AppText } from '@/components/text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { isRideExpired } from '@/lib/ride-status';
+import { fetchRatingSummary } from '@/services/ride-ratings-service';
 import { RideOffer } from '@/types/rides';
 
 type Props = {
     ride: RideOffer;
+    /** Opens the driver's profile when the driver row is tapped. */
+    onDriverPress?: () => void;
 };
 
 function formatDate(value: string | null): string {
@@ -30,9 +36,18 @@ function formatDate(value: string | null): string {
         });
 }
 
-export function RideDetailCard({ ride }: Props) {
+export function RideDetailCard({ ride, onDriverPress }: Props) {
     const theme = useColorScheme() ?? 'light';
     const colors = Colors[theme];
+    const [rating, setRating] = useState<{ average: number | null; count: number } | null>(null);
+
+    useEffect(() => {
+        let active = true;
+        fetchRatingSummary(ride.driverId)
+            .then((summary) => { if (active) setRating(summary); })
+            .catch(() => { if (active) setRating(null); });
+        return () => { active = false; };
+    }, [ride.driverId]);
 
     const rows = [
         {
@@ -67,34 +82,60 @@ export function RideDetailCard({ ride }: Props) {
                 },
             ]}
         >
-            <View style={styles.driverRow}>
-                <View
-                    style={[
-                        styles.avatar,
-                        {
-                            backgroundColor: colors.secondaryContainer,
-                        },
-                    ]}
-                >
-                    <MaterialCommunityIcons
-                        name="account"
-                        size={30}
-                        color={colors.onSecondaryContainer}
-                    />
-                </View>
-
-                <View style={styles.driverText}>
-                    <AppText
+            <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`View ${ride.driver.name}'s profile`}
+                disabled={!onDriverPress}
+                onPress={onDriverPress}
+                style={styles.driverRow}
+            >
+                {ride.driver.avatarUrl ? (
+                    <Image source={{ uri: ride.driver.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                ) : (
+                    <View
                         style={[
-                            styles.driverName,
+                            styles.avatar,
+                            styles.avatarFallback,
                             {
-                                color: colors.text,
-                                fontFamily: Fonts?.sans,
+                                backgroundColor: colors.secondaryContainer,
                             },
                         ]}
                     >
-                        {ride.driver.name}
-                    </AppText>
+                        <MaterialCommunityIcons
+                            name="account"
+                            size={30}
+                            color={colors.onSecondaryContainer}
+                        />
+                    </View>
+                )}
+
+                <View style={styles.driverText}>
+                    <View style={styles.nameRow}>
+                        <AppText
+                            numberOfLines={1}
+                            style={[
+                                styles.driverName,
+                                {
+                                    color: colors.text,
+                                    fontFamily: Fonts?.sans,
+                                },
+                            ]}
+                        >
+                            {ride.driver.name}
+                        </AppText>
+                        {rating && (
+                            <View style={[styles.ratingChip, { backgroundColor: colors.surfaceContainer }]}>
+                                <MaterialCommunityIcons
+                                    name={rating.average === null ? 'star-outline' : 'star'}
+                                    size={14}
+                                    color={colors.secondaryContainer}
+                                />
+                                <AppText style={[styles.ratingText, { color: colors.text, fontFamily: Fonts?.sans }]}>
+                                    {rating.average === null ? 'New' : rating.average.toFixed(1)}
+                                </AppText>
+                            </View>
+                        )}
+                    </View>
                     <AppText
                         style={[
                             styles.driverLabel,
@@ -104,12 +145,21 @@ export function RideDetailCard({ ride }: Props) {
                             },
                         ]}
                     >
-                        Driver
+                        {rating && rating.count > 0
+                            ? `Driver · ${rating.count} ${rating.count === 1 ? 'rating' : 'ratings'}`
+                            : 'Driver'}
                     </AppText>
                 </View>
-            </View>
 
-            <DepartureCountdownBadge dateTime={ride.dateTime} />
+                {onDriverPress && (
+                    <MaterialCommunityIcons name="chevron-right" size={24} color={colors.tabIconDefault} />
+                )}
+            </TouchableOpacity>
+
+            {/* Only a ride that hasn't started yet has a departure to count down to. */}
+            {(ride.status === 'open' || ride.status === 'full') && !isRideExpired(ride) && (
+                <DepartureCountdownBadge dateTime={ride.dateTime} />
+            )}
             {ride.activity ? (
                 <View
                     style={[
@@ -226,15 +276,37 @@ const styles = StyleSheet.create({
     avatar: {
         width: 56,
         height: 56,
-        borderRadius: 18,
+        borderRadius: 28,
+    },
+    avatarFallback: {
         alignItems: 'center',
         justifyContent: 'center',
     },
     driverText: {
         flex: 1,
     },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     driverName: {
+        flexShrink: 1,
         fontSize: 18,
+        lineHeight: 24,
+        fontWeight: '700',
+    },
+    ratingChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    ratingText: {
+        fontSize: 13,
+        lineHeight: 17,
         fontWeight: '700',
     },
     driverLabel: {

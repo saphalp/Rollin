@@ -23,3 +23,14 @@ export async function saveRating(target: RatingTarget, stars: number, comment: s
   });
   if (error) throw new Error(error.message);
 }
+
+/** Average stars (1 decimal) and number of ride ratings a user has received. */
+export async function fetchRatingSummary(userId: string): Promise<{ average: number | null; count: number }> {
+  const { data, error } = await supabase.rpc('ride_rating_summary', { p_user_id: userId });
+  if (error) throw new Error(error.message);
+  const row = data?.[0];
+  return {
+    average: row?.average == null ? null : Number(row.average),
+    count: Number(row?.count ?? 0),
+  };
+}

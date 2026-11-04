@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RideDetailCard } from '@/components/rides/ride-detail-card';
+import { PassengerSeatPanel } from '@/components/rides/passenger-seat-panel';
 import { RideRequestButton } from '@/components/rides/ride-request-button';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -33,13 +34,13 @@ import {
 
 import {
     cancelRide,
-    completeRide,
     startRide,
 } from '@/services/ride-lifecycle-service';
 
+import { closedRideStatus, isRideClosed } from '@/lib/ride-status';
 import { supabase } from '@/lib/supabase';
 import { stopDriverLocation } from '@/services/ride-tracking-service';
-import { fetchRideById } from '@/services/rides-service';
+import { fetchRideById, subscribeToRide } from '@/services/rides-service';
 import { RideOffer } from '@/types/rides';
 import { BACK_BUTTON_SIZE, BackButton } from '@/components/ui/back-button';
 
@@ -144,6 +145,22 @@ export default function RideDetailsScreen() {
             void loadRide();
         });
     }, [isOfferer, rideId, loadRequests, loadRide]);
+
+    // Everyone viewing the ride sees the driver start, cancel, or complete it right away.
+    useEffect(() => {
+        if (!rideId) return;
+        return subscribeToRide(rideId, () => void loadRide());
+    }, [rideId, loadRide]);
+
+    // Catch anything realtime missed while another screen was open.
+    const focusedOnce = useRef(false);
+    useFocusEffect(useCallback(() => {
+        if (!focusedOnce.current) {
+            focusedOnce.current = true;
+            return;
+        }
+        void loadRide();
+    }, [loadRide]));
 
     function goBack() {
         router.canGoBack()
@@ -260,37 +277,6 @@ export default function RideDetailsScreen() {
         } finally {
             setTripBusy(false);
         }
-    }
-
-    function handleCompleteTrip() {
-        if (!ride) return;
-
-        Alert.alert(
-            'Complete trip?',
-            'This ride will move to your history.',
-            [
-                { text: 'Not Yet', style: 'cancel' },
-                {
-                    text: 'Complete',
-                    onPress: async () => {
-                        setTripBusy(true);
-
-                        try {
-                            await completeRide(ride.id);
-
-                            router.replace({ pathname: '/ride/ratings/[id]', params: { id: ride.id } });
-                        } catch (e) {
-                            Alert.alert(
-                                'Could not complete trip',
-                                e instanceof Error ? e.message : 'Something went wrong.',
-                            );
-                        } finally {
-                            setTripBusy(false);
-                        }
-                    },
-                },
-            ],
-        );
     }
 
     function handleCancelRide() {
@@ -458,6 +444,9 @@ export default function RideDetailsScreen() {
     }
         const departed =
         !!ride.dateTime && new Date(ride.dateTime).getTime() <= now;
+    // Completed, cancelled, or expired rides are read-only; only reviews remain.
+    const closed = isRideClosed(ride, now);
+    const closedStatus = closedRideStatus(ride, now);
 
     return (
         <AppView
@@ -500,14 +489,44 @@ export default function RideDetailsScreen() {
                     { paddingBottom: insets.bottom + 30 },
                 ]}
             >
-                <RideDetailCard ride={ride} />
-                {request?.pickupAddress ? <AppText>Your requested pickup: {request.pickupAddress}</AppText> : null}
+                <RideDetailCard
+                    ride={ride}
+                    onDriverPress={() => router.push(`/profile/${ride.driverId}`)}
+                />
                 {ride.status === 'completed' && <TouchableOpacity onPress={() => router.push({ pathname: '/ride/ratings/[id]', params: { id: ride.id } })}
                     style={[styles.mainButton, { backgroundColor: colors.tint }]}>
                     <AppText style={{ color: colors.onPrimary }}>Rate this ride</AppText>
                 </TouchableOpacity>}
 
-                {isOfferer ? (
+                {closed ? (
+                    <View
+                        style={[
+                            styles.infoCard,
+                            { backgroundColor: colors.surfaceContainer },
+                        ]}
+                    >
+                        <MaterialCommunityIcons
+                            name={closedStatus === 'completed' ? 'flag-checkered' : closedStatus === 'cancelled' ? 'cancel' : 'clock-alert-outline'}
+                            size={22}
+                            color={colors.icon}
+                        />
+
+                        <View style={{ flex: 1 }}>
+                            <AppText style={[styles.name, { color: colors.text }]}>
+                                {closedStatus === 'completed'
+                                    ? 'This ride is complete'
+                                    : closedStatus === 'cancelled'
+                                        ? 'This ride was cancelled'
+                                        : 'This ride expired without starting'}
+                            </AppText>
+
+                            <AppText style={[styles.smallText, { color: colors.icon }]}>
+                                {request && !isOfferer ? `Your request: ${request.status}. ` : ''}
+                                It&apos;s in your ride history and can no longer be changed.
+                            </AppText>
+                        </View>
+                    </View>
+                ) : isOfferer ? (
                     <>
                         <View
                             style={[
@@ -581,48 +600,29 @@ export default function RideDetailsScreen() {
                             </TouchableOpacity>
                         )}
 
+                        {/* Pickups and completing the ride happen on the drive screen. */}
                         {ride.status === 'in_progress' && (
-                            <>
-                                <TouchableOpacity
-                                    onPress={() => openRideTracking(ride.id)}
+                            <TouchableOpacity
+                                onPress={() => openRideTracking(ride.id)}
+                                style={[
+                                    styles.mainButton,
+                                    { backgroundColor: colors.tint },
+                                ]}
+                            >
+                                <MaterialCommunityIcons
+                                    name="map-marker-path"
+                                    size={20}
+                                    color={colors.onPrimary}
+                                />
+                                <AppText
                                     style={[
-                                        styles.mainButton,
-                                        { backgroundColor: colors.tint },
+                                        styles.mainButtonText,
+                                        { color: colors.onPrimary },
                                     ]}
                                 >
-                                    <MaterialCommunityIcons
-                                        name="map-marker-path"
-                                        size={20}
-                                        color={colors.onPrimary}
-                                    />
-                                    <AppText
-                                        style={[
-                                            styles.mainButtonText,
-                                            { color: colors.onPrimary },
-                                        ]}
-                                    >
-                                        Start Drive
-                                    </AppText>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    disabled={tripBusy}
-                                    onPress={handleCompleteTrip}
-                                    style={[
-                                        styles.mainButton,
-                                        { backgroundColor: colors.tint },
-                                    ]}
-                                >
-                                    <AppText
-                                        style={[
-                                            styles.mainButtonText,
-                                            { color: colors.onPrimary },
-                                        ]}
-                                    >
-                                        Complete Trip
-                                    </AppText>
-                                </TouchableOpacity>
-                            </>
+                                    Continue Drive
+                                </AppText>
+                            </TouchableOpacity>
                         )}
 
                         {!['completed', 'cancelled'].includes(ride.status) && (
@@ -644,28 +644,7 @@ export default function RideDetailsScreen() {
                     </>
                 ) : (
                     <>
-                        {request && (
-                            <View
-                                style={[
-                                    styles.infoCard,
-                                    { backgroundColor: colors.surfaceContainer },
-                                ]}
-                            >
-                                <MaterialCommunityIcons
-                                    name={
-                                        request.status === 'accepted'
-                                            ? 'check-circle'
-                                            : 'clock-outline'
-                                    }
-                                    size={22}
-                                    color={colors.tint}
-                                />
-
-                                <AppText style={{ color: colors.text, fontWeight: '700' }}>
-                                    Request: {request.status.toUpperCase()}
-                                </AppText>
-                            </View>
-                        )}
+                        {request && <PassengerSeatPanel ride={ride} request={request} />}
 
                         {requestError && (
                             <AppText style={{ color: colors.error, textAlign: 'center' }}>
@@ -692,7 +671,7 @@ export default function RideDetailsScreen() {
                                         { color: colors.onPrimary },
                                     ]}
                                 >
-                                    Open Live Tracking
+                                    Track your driver
                                 </AppText>
                             </TouchableOpacity>
                         )}

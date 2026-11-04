@@ -244,13 +244,15 @@ export default function BasicInfoCard({
         </View>
       </View>
 
-      <Modal visible={pickerVisible} transparent animationType="slide"
+      {/* Fade, not slide, and no dark backdrop: the picker is a centered card over the screen
+          (used by both Edit Profile and onboarding). */}
+      <Modal visible={pickerVisible} transparent animationType="fade"
         onRequestClose={() => setPickerVisible(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalBackdrop}
         >
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.outlineVariant }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Choose your university</Text>
             <TextInput
               mode="outlined"
@@ -323,8 +325,20 @@ export default function BasicInfoCard({
 
 const styles = StyleSheet.create({
   universityButton: { minHeight: 54, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 12 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: 20, paddingVertical: 12 },
-  modalContent: { borderRadius: 18, padding: 18, gap: 14, maxHeight: '90%' },
+  modalBackdrop: { flex: 1, justifyContent: "center", paddingHorizontal: 20, paddingVertical: 12 },
+  // Border and shadow separate the card from the screen now that there's no dark backdrop.
+  modalContent: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+    gap: 14,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
   pickerTitle: { fontSize: 18, fontWeight: "700" },
   universityOption: { paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   container: {

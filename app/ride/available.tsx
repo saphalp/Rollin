@@ -113,14 +113,11 @@ export default function AvailableRidesScreen() {
         });
     }
 
-    function handleOfferForRequest(requestId: string, pickup: string) {
+    function handleOfferForRequest(requestId: string) {
+        // The request carries its own pickup, destination, time and activity.
         router.push({
             pathname: '/ride/offer',
-            params: {
-                ...(activityId ? { activityId } : {}),
-                pickupLocation: pickup,
-                sourceRequestId: requestId,
-            },
+            params: { sourceRequestId: requestId },
         });
     }
 
@@ -306,9 +303,7 @@ export default function AvailableRidesScreen() {
                                         }
                                         isOwn={isOwn}
                                         cancelling={cancellingId === request.id}
-                                        onPress={() =>
-                                            handleOfferForRequest(request.id, request.pickupLocation)
-                                        }
+                                        onPress={() => handleOfferForRequest(request.id)}
                                         onCancel={() => handleCancelRequest(request.id)}
                                     />
                                 );

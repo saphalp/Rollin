@@ -3,7 +3,6 @@ import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  AppState,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -84,6 +83,7 @@ export default function ExploreScreen() {
   const [error, setError] = useState('');
   const pageRef = useRef(0);
   const loadingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
   const fetchPage = useCallback(
     async (
@@ -96,8 +96,11 @@ export default function ExploreScreen() {
       const from = pageIndex * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Apply filter criteria to the post query
-      let allowedUserIds: string[] | null = null;
+      let query = supabase
+        .from('activity_photos')
+        .select('id, activity_id, user_id, image_path, caption, created_at')
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (filter === 'following') {
         if (!userId) {
@@ -124,7 +127,7 @@ export default function ExploreScreen() {
           setHasMore(false);
           return [] as PostViewModel[];
         }
-        allowedUserIds = followingIds;
+        query = query.in('user_id', followingIds);
       } else if (filter === 'campus') {
         if (!campus) {
           setHasMore(false);
@@ -149,17 +152,24 @@ export default function ExploreScreen() {
           setHasMore(false);
           return [] as PostViewModel[];
         }
-        allowedUserIds = campusUserIds;
-      }
 
-      let query = supabase
-        .from('activity_photos')
-        .select('id, activity_id, user_id, image_path, caption, created_at')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        // Also include activities hosted by members of this campus
+        let campusActivitiesQuery = supabase
+          .from('activities')
+          .select('id')
+          .in('host_id', campusUserIds);
 
-      if (allowedUserIds) {
-        query = query.in('user_id', allowedUserIds);
+        if (signal) campusActivitiesQuery = campusActivitiesQuery.abortSignal(signal);
+        const { data: campusActivities } = await campusActivitiesQuery;
+        const campusActivityIds = (campusActivities ?? []).map((a: any) => a.id);
+
+        if (campusActivityIds.length > 0) {
+          query = query.or(
+            `user_id.in.(${campusUserIds.join(',')}),activity_id.in.(${campusActivityIds.join(',')})`
+          );
+        } else {
+          query = query.in('user_id', campusUserIds);
+        }
       }
 
       if (signal) {
@@ -314,9 +324,15 @@ export default function ExploreScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      let controller: AbortController | null = new AbortController();
+      let controller: AbortController | null = null;
 
-      void loadInitial(feedFilterRef.current, controller.signal);
+      // Only perform initial load on first focus. Returning from a post detail preserves
+      // scroll offset and loaded posts without refreshing to the start.
+      if (!hasLoadedRef.current) {
+        hasLoadedRef.current = true;
+        controller = new AbortController();
+        void loadInitial(feedFilterRef.current, controller.signal);
+      }
 
       const unsubscribe = subscribeAccountChanges(() => {
         if (active) {
@@ -326,22 +342,10 @@ export default function ExploreScreen() {
         }
       });
 
-      const appSub = AppState.addEventListener('change', (state) => {
-        if (state === 'active' && active) {
-          controller?.abort();
-          controller = new AbortController();
-          void loadInitial(feedFilterRef.current, controller.signal);
-        } else if (state !== 'active') {
-          controller?.abort();
-        }
-      });
-
       return () => {
         active = false;
         controller?.abort();
-        controller = null;
         unsubscribe();
-        appSub.remove();
       };
     }, [loadInitial])
   );

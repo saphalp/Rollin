@@ -32,6 +32,55 @@ type ContentProps = {
   onClose: () => void;
 };
 
+function ZoomableSlide({
+  item,
+  index,
+  total,
+}: {
+  item: string;
+  index: number;
+  total: number;
+}) {
+  const [isZoomed, setIsZoomed] = useState(false);
+  const lastTapRef = useRef<number>(0);
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      setIsZoomed((prev) => !prev);
+    }
+    lastTapRef.current = now;
+  };
+
+  return (
+    <View style={styles.slide}>
+      <ScrollView
+        style={styles.zoomScroll}
+        contentContainerStyle={styles.zoomContent}
+        maximumZoomScale={3}
+        minimumZoomScale={1}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        centerContent
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={handleDoubleTap}
+          style={styles.zoomContent}
+        >
+          <Image
+            source={{ uri: item }}
+            style={[styles.image, isZoomed && styles.imageZoomed]}
+            contentFit="contain"
+            transition={150}
+            accessibilityLabel={`Full screen image ${index + 1} of ${total}`}
+          />
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
 function FullScreenViewerContent({
   imageUrls,
   initialIndex,
@@ -99,25 +148,11 @@ function FullScreenViewerContent({
         getItemLayout={getItemLayout}
         onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item, index }) => (
-          <View style={styles.slide}>
-            <ScrollView
-              style={styles.zoomScroll}
-              contentContainerStyle={styles.zoomContent}
-              maximumZoomScale={3}
-              minimumZoomScale={1}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              centerContent
-            >
-              <Image
-                source={{ uri: item }}
-                style={styles.image}
-                contentFit="contain"
-                transition={150}
-                accessibilityLabel={`Full screen image ${index + 1} of ${imageUrls.length}`}
-              />
-            </ScrollView>
-          </View>
+          <ZoomableSlide
+            item={item}
+            index={index}
+            total={imageUrls.length}
+          />
         )}
       />
 
@@ -227,6 +262,9 @@ const styles = StyleSheet.create({
   image: {
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT * 0.8,
+  },
+  imageZoomed: {
+    transform: [{ scale: 2 }],
   },
   bottomBar: {
     position: "absolute",

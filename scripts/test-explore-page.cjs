@@ -288,6 +288,7 @@ test('full-screen image viewer supports pinch zoom, page counter, and safe close
   assert.ok(viewerSource.includes('minimumZoomScale={1}'), 'Must specify minimumZoomScale');
   assert.ok(viewerSource.includes('onRequestClose'), 'Must handle hardware back button on Android');
   assert.ok(viewerSource.includes('useSafeAreaInsets'), 'Must respect safe area insets');
+  assert.ok(viewerSource.includes('handleDoubleTap'), 'Must support double tap zoom for cross-platform Android & iOS');
 });
 
 test('post card has modern compact activity tag, accessible touch targets, and full-screen viewer', () => {
@@ -306,4 +307,18 @@ test('post card has modern compact activity tag, accessible touch targets, and f
   assert.ok(cardSource.includes('actionRow'), 'Action row must be present');
   assert.ok(cardSource.includes('actionButton'), 'Action buttons must be present');
   assert.ok(cardSource.includes('FullScreenImageViewer'), 'Full screen image viewer must be integrated');
+});
+
+test('explore page preserves scroll position and loaded posts when returning from details', () => {
+  const exploreSource = fs.readFileSync('app/(tabs)/explore.tsx', 'utf8');
+
+  // Verify hasLoadedRef prevents resetting feed on focus
+  assert.ok(
+    exploreSource.includes('hasLoadedRef'),
+    'explore.tsx must use hasLoadedRef to guard against reloading from start on focus'
+  );
+  assert.ok(
+    exploreSource.includes('!hasLoadedRef.current'),
+    'explore.tsx must only trigger initial load on first focus'
+  );
 });

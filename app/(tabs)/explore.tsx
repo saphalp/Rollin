@@ -23,6 +23,35 @@ import { supabase } from '@/lib/supabase';
 
 const PAGE_SIZE = 10;
 
+/**
+ * Deduplicates posts by ID in O(N + M) time.
+ * Preserves the order of existing posts and discards any duplicates within
+ * incoming or between existing and incoming items.
+ */
+export function deduplicatePosts(
+  existing: PostViewModel[],
+  incoming: PostViewModel[]
+): PostViewModel[] {
+  const seen = new Set<string>();
+  const result: PostViewModel[] = [];
+
+  for (const post of existing) {
+    if (post && post.id && !seen.has(post.id)) {
+      seen.add(post.id);
+      result.push(post);
+    }
+  }
+
+  for (const post of incoming) {
+    if (post && post.id && !seen.has(post.id)) {
+      seen.add(post.id);
+      result.push(post);
+    }
+  }
+
+  return result;
+}
+
 export default function ExploreScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
@@ -174,7 +203,7 @@ export default function ExploreScreen() {
       try {
         const page = await fetchPage(0, currentUserId, signal);
         if (signal?.aborted) return;
-        setPosts(page);
+        setPosts(deduplicatePosts([], page));
       } catch (err: any) {
         if (signal?.aborted) return;
         console.error('loadInitial error:', err);
@@ -240,10 +269,7 @@ export default function ExploreScreen() {
       const nextPage = pageRef.current + 1;
       const page = await fetchPage(nextPage, currentUserId);
       pageRef.current = nextPage;
-      setPosts((prev) => {
-        const newItems = page.filter((item) => !prev.some((p) => p.id === item.id));
-        return [...prev, ...newItems];
-      });
+      setPosts((prev) => deduplicatePosts(prev, page));
     } catch (err: any) {
       console.error('loadMore error:', err);
     } finally {
@@ -260,6 +286,7 @@ export default function ExploreScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
+            // 1. Collect file paths before DB deletion (while references still exist)
             const [{ data: photoData }, { data: imagesData }] = await Promise.all([
               supabase.from('activity_photos').select('image_path').eq('id', postId).maybeSingle(),
               supabase.from('activity_photo_images').select('image_path').eq('post_id', postId),
@@ -273,16 +300,29 @@ export default function ExploreScreen() {
               }
             }
 
-            const { error: deleteError } = await supabase.from('activity_photos').delete().eq('id', postId);
+            // 2. Delete database record with user ownership guard
+            const { error: deleteError } = await supabase
+              .from('activity_photos')
+              .delete()
+              .eq('id', postId)
+              .eq('user_id', currentUserId);
+
             if (deleteError) {
               Alert.alert('Error', deleteError.message);
               return;
             }
 
+            // 3. Remove files from storage
             if (pathsToDelete.length > 0) {
-              void supabase.storage.from('activity-photos').remove(pathsToDelete);
+              const { error: storageError } = await supabase.storage
+                .from('activity-photos')
+                .remove(pathsToDelete);
+              if (storageError) {
+                console.warn('[explore] Storage removal warning:', storageError.message);
+              }
             }
 
+            // 4. Update UI
             setPosts((prev) => prev.filter((p) => p.id !== postId));
           } catch (err: any) {
             Alert.alert('Error', err?.message ?? 'Failed to delete post.');

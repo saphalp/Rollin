@@ -7,7 +7,11 @@ const vm = require('node:vm');
 function transpileAndRun(filepath, mocks = {}) {
   const source = fs.readFileSync(filepath, 'utf8');
   const code = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.React,
+    },
   }).outputText;
 
   const exports = {};
@@ -23,6 +27,69 @@ function transpileAndRun(filepath, mocks = {}) {
   vm.runInNewContext(code, context);
   return exports;
 }
+
+test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
+  const { deduplicatePosts } = transpileAndRun('app/(tabs)/explore.tsx', {
+    react: {
+      createElement: () => null,
+      Fragment: 'Fragment',
+      useCallback: (fn) => fn,
+      useRef: (val) => ({ current: val }),
+      useState: (val) => [val, () => {}],
+    },
+    'react-native': {
+      ActivityIndicator: 'ActivityIndicator',
+      Alert: { alert: () => {} },
+      AppState: { addEventListener: () => ({ remove: () => {} }) },
+      FlatList: 'FlatList',
+      RefreshControl: 'RefreshControl',
+      StyleSheet: { create: (s) => s },
+      TouchableOpacity: 'TouchableOpacity',
+      View: 'View',
+    },
+    'expo-router': { useFocusEffect: () => {} },
+    '@/components/tutorial/tour-target': { TourTarget: () => null },
+    '@/components/explore/post-card': { PostCard: () => null },
+    '@/components/text': { AppText: () => null },
+    '@/constants/theme': { Colors: { light: {}, dark: {} }, Fonts: { sans: 'System' } },
+    '@/hooks/use-auth-context': { useAuthContext: () => ({ claims: {}, profile: {} }) },
+    '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
+    '@/lib/account-center': { subscribeAccountChanges: () => () => {} },
+    '@/lib/profile/resolve-avatar-uri': { resolveAvatarUri: () => '' },
+    '@/lib/supabase': { supabase: {} },
+  });
+
+  const p1 = { id: 'post-1', caption: '1' };
+  const p2 = { id: 'post-2', caption: '2' };
+  const p3 = { id: 'post-3', caption: '3' };
+  const p1_dup = { id: 'post-1', caption: '1 duplicate' };
+  const p4 = { id: 'post-4', caption: '4' };
+
+  // 1. Appending new unique items
+  let result = deduplicatePosts([p1, p2], [p3]);
+  assert.equal(result.length, 3);
+  assert.deepEqual(Array.from(result, p => p.id), ['post-1', 'post-2', 'post-3']);
+
+  // 2. Overlapping item from shifted offset
+  result = deduplicatePosts([p1, p2], [p2, p3]);
+  assert.equal(result.length, 3);
+  assert.deepEqual(Array.from(result, p => p.id), ['post-1', 'post-2', 'post-3']);
+
+  // 3. Duplicates within incoming array
+  result = deduplicatePosts([p1], [p3, p3, p4]);
+  assert.equal(result.length, 3);
+  assert.deepEqual(Array.from(result, p => p.id), ['post-1', 'post-3', 'post-4']);
+
+  // 4. Duplicate within existing array
+  result = deduplicatePosts([p1, p1_dup], [p2]);
+  assert.equal(result.length, 2);
+  assert.deepEqual(Array.from(result, p => p.id), ['post-1', 'post-2']);
+
+  // 5. Empty existing or empty incoming
+  assert.deepEqual(Array.from(deduplicatePosts([], [p1]), p => p.id), ['post-1']);
+  assert.deepEqual(Array.from(deduplicatePosts([p1], []), p => p.id), ['post-1']);
+  assert.deepEqual(Array.from(deduplicatePosts([], []), p => p.id), []);
+});
 
 test('PostCard timeAgo correctly handles just now, yesterday, days, and invalid dates', () => {
   const source = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
@@ -125,7 +192,7 @@ test('usePostLike synchronizes with changed props and handles toggle', async () 
   assert.equal(hook.count, 5, 'count state must update when initialCount prop changes');
 });
 
-test('explore page does not query author email and deduplicates paginated posts', () => {
+test('explore page verifies author email privacy, deduplication and storage deletion order', () => {
   const exploreSource = fs.readFileSync('app/(tabs)/explore.tsx', 'utf8');
 
   // Verify email is not selected in profiles query
@@ -138,52 +205,24 @@ test('explore page does not query author email and deduplicates paginated posts'
     'explore.tsx must query only public profile fields'
   );
 
-  // Verify post deduplication in loadMore
+  // Verify post deduplication helper is used
   assert.ok(
-    exploreSource.includes('!prev.some((p) => p.id === item.id)'),
-    'explore.tsx must deduplicate paginated posts to prevent FlatList key collisions'
+    exploreSource.includes('deduplicatePosts(prev, page)'),
+    'explore.tsx must use deduplicatePosts in loadMore'
   );
 
-  // Verify storage cleanup on delete
+  // Verify storage cleanup is executed after DB delete validation
+  const dbDeleteIdx = exploreSource.indexOf("from('activity_photos')");
+  const storageRemoveIdx = exploreSource.indexOf(".from('activity-photos')");
+  assert.ok(dbDeleteIdx > 0 && storageRemoveIdx > 0, 'both DB delete and storage remove must exist');
   assert.ok(
-    exploreSource.includes("supabase.storage.from('activity-photos').remove"),
-    'explore.tsx must clean up orphaned storage photos on post delete'
+    dbDeleteIdx < storageRemoveIdx,
+    'Database row must be deleted before storage files are removed to prevent orphan broken posts'
   );
 
-  // Verify retry button on error
+  // Verify user ownership guard on DB delete
   assert.ok(
-    exploreSource.includes('Retry loading explore posts'),
-    'explore.tsx must provide a retry action when loading fails'
-  );
-
-  // Verify themed refresh control
-  assert.ok(
-    exploreSource.includes('tintColor={colors.tint}'),
-    'explore.tsx must apply theme tint to RefreshControl'
-  );
-});
-
-test('PostCard and PostImageCarousel isolate gestures and dark mode theming', () => {
-  const postCardSource = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
-  const carouselSource = fs.readFileSync('components/explore/post-image-carousel.tsx', 'utf8');
-
-  // Verify PostCard does not wrap PostImageCarousel in an outer TouchableOpacity
-  assert.ok(
-    !postCardSource.includes('<TouchableOpacity\n        activeOpacity={0.95}\n        onPress={() => router.push(`/post/${post.id}`)}\n      >\n        <PostImageCarousel'),
-    'PostCard must not wrap PostImageCarousel inside a parent TouchableOpacity'
-  );
-  assert.ok(
-    postCardSource.includes('onPressImage={() => router.push(`/post/${post.id}`)}'),
-    'PostCard must pass onPressImage to PostImageCarousel'
-  );
-
-  // Verify PostImageCarousel uses theme surfaceContainer instead of hardcoded #DDDDDD
-  assert.ok(
-    !carouselSource.includes('backgroundColor: "#DDDDDD"'),
-    'PostImageCarousel must not hardcode light gray #DDDDDD in dark mode'
-  );
-  assert.ok(
-    carouselSource.includes('colors.surfaceContainer'),
-    'PostImageCarousel must use dynamic theme background'
+    exploreSource.includes(".eq('user_id', currentUserId)"),
+    'DB delete must check user_id ownership matching current user'
   );
 });

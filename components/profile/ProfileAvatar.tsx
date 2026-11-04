@@ -4,7 +4,9 @@ import { Alert, StyleSheet, View } from "react-native";
 import { Button } from "react-native-paper";
 
 import AvatarCard from "@/components/profile/AvatarCard";
+import { Colors } from "@/constants/theme";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { FALLBACK_AVATAR, resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { selectProfileImage } from "@/lib/profile/select-profile-image";
 import { uploadProfilePicture } from "@/lib/profile/upload-profile-picture";
@@ -16,6 +18,8 @@ type ProfileAvatarProps = {
 export default function ProfileAvatar({
   editable = false,
 }: ProfileAvatarProps) {
+  const scheme = useColorScheme() ?? "light";
+  const colors = Colors[scheme];
   const { profile, refreshProfile } = useAuthContext();
 
   const [selectedImage, setSelectedImage] =
@@ -93,6 +97,8 @@ export default function ProfileAvatar({
             mode="outlined"
             onPress={() => setSelectedImage(null)}
             disabled={isUploading}
+            textColor={colors.text}
+            style={{ borderColor: colors.outlineVariant }}
           >
             Cancel
           </Button>
@@ -102,6 +108,8 @@ export default function ProfileAvatar({
             onPress={handleSaveImage}
             loading={isUploading}
             disabled={isUploading}
+            buttonColor={colors.tint}
+            textColor={colors.onPrimary}
           >
             Save Picture
           </Button>

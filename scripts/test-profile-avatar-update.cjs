@@ -34,6 +34,9 @@ test('ProfileAvatar calls refreshProfile after saving new picture', async () => 
   };
 
   const code = fs.readFileSync('components/profile/ProfileAvatar.tsx', 'utf8');
+  assert.ok(code.includes('buttonColor={colors.tint}'), 'Save button must use theme tint color');
+  assert.ok(code.includes('textColor={colors.onPrimary}'), 'Save button text must use onPrimary');
+
   const compiled = compileTs(code);
 
   const exports = {};
@@ -45,6 +48,8 @@ test('ProfileAvatar calls refreshProfile after saving new picture', async () => 
     console,
     require(id) {
       if (id === '@/hooks/use-auth-context') return { useAuthContext: () => mockAuthContext };
+      if (id === '@/hooks/use-color-scheme') return { useColorScheme: () => 'light' };
+      if (id === '@/constants/theme') return { Colors: { light: { tint: '#0058be', onPrimary: '#ffffff', text: '#191b23', outlineVariant: '#c2c6d6' } } };
       if (id === '@/lib/profile/upload-profile-picture') return mockUpload;
       if (id === '@/lib/profile/select-profile-image') return { selectProfileImage: async () => ({ uri: 'file://new.jpg' }) };
       if (id === '@/lib/profile/resolve-avatar-uri') return { FALLBACK_AVATAR: 'fallback', resolveAvatarUri: (p) => `https://cdn/${p}` };
@@ -137,4 +142,3 @@ test('ProfileSidebar derives avatar from profile_picture when profilePictureUrl 
   const code = fs.readFileSync('components/profile-sidebar.tsx', 'utf8');
   assert.ok(code.includes('resolveAvatarUri'), 'ProfileSidebar must resolve avatar from auth profile');
 });
-

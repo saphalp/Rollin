@@ -42,7 +42,8 @@ export function DateTimeField({
     setVisible(true);
   }
 
-  function handleChange(_event: DateTimePickerChangeEvent, selected: Date) {
+  function handleChange(_event: DateTimePickerChangeEvent, selected?: Date) {
+    if (!selected) return;
     if (Platform.OS === 'android') {
       setVisible(false);
       onChange(selected);

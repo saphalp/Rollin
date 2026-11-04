@@ -88,5 +88,5 @@ Allow users to create activities for other students to join and discover activit
 | `app/activity/edit/[id].tsx` | Activity edit form |
 | `app/calendar.tsx` | Calendar view with per-day activity list |
 | `components/activity-card.tsx` | Card used in the home feed recommended section |
-| `components/explore/explore-post-card.tsx` | Card used in the Explore feed |
+| `components/explore/post-card.tsx` | Card used in the Explore feed |
 | `components/Header.tsx` | Global header with calendar icon button |

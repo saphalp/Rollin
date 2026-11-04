@@ -7,18 +7,26 @@ import {
   NativeSyntheticEvent,
   StyleProp,
   StyleSheet,
+  TouchableOpacity,
   View,
   ViewStyle,
 } from "react-native";
 
 import { AppText } from "@/components/text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type Props = {
   imageUrls: string[];
   style?: StyleProp<ViewStyle>;
+  onPressImage?: (index: number) => void;
 };
 
-export function PostImageCarousel({ imageUrls, style }: Props) {
+export function PostImageCarousel({ imageUrls, style, onPressImage }: Props) {
+  const theme = useColorScheme() ?? "light";
+  const colors = Colors[theme];
+
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -32,19 +40,44 @@ export function PostImageCarousel({ imageUrls, style }: Props) {
     setActiveIndex(index);
   }
 
-  if (imageUrls.length <= 1) {
+  const containerBg = { backgroundColor: colors.surfaceContainer };
+
+  if (!imageUrls || imageUrls.length === 0) {
     return (
+      <View style={[styles.container, containerBg, styles.emptyContainer, style]}>
+        <IconSymbol name="camera.fill" size={32} color={colors.outline} />
+      </View>
+    );
+  }
+
+  if (imageUrls.length === 1) {
+    const singleImage = (
       <Image
         source={{ uri: imageUrls[0] }}
-        style={[styles.container, style] as StyleProp<ImageStyle>}
+        style={[styles.container, containerBg, style] as StyleProp<ImageStyle>}
         contentFit="cover"
         cachePolicy="memory-disk"
       />
     );
+
+    if (onPressImage) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => onPressImage(0)}
+          accessibilityRole="button"
+          accessibilityLabel="View post photos"
+        >
+          {singleImage}
+        </TouchableOpacity>
+      );
+    }
+
+    return singleImage;
   }
 
   return (
-    <View style={[styles.container, style]} onLayout={onLayout}>
+    <View style={[styles.container, containerBg, style]} onLayout={onLayout}>
       {width > 0 && (
         <FlatList
           data={imageUrls}
@@ -54,14 +87,29 @@ export function PostImageCarousel({ imageUrls, style }: Props) {
           showsHorizontalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
-          renderItem={({ item }) => (
-            <Image
-              source={{ uri: item }}
-              style={{ width, height: width }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const img = (
+              <Image
+                source={{ uri: item }}
+                style={{ width, height: width }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            );
+            if (onPressImage) {
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  onPress={() => onPressImage(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View post photo ${index + 1} of ${imageUrls.length}`}
+                >
+                  {img}
+                </TouchableOpacity>
+              );
+            }
+            return img;
+          }}
         />
       )}
 
@@ -94,8 +142,11 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     borderRadius: 10,
-    backgroundColor: "#DDDDDD",
     overflow: "hidden",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   countBadge: {
     position: "absolute",

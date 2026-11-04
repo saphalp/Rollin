@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAuthContext } from '@/hooks/use-auth-context';
 import { mergeMessages, type MessagePosition } from '@/lib/messaging';
-import { loadChatInfo, loadMessagePage, markChatRead, sendChatMessage, subscribeToChats,
+import { loadChatInfo, loadMessagePage, markChatRead, markChatDelivered, sendChatMessage, subscribeToChats,
   type ChatInfo, type ChatMessage } from '@/services/messaging-service';
 
 type State = { key: string; messages: ChatMessage[]; info: ChatInfo | null; loaded: boolean;
@@ -57,6 +57,10 @@ export function useChatConversation(id: string) {
             if (incoming.length) syncCursor = mergeMessages([], incoming).at(-1);
             info = nextInfo; rows = mergeMessages(rows, incoming); initialized = true;
             update({ info, messages: rows, loaded: true, error: '', refreshing: false });
+            if (incoming.length && userId) {
+              const latestOther = [...incoming].reverse().find(m => m.sender_id !== userId);
+              if (latestOther) void markChatDelivered(id, latestOther.id);
+            }
           } catch (error) {
             update({ refreshing: false, error: error instanceof Error ? error.message : 'Could not refresh messages. Please retry.' });
           }

@@ -18,9 +18,14 @@ const info={type:'direct',is_archived:false,receipts:[],otherUserId:'other'};
 test('messages deduplicate and order with microsecond precision; receipts exclude the sender',()=>{
   const a=message(1,{created_at:'2026-10-29T12:00:00.000001Z'}),b=message(2,{created_at:'2026-10-29T12:00:00.000002Z'});
   assert.deepEqual(Array.from(pure.mergeMessages([b,a],[{...a,content:'updated'}]),m=>m.content),['updated','Message 2']);
-  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','direct',[{user_id:'other',last_read_at:b.created_at,last_read_message_id:b.id}]),'Read');
+  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','direct',[{user_id:'other',last_read_at:b.created_at,last_read_message_id:b.id}]),'Seen');
   assert.equal(pure.messageReadLabel({...b,sender_id:'me'},'me','direct',[{user_id:'other',last_read_at:a.created_at,last_read_message_id:a.id}]),'Sent');
-  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','group',[{user_id:'me',last_read_at:b.created_at,last_read_message_id:b.id},{user_id:'other',last_read_at:b.created_at,last_read_message_id:b.id}]),'Read by 1');
+  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','direct',[],[{user_id:'other',last_delivered_at:b.created_at,last_delivered_message_id:b.id}]),'Delivered');
+  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','group',[{user_id:'me',last_read_at:b.created_at,last_read_message_id:b.id},{user_id:'other',last_read_at:b.created_at,last_read_message_id:b.id}]),'Seen by 1');
+  assert.equal(pure.messageReadLabel({...a,sender_id:'me'},'me','group',[],[{user_id:'other',last_delivered_at:b.created_at,last_delivered_message_id:b.id}]),'Delivered to 1');
+  assert.equal(pure.messageStatus({...a,sender_id:'me'},'me','direct',[{user_id:'other',last_read_at:b.created_at,last_read_message_id:b.id}]).status,'seen');
+  assert.equal(pure.messageStatus({...a,sender_id:'me'},'me','direct',[],[{user_id:'other',last_delivered_at:b.created_at,last_delivered_message_id:b.id}]).status,'delivered');
+  assert.equal(pure.messageStatus({...b,sender_id:'me'},'me','direct').status,'sent');
   assert.equal(pure.messageReadLabel(a,'me','direct',[]),undefined);
   assert.equal(pure.conversationPreview(null,'post',false),'Shared a post');
   assert.equal(pure.conversationPreview(null,'activity',true),'Shared an activity');
@@ -134,7 +139,7 @@ test('chat subscription covers messages, receipts, membership, archive/delete an
   const tables=[];let change,subscribe,removed=0,notifications=0;
   const channel={on(_event,config,fn){tables.push(config);change=fn;return channel;},subscribe(fn){subscribe=fn;return channel;}};
   const api=load('services/messaging-service.ts',{'@/lib/supabase':{supabase:{channel:()=>channel,removeChannel:()=>{removed++;}}},'@/lib/profile/resolve-avatar-uri':{},'@/lib/messaging':pure});
-  const cleanup=api.subscribeToChats(()=>notifications++,'chat');assert.equal(tables.length,5);
-  assert.ok(tables.some(t=>t.table==='conversation_read_state'));change();subscribe('SUBSCRIBED');api.notifyChatChanged();assert.equal(notifications,3);
+  const cleanup=api.subscribeToChats(()=>notifications++,'chat');assert.equal(tables.length,6);
+  assert.ok(tables.some(t=>t.table==='conversation_read_state'));assert.ok(tables.some(t=>t.table==='conversation_delivery_state'));change();subscribe('SUBSCRIBED');api.notifyChatChanged();assert.equal(notifications,3);
   cleanup();api.notifyChatChanged();assert.equal(notifications,3);assert.equal(removed,1);
 });

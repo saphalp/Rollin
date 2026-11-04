@@ -126,6 +126,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (recipients.length > 0) {
+      await admin.from('conversation_delivery_state').upsert(
+        recipients.map((recipientId) => ({
+          conversation_id: message.conversation_id,
+          user_id: recipientId,
+          last_delivered_at: message.created_at,
+          last_delivered_message_id: message.id,
+        })),
+        { onConflict: 'conversation_id,user_id' }
+      ).catch(() => {});
+    }
+
     console.log('notify-message', { sent: messages.length, skippedMuted: mutedIds.size, skippedOff: offIds.size });
     return reply({ ok: true, sent: messages.length, skipped: mutedIds.size + offIds.size });
   } catch (error) {

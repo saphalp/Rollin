@@ -11,19 +11,39 @@ export function usePostLike(
   const { claims } = useAuthContext();
   const currentUserId = claims?.sub as string | undefined;
 
-  const [liked, setLiked] = useState(initiallyLiked);
-  const [count, setCount] = useState(initialCount);
+  const [overrideLiked, setOverrideLiked] = useState<boolean | null>(null);
+  const [countOffset, setCountOffset] = useState(0);
+  const [prevProps, setPrevProps] = useState({ initiallyLiked, initialCount });
   const [isMutating, setIsMutating] = useState(false);
+
+  // If server props change, reset local optimistic overrides
+  const propsChanged =
+    prevProps.initiallyLiked !== initiallyLiked ||
+    prevProps.initialCount !== initialCount;
+
+  if (propsChanged) {
+    setPrevProps({ initiallyLiked, initialCount });
+    setOverrideLiked(null);
+    setCountOffset(0);
+  }
+
+  const liked = propsChanged
+    ? initiallyLiked
+    : overrideLiked !== null
+      ? overrideLiked
+      : initiallyLiked;
+  const currentOffset = propsChanged ? 0 : countOffset;
+  const count = Math.max(0, initialCount + currentOffset);
 
   async function toggle() {
     if (!currentUserId || isMutating) return;
 
     const previousLiked = liked;
-    const previousCount = count;
+    const previousOffset = currentOffset;
 
     setIsMutating(true);
-    setLiked(!previousLiked);
-    setCount(previousLiked ? previousCount - 1 : previousCount + 1);
+    setOverrideLiked(!previousLiked);
+    setCountOffset(previousLiked ? previousOffset - 1 : previousOffset + 1);
 
     const { error } = previousLiked
       ? await supabase
@@ -37,8 +57,8 @@ export function usePostLike(
 
     if (error) {
       console.error("[usePostLike] toggle failed:", error);
-      setLiked(previousLiked);
-      setCount(previousCount);
+      setOverrideLiked(previousLiked);
+      setCountOffset(previousOffset);
     }
 
     setIsMutating(false);

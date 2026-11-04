@@ -27,9 +27,11 @@ export type PostViewModel = {
 };
 
 function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const timestamp = new Date(dateStr).getTime();
+  if (Number.isNaN(timestamp)) return "";
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return "Just now";
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
@@ -66,6 +68,8 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           style={styles.headerLeft}
           activeOpacity={0.8}
           onPress={() => router.push(`/profile/${post.userId}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${post.userName}'s profile`}
         >
           <Image
             source={{ uri: post.avatarUrl }}
@@ -114,6 +118,8 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => router.push(`/activity/${post.activityId}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`View activity: ${post.activityTitle}`}
         style={[
           styles.eventTag,
           { backgroundColor: colors.secondaryContainer },
@@ -131,15 +137,19 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
         </AppText>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        activeOpacity={0.95}
-        onPress={() => router.push(`/post/${post.id}`)}
-      >
-        <PostImageCarousel imageUrls={post.imageUrls} />
-      </TouchableOpacity>
+      <PostImageCarousel
+        imageUrls={post.imageUrls}
+        onPressImage={() => router.push(`/post/${post.id}`)}
+      />
 
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.likeButton} onPress={toggle} hitSlop={8}>
+        <TouchableOpacity
+          style={styles.likeButton}
+          onPress={toggle}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={liked ? `Unlike post, ${count} likes` : `Like post, ${count} likes`}
+        >
           <IconSymbol
             name={liked ? "heart.fill" : "heart"}
             size={22}
@@ -156,6 +166,8 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
           style={styles.shareButton}
           hitSlop={8}
           onPress={() => setShareSheetVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Share post"
         >
           <IconSymbol
             name="square.and.arrow.up"

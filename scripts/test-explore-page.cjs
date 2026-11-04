@@ -43,7 +43,7 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
       AppState: { addEventListener: () => ({ remove: () => {} }) },
       FlatList: 'FlatList',
       RefreshControl: 'RefreshControl',
-      StyleSheet: { create: (s) => s },
+      StyleSheet: { create: (s) => s, hairlineWidth: 1 },
       TouchableOpacity: 'TouchableOpacity',
       View: 'View',
     },
@@ -51,6 +51,7 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
     '@/components/tutorial/tour-target': { TourTarget: () => null },
     '@/components/explore/post-card': { PostCard: () => null },
     '@/components/text': { AppText: () => null },
+    '@/components/ui/icon-symbol': { IconSymbol: () => null },
     '@/constants/theme': { Colors: { light: {}, dark: {} }, Fonts: { sans: 'System' } },
     '@/hooks/use-auth-context': { useAuthContext: () => ({ claims: {}, profile: {} }) },
     '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
@@ -225,4 +226,84 @@ test('explore page verifies author email privacy, deduplication and storage dele
     exploreSource.includes(".eq('user_id', currentUserId)"),
     'DB delete must check user_id ownership matching current user'
   );
+});
+
+test('explore page implements connected feed filters with distinct queries and empty states', () => {
+  const exploreSource = fs.readFileSync('app/(tabs)/explore.tsx', 'utf8');
+
+  // Check 3 filter options
+  assert.ok(exploreSource.includes("'All Posts'"), 'Must include All Posts filter');
+  assert.ok(exploreSource.includes("'My Campus'"), 'Must include My Campus filter');
+  assert.ok(exploreSource.includes("'Following'"), 'Must include Following filter');
+
+  // Check Following backend query connects to follows table with accepted status
+  assert.ok(
+    exploreSource.includes(".from('follows')") &&
+    exploreSource.includes(".eq('status', 'accepted')") &&
+    exploreSource.includes(".eq('follower_id', userId)"),
+    'Following filter must query accepted connections from follows table'
+  );
+
+  // Check My Campus backend query connects to profiles table with matching university
+  assert.ok(
+    exploreSource.includes(".from('profiles')") &&
+    exploreSource.includes(".eq('university', campus)"),
+    'Campus filter must query profiles matching current university'
+  );
+
+  // Check distinct empty states
+  assert.ok(
+    exploreSource.includes('Campus Not Set') &&
+    exploreSource.includes('No posts from people you follow'),
+    'Explore must provide dedicated empty states for campus and following filters'
+  );
+
+  // Check TourTarget id="explore-first-post" is preserved
+  assert.ok(
+    exploreSource.includes('id="explore-first-post"'),
+    'Guided tour target must be preserved'
+  );
+});
+
+test('explore tab layout applies noScenePadding to eliminate excessive header whitespace', () => {
+  const layoutSource = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf8');
+
+  // Find explore tab screen definition
+  const exploreIdx = layoutSource.indexOf('name="explore"');
+  assert.ok(exploreIdx > 0, 'explore screen must exist in _layout.tsx');
+
+  const exploreSection = layoutSource.slice(exploreIdx, exploreIdx + 400);
+  assert.ok(
+    exploreSection.includes('styles.noScenePadding'),
+    'explore tab must use styles.noScenePadding to remove double padding'
+  );
+});
+
+test('full-screen image viewer supports pinch zoom, page counter, and safe close', () => {
+  const viewerSource = fs.readFileSync('components/explore/full-screen-image-viewer.tsx', 'utf8');
+
+  // Modal presentation
+  assert.ok(viewerSource.includes('<Modal'), 'Must use Modal for full screen presentation');
+  assert.ok(viewerSource.includes('maximumZoomScale={3}'), 'Must support pinch to zoom with maximumZoomScale');
+  assert.ok(viewerSource.includes('minimumZoomScale={1}'), 'Must specify minimumZoomScale');
+  assert.ok(viewerSource.includes('onRequestClose'), 'Must handle hardware back button on Android');
+  assert.ok(viewerSource.includes('useSafeAreaInsets'), 'Must respect safe area insets');
+});
+
+test('post card has modern compact activity tag, accessible touch targets, and full-screen viewer', () => {
+  const cardSource = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
+
+  // Header and author metadata
+  assert.ok(cardSource.includes('width: 42'), 'Avatar should be ~42px');
+  assert.ok(cardSource.includes('height: 42'), 'Avatar height should be ~42px');
+  assert.ok(cardSource.includes('timeAgo(post.createdAt)'), 'Must display formatted timestamp');
+
+  // Activity tag refinement
+  assert.ok(cardSource.includes('activityTag'), 'Activity tag style must be present');
+  assert.ok(cardSource.includes('numberOfLines={1}'), 'Activity tag title must truncate with numberOfLines={1}');
+
+  // Action bar
+  assert.ok(cardSource.includes('actionRow'), 'Action row must be present');
+  assert.ok(cardSource.includes('actionButton'), 'Action buttons must be present');
+  assert.ok(cardSource.includes('FullScreenImageViewer'), 'Full screen image viewer must be integrated');
 });

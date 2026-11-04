@@ -43,7 +43,7 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
       AppState: { addEventListener: () => ({ remove: () => {} }) },
       FlatList: 'FlatList',
       RefreshControl: 'RefreshControl',
-      StyleSheet: { create: (s) => s },
+      StyleSheet: { create: (s) => s, hairlineWidth: 1 },
       TouchableOpacity: 'TouchableOpacity',
       View: 'View',
     },
@@ -51,6 +51,7 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
     '@/components/tutorial/tour-target': { TourTarget: () => null },
     '@/components/explore/post-card': { PostCard: () => null },
     '@/components/text': { AppText: () => null },
+    '@/components/ui/icon-symbol': { IconSymbol: () => null },
     '@/constants/theme': { Colors: { light: {}, dark: {} }, Fonts: { sans: 'System' } },
     '@/hooks/use-auth-context': { useAuthContext: () => ({ claims: {}, profile: {} }) },
     '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
@@ -91,50 +92,60 @@ test('deduplicatePosts helper eliminates duplicates in O(N+M) time', () => {
   assert.deepEqual(Array.from(deduplicatePosts([], []), p => p.id), []);
 });
 
-test('PostCard timeAgo correctly handles just now, yesterday, days, and invalid dates', () => {
-  const source = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
-  assert.ok(source.includes('Number.isNaN(timestamp)'), 'timeAgo must check for NaN timestamps');
+test('PostCard formatPostDate formats seconds, minutes, hours, 1-6d ago, then month/day or month/day/year', () => {
+  const { formatPostDate } = transpileAndRun('components/explore/post-card.tsx', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => [initial, () => {}],
+    },
+    'expo-image': { Image: 'Image' },
+    'expo-router': { router: { push: () => {} } },
+    'react-native': {
+      StyleSheet: { create: (s) => s },
+      TouchableOpacity: 'TouchableOpacity',
+      View: 'View',
+    },
+    '@/components/explore/full-screen-image-viewer': { FullScreenImageViewer: () => null },
+    '@/components/explore/post-image-carousel': { PostImageCarousel: () => null },
+    '@/components/report/overflow-menu': { OverflowMenu: () => null },
+    '@/components/share/share-sheet': { ShareSheet: () => null },
+    '@/components/text': { AppText: () => null },
+    '@/components/ui/icon-symbol': { IconSymbol: () => null },
+    '@/constants/theme': { Colors: { light: {}, dark: {} }, Fonts: { sans: 'System' } },
+    '@/hooks/use-color-scheme': { useColorScheme: () => 'light' },
+    '@/hooks/use-post-like': { usePostLike: () => ({ liked: false, count: 0, toggle: () => {} }) },
+  });
 
-  function timeAgo(dateStr) {
-    const timestamp = new Date(dateStr).getTime();
-    if (Number.isNaN(timestamp)) return "";
-    const diff = Date.now() - timestamp;
-    if (diff < 60000) return "Just now";
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days === 1) return "Yesterday";
-    return `${days}d ago`;
-  }
+  const now = Date.now();
 
-  // Future timestamp due to clock skew
-  const future = new Date(Date.now() + 5000).toISOString();
-  assert.equal(timeAgo(future), 'Just now');
+  // 1. Seconds (< 60s): Xs ago
+  assert.equal(formatPostDate(new Date(now - 15000).toISOString()), '15s ago');
+  assert.equal(formatPostDate(new Date(now - 45000).toISOString()), '45s ago');
+  assert.equal(formatPostDate(new Date(now + 2000).toISOString()), '1s ago');
 
-  // Just now
-  const justNow = new Date(Date.now() - 30000).toISOString();
-  assert.equal(timeAgo(justNow), 'Just now');
+  // 2. Minutes (< 60m): Xm ago
+  assert.equal(formatPostDate(new Date(now - 5 * 60000).toISOString()), '5m ago');
+  assert.equal(formatPostDate(new Date(now - 45 * 60000).toISOString()), '45m ago');
 
-  // Minutes
-  const tenMins = new Date(Date.now() - 10 * 60000).toISOString();
-  assert.equal(timeAgo(tenMins), '10m ago');
+  // 3. Hours (< 24h): Xh ago
+  assert.equal(formatPostDate(new Date(now - 2 * 3600000).toISOString()), '2h ago');
+  assert.equal(formatPostDate(new Date(now - 22 * 3600000).toISOString()), '22h ago');
 
-  // Hours
-  const twoHours = new Date(Date.now() - 2 * 3600000).toISOString();
-  assert.equal(timeAgo(twoHours), '2h ago');
+  // 4. 1 to 6 days: 1d ago ... 6d ago
+  assert.equal(formatPostDate(new Date(now - 25 * 3600000).toISOString()), '1d ago');
+  assert.equal(formatPostDate(new Date(now - 3 * 86400000).toISOString()), '3d ago');
+  assert.equal(formatPostDate(new Date(now - 6 * 86400000).toISOString()), '6d ago');
 
-  // Yesterday
-  const yesterday = new Date(Date.now() - 26 * 3600000).toISOString();
-  assert.equal(timeAgo(yesterday), 'Yesterday');
+  // 5. Older than 6 days (current year): month/day
+  const day14 = new Date(now - 14 * 86400000);
+  assert.equal(formatPostDate(day14.toISOString()), `${day14.getMonth() + 1}/${day14.getDate()}`);
 
-  // Days
-  const threeDays = new Date(Date.now() - 75 * 3600000).toISOString();
-  assert.equal(timeAgo(threeDays), '3d ago');
+  // 6. Previous year: month/day/year
+  assert.equal(formatPostDate('2025-11-04T12:00:00Z'), '11/4/2025');
+  assert.equal(formatPostDate('2024-03-16T08:30:00Z'), '3/16/2024');
 
-  // Invalid date
-  assert.equal(timeAgo('invalid-date'), '');
+  // 7. Invalid date
+  assert.equal(formatPostDate('invalid-date'), '');
 });
 
 test('usePostLike synchronizes with changed props and handles toggle', async () => {
@@ -224,5 +235,106 @@ test('explore page verifies author email privacy, deduplication and storage dele
   assert.ok(
     exploreSource.includes(".eq('user_id', currentUserId)"),
     'DB delete must check user_id ownership matching current user'
+  );
+});
+
+test('explore page implements connected feed filters with distinct queries and empty states', () => {
+  const exploreSource = fs.readFileSync('app/(tabs)/explore.tsx', 'utf8');
+
+  // Check 3 filter options
+  assert.ok(exploreSource.includes("'All Posts'"), 'Must include All Posts filter');
+  assert.ok(exploreSource.includes("'My Campus'"), 'Must include My Campus filter');
+  assert.ok(exploreSource.includes("'Following'"), 'Must include Following filter');
+
+  // Check Following backend query connects to follows table with accepted status
+  assert.ok(
+    exploreSource.includes(".from('follows')") &&
+    exploreSource.includes(".eq('status', 'accepted')") &&
+    exploreSource.includes(".eq('follower_id', userId)"),
+    'Following filter must query accepted connections from follows table'
+  );
+
+  // Check My Campus backend query connects to profiles table with matching university
+  assert.ok(
+    exploreSource.includes(".from('profiles')") &&
+    exploreSource.includes(".eq('university', campus)"),
+    'Campus filter must query profiles matching current university'
+  );
+
+  // Check distinct empty states
+  assert.ok(
+    exploreSource.includes('Campus Not Set') &&
+    exploreSource.includes('No posts from people you follow'),
+    'Explore must provide dedicated empty states for campus and following filters'
+  );
+
+  // Check TourTarget id="explore-first-post" is preserved
+  assert.ok(
+    exploreSource.includes('id="explore-first-post"'),
+    'Guided tour target must be preserved'
+  );
+});
+
+test('explore tab layout applies noScenePadding to eliminate excessive header whitespace', () => {
+  const layoutSource = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf8');
+
+  // Find explore tab screen definition
+  const exploreIdx = layoutSource.indexOf('name="explore"');
+  assert.ok(exploreIdx > 0, 'explore screen must exist in _layout.tsx');
+
+  const exploreSection = layoutSource.slice(exploreIdx, exploreIdx + 400);
+  assert.ok(
+    exploreSection.includes('styles.noScenePadding'),
+    'explore tab must use styles.noScenePadding to remove double padding'
+  );
+});
+
+test('full-screen image viewer supports pinch zoom, page counter, and safe close', () => {
+  const viewerSource = fs.readFileSync('components/explore/full-screen-image-viewer.tsx', 'utf8');
+
+  // Modal presentation
+  assert.ok(viewerSource.includes('<Modal'), 'Must use Modal for full screen presentation');
+  assert.ok(viewerSource.includes('maximumZoomScale={3}'), 'Must support pinch to zoom with maximumZoomScale');
+  assert.ok(viewerSource.includes('minimumZoomScale={1}'), 'Must specify minimumZoomScale');
+  assert.ok(viewerSource.includes('onRequestClose'), 'Must handle hardware back button on Android');
+  assert.ok(viewerSource.includes('useSafeAreaInsets'), 'Must respect safe area insets');
+  assert.ok(viewerSource.includes('handleDoubleTap'), 'Must support double tap zoom for cross-platform Android & iOS');
+});
+
+test('post card has activity badge beside username, Home badge style, expandable caption, and formatted date', () => {
+  const cardSource = fs.readFileSync('components/explore/post-card.tsx', 'utf8');
+
+  // 1. Header and author metadata
+  assert.ok(cardSource.includes('width: 42'), 'Avatar should be 42px');
+  assert.ok(cardSource.includes('height: 42'), 'Avatar height should be 42px');
+  assert.ok(cardSource.includes('formatPostDate(post.createdAt)'), 'Must display formatted timestamp using formatPostDate');
+
+  // 2. Activity badge in header beside username
+  assert.ok(cardSource.includes('authorRow'), 'Must group username and badge in authorRow');
+  assert.ok(cardSource.includes('activityBadge'), 'Activity badge style must be present');
+  assert.ok(cardSource.includes('secondaryContainer'), 'Badge must use Rollin Home secondaryContainer style');
+  assert.ok(cardSource.includes('onSecondaryContainer'), 'Badge must use Rollin Home onSecondaryContainer style');
+
+  // 3. Expandable caption
+  assert.ok(cardSource.includes('See more'), 'Must include See more for long captions');
+  assert.ok(cardSource.includes('See less'), 'Must include See less for expanded captions');
+  assert.ok(cardSource.includes('numberOfLines={isExpanded ? undefined : 2}'), 'Must default to max 2 lines');
+
+  // 4. Action bar & Full-screen viewer
+  assert.ok(cardSource.includes('actionRow'), 'Action row must be present');
+  assert.ok(cardSource.includes('FullScreenImageViewer'), 'Full screen image viewer must be integrated');
+});
+
+test('explore page preserves scroll position and loaded posts when returning from details', () => {
+  const exploreSource = fs.readFileSync('app/(tabs)/explore.tsx', 'utf8');
+
+  // Verify hasLoadedRef prevents resetting feed on focus
+  assert.ok(
+    exploreSource.includes('hasLoadedRef'),
+    'explore.tsx must use hasLoadedRef to guard against reloading from start on focus'
+  );
+  assert.ok(
+    exploreSource.includes('!hasLoadedRef.current'),
+    'explore.tsx must only trigger initial load on first focus'
   );
 });

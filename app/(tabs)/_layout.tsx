@@ -88,6 +88,10 @@ function MainTabs() {
             tabBarIcon: ({ color }) => (
               <IconSymbol size={24} name="safari" color={color} style={styles.tourGlyph} />
             ),
+            sceneStyle: [
+              styles.noScenePadding,
+              { backgroundColor: Colors[colorScheme].background },
+            ],
           }}
         />
         <Tabs.Screen

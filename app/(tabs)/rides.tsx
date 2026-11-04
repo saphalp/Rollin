@@ -25,7 +25,6 @@ import { RideEmptyState } from '@/components/rides/ride-empty-state';
 import { RideHeader } from '@/components/rides/ride-header';
 import { RideHowItWorksSheet } from '@/components/rides/ride-how-it-works-sheet';
 import { RideMapCard } from '@/components/rides/ride-map-card';
-import { RideSummaryTiles } from '@/components/rides/ride-summary-tiles';
 import { RideTab, RideTabBar } from '@/components/rides/ride-tab-bar';
 import { AppText } from '@/components/text';
 import { AppView } from '@/components/view';
@@ -522,14 +521,6 @@ export default function RidesScreen() {
                 handleOfferRide
               }
             /></TourTarget>
-
-            <RideSummaryTiles
-              offeringCount={offeredRides.length}
-              requestCount={myRequests.length}
-              loading={dataLoading}
-              onOfferingPress={() => setActiveTab('offering')}
-              onRequestsPress={() => setActiveTab('requests')}
-            />
           </>
         )}
 

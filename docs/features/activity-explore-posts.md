@@ -1,100 +1,53 @@
-# Explore posts on activities
+# Explore Posts on Activities
 
-The activity detail screen includes an **Explore posts** section below ride sharing
-(or below the activity information when rides are unavailable). It shows posts whose
-`activity_photos.activity_id` matches that activity. Typing an activity title into a
-caption alone does not tag it; existing photo uploads already save the activity ID.
+An activity page has an **Explore posts** section showing photos tagged with that activity. This lets people see what others shared without searching the whole Explore feed.
 
-Previews show the first photo, author, date, caption and photo count. Tap one to open
-the existing full post screen with its carousel, likes, sharing and reporting.
-Six posts load at a time, newest first, with **Load more posts** for the next page.
-The section includes empty, loading, retry and refresh states. It also appears on
-past activities so users can look back at photos.
+## Using the section
 
-## Privacy rules
+Each preview shows the first photo, author, date, caption, and number of photos. Tap it to open the full post, swipe through its pictures, like it, or share it.
 
-The database restricts reads of posts, image records and likes, in addition to all
-existing RLS policies:
+Six posts load at a time, newest first. **Load more posts** shows the next group. The section refreshes when you return to the page, and **Refresh** lets you check manually. Past activities keep the section so people can look back at photos.
 
-- The viewer must have completed email login verification and have an active account.
-- The activity, host and author must still be accessible/active.
-- For another person's post, both the host's and author's profiles must be visible
-  under the existing profile privacy helper. Public profiles are visible; private
-  profiles require an accepted follow or ownership. Pending follows do not qualify.
-- Authors can see their own posts without following the host, provided the other
-  activity and account rules permit access.
-- For a private activity, the viewer must also be the host or have an RSVP. A pending
-  join request is insufficient. Merely following the host does not grant attendance.
-- Existing restrictions are preserved. These new policies are restrictive SELECT
-  policies; they do not add permission to create, edit or delete posts.
+Posts are linked using the activity saved with the upload. Typing an activity's name in a caption does not tag it by itself.
 
-The same restrictions apply to new queries from Explore, direct post links and chat
-post previews. The activity section and full post screen recheck on focus, returning
-from the background and local account-setting changes. Refresh clears old results
-before checking again; errors never fall back to an unrestricted query. Remote
-privacy changes take effect on the next query/refresh, not by instantly retracting
-content already rendered on another device.
+## Who can see a post
 
-**Existing storage limitation:** `activity-photos` uses public image URLs throughout
-the app. Database RLS hides post metadata and image-path records but does not revoke
-an image URL that somebody already copied or cached. Strict media confidentiality
-would require a separate coordinated change to a private bucket and authorized image
-delivery across Explore, posts, profiles and chat previews. This feature does not
-claim to provide that protection or change the bucket configuration.
+The viewer, host, and author need active accounts, and the viewer must pass the current login checks. For someone else's post, both the host's and author's profiles must be visible to the viewer. A private profile requires an accepted follow or ownership; a pending follow is not enough.
+
+Authors can see their own posts without following the host, as long as the other access rules allow it. For a private activity, the viewer must also be the host or an attendee. A pending join request does not count.
+
+These rules are checked by Supabase for posts, image records, and likes. They also apply to new requests from Explore, direct post links, and shared chat previews. Privacy changes take effect when data is requested again; they cannot instantly remove something another phone has already loaded.
+
+Photos currently use public storage URLs. Hiding a post in the database does not stop someone opening a photo URL they already copied. Making those files private would require changing image loading across the app too.
 
 ## Supabase setup
 
-Run the complete contents of
-`supabase/migrations/20261029160000_activity_explore_posts.sql` in the shared project's
-SQL Editor before testing the new screens. It is safe to rerun. This adds a query
-function and index, and adds/replaces only the three policies named in that file.
-It creates no tables and deletes no user data. Existing account-privacy functions
-(`rollin_can_view_profile`, `rollin_account_active`) and `login_email_verified` must
-already exist. The transaction fails rather than silently bypassing missing setup.
+Before using the section on a new backend, run the full file:
 
-This SQL affects other team members' new post queries too: private posts previously
-returned by permissive policies may disappear for viewers without access. Deploy
-the SQL before distributing the updated app; the new activity and post screens
-show an error until the RPC is installed. No Edge Function deployment, API key or
-email-template change is needed. Codex has not applied this to the shared project.
+```text
+supabase/migrations/20261029160000_activity_explore_posts.sql
+```
 
-## Implementation
+It adds `get_activity_explore_posts`, an index for finding posts by activity, and three extra read-access rules. Existing account helpers (`rollin_can_view_profile`, `rollin_account_active`, and `login_email_verified`) must already be installed. The file can be rerun safely and does not delete user data.
 
-- `services/activity-posts-service.ts`: RPC loading, exact timestamp/ID cursors and media mapping.
-- `hooks/use-activity-posts.ts`: focus lifecycle, paging, cancellation, errors and account isolation.
-- `components/activity/activity-posts-section.tsx`: accessible previews and controls.
-- `app/activity/[id].tsx`: section placement.
-- `app/post/[id].tsx`: permission-aware loading and unavailable/retry states.
-- `get_activity_explore_posts`: security-invoker query using the caller's RLS. It
-  returns ordered image paths (with a legacy single-image fallback), author and
-  likes in one database snapshot. No service-role key is used in the app.
+The rules affect post requests across the shared project, including older app builds. The new screens show an error until the query function is installed. No new secret, email template, or Edge Function deployment is needed.
+
+## Main files
+
+- `components/activity/activity-posts-section.tsx`: the previews and controls.
+- `hooks/use-activity-posts.ts`: loading, extra pages, refresh, and account changes.
+- `services/activity-posts-service.ts`: calls the database and prepares image URLs.
+- `app/activity/[id].tsx`: places the section on the activity page.
+- `app/post/[id].tsx`: opens a full post and rechecks access when returning to it.
+
+The query uses the signed-in user's permissions. It loads the author, photos, and likes together, and supports older posts that only stored one image. A failed load shows Retry rather than falling back to a request without privacy checks.
 
 ## Testing
 
-Automated checks:
-
-```sh
+```powershell
 node --test scripts/test-activity-posts.cjs scripts/test-activity-posts-db.cjs
 ```
 
-The database test uses isolated PGlite under
-`.expo/login-security-validation/node_modules/@electric-sql/pglite`, like the existing
-messaging SQL tests. It never connects to Supabase. Tests cover privacy combinations,
-pending/revoked follows, private activity membership, unverified/inactive accounts,
-raw table/direct-post access, ordered and legacy images, pagination with identical
-timestamps, canceled requests, account switching and errors. The fixture models
-existing permissive policies; the shared database still needs the manual checks below.
+The database test uses the same local PGlite installation as [messaging tests](messaging-and-notifications.md#testing), not the shared Supabase project.
 
-Phone checks after applying the SQL:
-
-1. Open an activity with tagged photo posts. Check previews and open a full post.
-   Swipe multiple photos, like it, return, and verify the section reloads.
-2. Open another activity and one with no posts; posts must not cross activities.
-3. With more than six visible posts, load the rest and check ordering/duplicates.
-4. Use a second account to test private host and private author independently.
-   Refresh: a non-follower/pending follower should not see those posts; an accepted
-   follower should. Remove the follow and check again. Test the saved direct post link too.
-5. For a private activity, compare an approved attendee, the host and an outsider.
-6. Disconnect the network, refresh, then reconnect and retry. Old posts should clear
-   and an error should appear; retry should recover. Switch accounts and verify no
-   posts from the previous account briefly remain.
+On a phone, open an activity with posts, try Load more, and open a full post. Check another activity and one with no posts. With two accounts, test private hosts, private authors, pending and accepted follows, and a private activity's host, attendee, and outsider. Test direct post links as well. Finally, try a failed connection, Retry, and switching accounts.

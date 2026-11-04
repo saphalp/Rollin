@@ -1,52 +1,33 @@
 # Event Cancellation
 
-## Purpose
+Hosts can cancel an upcoming activity and add a short explanation. Attendees are notified so they know their plans have changed.
 
-Hosts can cancel an upcoming event and explain why. Everyone who joined is notified automatically, so nobody shows up to an event that isn't happening.
+## Cancel an event
 
-## Assumptions
+1. Open an upcoming activity you host.
+2. Choose **Cancel Event** from the three-dot menu.
+3. Add an optional reason, up to 500 characters.
+4. Confirm **Cancel Event**, or choose **Keep Event** to go back.
 
-- Only the host can cancel, and only an upcoming event that isn't already cancelled.
-- The cancellation message is optional, up to 500 characters.
-- Cancelling can't be undone.
-- Cancelled events stay visible so attendees can see what happened, but nobody can join them.
+Cancellation cannot be undone. The activity stays visible with a cancelled label and the host's reason, but new users cannot join. Deleting an activity is a separate action for hosts who want it removed.
 
-## Decisions
+## What the server does
 
-### Cancel instead of delete
+The `cancel-activity` function checks that the caller is the host and the activity can still be cancelled. It saves the cancelled status, reason, and time, then adds attendee notifications and sends pushes where possible.
 
-Cancelling sets the activity's `status` to `cancelled` and saves `cancel_reason` and `cancelled_at`, instead of deleting the row. This keeps the event on attendees' profiles with a clear "Cancelled" label, and they can still open it to read the host's message. Delete Activity is still available for hosts who want the event gone entirely.
+The join button is hidden for a cancelled activity. A database trigger, `block_rsvp_cancelled`, also rejects joins so an old screen cannot get around that restriction. Related ride handling is covered by the ride-seat and cancelled-activity migration.
 
-### Edge function does the work
+## Setup notes
 
-The `cancel-activity` edge function verifies the caller is the host, marks the event cancelled, adds an in-app notification for every attendee, and sends them a push with the event name and message. Notifying other users and updating the activity need the service-role key, so this can't run in the app.
+The activity status originally allowed only active and expired. `20261023120000_activity_cancellation.sql` adds cancelled, the reason/time fields, and the join restriction. The server function also needs permission to update activities.
 
-### Blocked in the database
+Check `supabase/migrations/20261102120000_ride_seats_and_cancelled_activity_rides.sql` and the current `cancel-activity` function when testing cancellation with linked rides.
 
-A trigger on `rsvps` (`block_rsvp_cancelled`) rejects any join on a cancelled activity. The Join button is also hidden, but the trigger makes sure an old screen or a direct request can't get around it.
+## Main files
 
-### Confirmation before cancelling
+- `app/activity/cancel/[id].tsx`: reason and confirmation.
+- `app/activity/[id].tsx`: cancellation menu and banner.
+- `supabase/functions/cancel-activity/index.ts`: checks and cancels the event.
+- `components/profile/MyActivities.tsx` and `components/profile/UserProfile.tsx`: cancelled labels in activity lists.
 
-Since cancelling can't be undone and notifies everyone, the app asks "Cancel this event?" with **Keep Event** and **Cancel Event** options before doing anything.
-
-## Technical Hurdles
-
-- The `status` column only allowed `active` and `expired`. The migration removes the old check and adds one that also allows `cancelled`.
-- The function needed `update` on `activities` for `service_role`.
-
-## Feature Workflow
-
-1. The host opens an upcoming event and taps **⋮ → Cancel Event**.
-2. They optionally write a reason, tap **Cancel Event**, and confirm.
-3. `cancel-activity` marks the event cancelled and notifies every attendee.
-4. Attendees get a push like "Board Game Night was cancelled: Rain," and the same message in their Notifications tab.
-5. The activity page shows a red "This event was cancelled" banner with the reason, and the Join button is gone.
-6. On profiles, the event shows a red **Cancelled** label in the Created and Joined lists.
-
-## Relevant files
-
-- `supabase/migrations/20261023120000_activity_cancellation.sql`: `cancelled` status, `cancel_reason` and `cancelled_at` columns, `block_rsvp_cancelled` trigger, grants
-- `supabase/functions/cancel-activity/index.ts`: verifies the host, cancels the event, notifies attendees
-- `app/activity/cancel/[id].tsx`: cancel screen with the optional message and confirmation
-- `app/activity/[id].tsx`: Cancel Event menu item, cancelled banner, hides Join
-- `components/profile/MyActivities.tsx`, `components/profile/UserProfile.tsx`: Cancelled label on profile lists
+Test as a host and an attendee. Check the confirmation, optional reason, notifications, blocked joining, and any linked rides. Make sure a non-host cannot cancel it.

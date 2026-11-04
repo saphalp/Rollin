@@ -1,67 +1,41 @@
-# Calendar and upcoming agenda
+# Calendar and Upcoming Plans
 
-Open Calendar from the header. The default **My activities** filter combines
-activities you created and joined. **Created**, **Joined**, and **All activities**
-filter the calendar markers, selected-day list, and upcoming agenda together.
-All activities means activities visible through the current user's database permissions.
+The Calendar puts activities and rides together so users can see what they have coming up. Open it from the calendar icon in the header.
 
-**Include my rides** is enabled initially. It adds your active ride offers and
-rides where your seat request is accepted. It operates independently of the
-activity filter. Pending/rejected/canceled seat requests and canceled/completed
-rides are excluded. Hosted activities are included without requiring a separate
-RSVP, and an activity you both host and joined appears once.
+## Choose what to show
 
-Activities and rides use different icons, labels and marker colors. Hosting is
-amber, other activities blue, and rides green. Markers use the device's local
-date; multiple plans of the same kind share a dot. Tap a date for that day's
-plans; tap it again or select Clear to clear the day selection. Tap an item to
-open its activity or ride details.
+The default **My activities** view includes activities you created or joined. Switch to **Created**, **Joined**, or **All activities** to change the calendar dots, the selected day's list, and the upcoming agenda together. All activities includes only what your account is allowed to access.
 
-The upcoming agenda combines activities and rides in chronological order, grouped
-by local date. It excludes past start times, missing/invalid dates and canceled
-activities. The agenda initially renders 20 items; Show more plans reveals 20
-more. Selected past dates can still show historical activities. The calendar is
-not a full completed-ride history; that remains on the Rides screen.
+**Include my rides** starts on. It adds your active ride offers and rides where your seat has been accepted. It stays separate from the activity filter. Pending or rejected seats and cancelled or completed rides are not included.
 
-## Refresh and data
+Hosting is marked in amber, other activities in blue, and rides in green. Tap a date to see that day's plans, then tap a plan to open its details. Tap the date again or use **Clear** to remove the day selection.
 
-- Refresh when entering/returning to the screen, resuming the app, or pulling down.
-- While focused, subscribe to changes on activities, RSVPs, ride offers and seat
-  requests. Debounce bursts and refresh after the subscription reconnects.
-- Refresh every minute while focused and foregrounded as a fallback for missed
-  events or tables without Realtime enabled. No polling on other screens or in
-  the background. This also updates which plans are still upcoming.
-- Cancel requests and clean up subscriptions on blur/account changes. Old requests
-  cannot overwrite results for a different account or newly focused screen.
-- Keep the last successful result during refresh. On failure, show an error and
-  Retry; do not silently present a partial calendar as complete.
-- Paginate all queries, including memberships and accepted rides. No new RPC,
-  migration, dependency or privileged backend key is needed.
+## Upcoming agenda
 
-Campus events appear here when hosted as activities, matching the existing
-calendar source. The standalone campus feed and saved-campus-event work remain
-separate. The existing **Export events** dialog retains its own filters and
-exports activities; the new ride toggle does not add rides to that file.
+Below the calendar, upcoming activities and rides appear in time order, grouped by day. The first 20 plans show initially; **Show more plans** reveals another 20. An activity you both host and joined appears once.
 
-## Verification
+The agenda skips cancelled activities, plans without a usable date, and start times that have already passed. You can still select a past date to see older activities. Completed ride history stays on the Rides screen.
 
-Run `node --test scripts/test-calendar-plans.cjs scripts/test-calendar-export.cjs`.
-The tests cover filtering, accepted/owned rides, pagination, deduplication, local
-dates, detail routes, membership changes, refresh triggers, failures, account
-changes, and subscription cleanup.
+Dates follow the phone's time zone. This matters for late-night events: a plan should appear on the day it happens locally, even if its saved UTC date is the next day.
 
-Device acceptance:
+## Keeping plans up to date
 
-1. Create an activity, join another, offer a ride, and get an accepted seat in a
-   different ride. Confirm all appear in My activities with rides enabled.
-2. Switch Created, Joined and All activities; verify both markers and agenda.
-   Disable rides and verify they disappear from both.
-3. Tap activity/ride cards and return. Leave an activity, cancel a request, or
-   change a plan's time. Confirm the updated membership/date on return.
-4. From another account, accept a request or cancel a ride while the calendar is
-   open. Verify Realtime refresh, or the within-a-minute fallback if disabled.
-5. Test empty accounts, offline Retry, past selected days, midnight events, large
-   text, export, and the calendar tutorial highlight.
+The calendar reloads when you return to it, reopen the app, or pull down to refresh. It listens for changes to activities, attendance, rides, and seat requests while open. It also checks once a minute in case a live update was missed.
 
-Files: `app/calendar.tsx`, `lib/calendar-plans.ts`,
-`services/calendar-plans-service.ts`, `hooks/use-calendar-plans.ts`.
+If a refresh fails, the last loaded plans stay visible with an error and Retry. Changing accounts clears the old account's work so a late response cannot replace the new calendar.
+
+Campus events appear here after they are hosted as Rollin activities. **Export events** has its own filters and exports activities only; turning rides on in this view does not add them to the export. See [Calendar Export](calendar-export.md).
+
+## Development notes
+
+This feature uses the existing activity and ride tables. It loads all result pages, including attendance and accepted seats, so larger accounts are not cut off by a single database response. It needs no new SQL or API key.
+
+Main files: `app/calendar.tsx`, `lib/calendar-plans.ts`, `services/calendar-plans-service.ts`, and `hooks/use-calendar-plans.ts`.
+
+## Testing
+
+```powershell
+node --test scripts/test-calendar-plans.cjs scripts/test-calendar-export.cjs
+```
+
+Create an activity, join another, offer a ride, and have a seat accepted on a different ride. Check the filters, ride toggle, calendar dots, and agenda. Change or leave a plan and return to confirm it updates. Use another account to accept a seat while the calendar is open, then test a failed connection and Retry. Include a late-night event and an account with no plans.

@@ -1,95 +1,48 @@
-# Authentication
+# Accounts and Sign-in
 
-## Purpose
+Users can create a Rollin account with an email address and password, or sign in with Google. Supabase handles the account and keeps the user signed in between app visits.
 
-- A user can create an account with an email address and password.
-- A user can sign in with Google OAuth so that they do not have to set up a separate password.
-- A user can confirm ownership of their email before continuing into the application.
-- The application can display the educational-email verification status stored on the user's profile.
+## Signing up
 
-## Assumptions
+1. Enter an email address and choose a password.
+2. Check that inbox for the signup code.
+3. Enter the code in Rollin to confirm the email.
+4. Complete any required login-code check, then fill out the profile.
 
-- The user has access to the email address used to create the account.
-- Supabase authentication and the configured email provider are available.
-- Google OAuth remains configured in both Google and Supabase.
-- Any educational-email verification performed outside the mobile client remains configured in the Supabase project.
+Someone who tries to log in before confirming their email is sent back to the confirmation screen. That screen includes **Resend code**, with a 60-second wait after a send or rate-limit response. It also shows when a code is invalid, expired, or could not be sent.
 
-## Decisions
+The email field checks for a valid email format. A university email can earn the educational-email badge, but the mobile form does not treat every non-university address as invalid.
 
-- **Supabase for auth.** It gives us email/password and Google OAuth out of the box, plus a place to run server-side logic (edge functions).
-- **Email confirmation before normal sign-in.** Supabase sends a numeric signup code. The user enters it in Rollin to verify ownership and start an authenticated session.
-- **Email code on fresh sessions.** The local implementation requires a separate login code before loading app data. Existing approved sessions stay signed in. See [Email login verification](login-email-verification.md) for required backend rollout steps and the distinction from native Supabase MFA.
-- **Educational verification should run server-side.** The mobile client reads the resulting `is_educational_email` value from the profile instead of deciding whether a user is verified. The server-side implementation is configured outside this repository and must also be configured when the backend is recreated.
-- **Hipolabs for educational-domain lookup.** The verification design uses the free Hipolabs Universities API to compare an email domain with known university domains without placing that decision in the client application.
+## Signing in
 
-## Technical Hurdles
+For email login, enter the account email and password. For Google login, choose a Google account and return to Rollin when the sign-in finishes.
 
-- **Subdomains in student emails.** Some schools issue addresses like `student@cs.usc.edu`, but Hipolabs only stores the root domain (`usc.edu`). We strip the subdomain down to the root before matching, or the lookup fails for legitimate users.
-- **Signup email template.** Supabase's Confirm sign up template must contain `{{ .Token }}` instead of a confirmation link. Keep Confirm email enabled. The code is entered in the app, so signup confirmation needs no email redirect. Existing Resend SMTP and DNS settings can be reused.
-- **Google OAuth redirection.** The redirect URL must agree across the application, Google OAuth configuration, and Supabase authentication settings before the user can return to Rollin successfully.
+When emailed login verification is enabled in the backend, a new session asks for a separate code before opening the app. An approved session stays signed in when the user closes and reopens Rollin. See [Email Login Verification](login-email-verification.md) for its setup, limits, and on/off switch.
 
-## Feature Workflow
+The app then checks the profile. New users finish profile setup; users with completed profiles go to the main tabs. **Forgot Password** opens the [password reset flow](password-reset.md).
 
-### Email and password
+## Why we use email codes
 
-1. The user enters an email address and password.
-2. Supabase creates the account and sends an email-confirmation code.
-3. The app passes the signup email to the confirmation screen. The user enters the code, and `verifyOtp` with type `email` confirms ownership and creates a session.
-4. The authentication provider checks the session's server-side login approval; a fresh session must enter an emailed login code.
-5. After approval, the provider loads the profile and routes the user to profile completion or the main tabs.
+Codes let people open their email on any device and type the result into Rollin. They also avoid the redirect problems we had with email links during development.
 
-Users who try to log in before confirmation return to the code-entry screen. Resend code calls `auth.resend` with type `signup`, with a 60-second cooldown after a successful request or rate-limit response. Invalid/expired codes and request failures are shown inline. Regular login continues to use email and password.
+In Supabase, keep **Confirm email** enabled and use `{{ .Token }}` in the **Confirm sign up** email template. The app verifies signup codes with `verifyOtp` using type `email`; resend uses type `signup`. A template that still contains only a link will not match this screen.
 
-### Google OAuth
+Resend delivers our branded emails from `no-reply@rollin-app.org`. Google sign-in still needs its redirect settings to agree between the app, Google, and Supabase.
 
-1. The user chooses Google sign-in.
-2. Google handles account selection and authentication.
-3. The OAuth redirect returns the user to Rollin and Supabase creates the authenticated session.
-4. The application requires the emailed login code for the new session, then loads the user's profile and continues to profile completion or the main tabs.
+## University verification
 
-Educational-email verification, when configured in Supabase, runs outside the mobile client and stores its result in the profile's `is_educational_email` field.
+The app displays the `is_educational_email` result saved on the profile. The university lookup was designed around Hipolabs, which lists university email domains. A server check must compare the returned domains rather than assuming the API filtered them correctly. Student subdomains also need care: a school may list `usc.edu` while a student uses `cs.usc.edu`.
 
-## Interface Details
+That verification setup is outside this mobile repository. Check the shared Supabase configuration before recreating it. The badge result should come from the server rather than a decision made by the phone.
 
-### Sign-in
-Rollin wordmark header with tagline, hero banner, email + password fields (password has show/hide eye), forgot-password control, Log In button, OR divider, Google sign-in, Sign Up control.
- 
-### Sign-up: Email step
-Email field with university-email helper text, Next button, OR divider, Google sign-in, Log In control.
- 
-### Sign-up: Password step
-Password field; creates the account on submit.
+## Main files
 
-### Password recovery
-The sign-in screen links to the separate [Password Reset](password-reset.md) workflow.
- 
-### Email confirmation
-Solid blue background (not theme-aware), envelope illustration, destination email, numeric verification-code input, Verify code and Resend code buttons, inline feedback, and Back to login button. The screen scrolls when the keyboard is open.
-
-### Hipolabs Universities API
-
-- Base endpoint: `http://universities.hipolabs.com/search`
-- No authentication or API key required.
-- Query parameters: `name`, `country`, and `domain`
-- The verification design treats a domain as valid when it appears in the `domains` array of a returned record.
-- This lookup is not implemented in the mobile-client repository and depends on the separate Supabase-side configuration.
-
-## Relevant Files
-
-| File | Role |
+| File | What it does |
 |---|---|
-| `lib/supabase.ts` | Creates and configures the Supabase client |
-| `app/(auth)/_layout.tsx` | Defines the unauthenticated route layout |
-| `app/(auth)/index.tsx` | Displays the main sign-in and sign-up screen |
-| `app/(auth)/EmailConfirmation.tsx` | Displays the post-signup email-confirmation screen |
-| `app/(auth)/forgot-password.tsx` | Collects the email used to request password recovery |
-| `components/auth/login.tsx` | Implements the login form logic and interface |
-| `components/auth/EmailCard.tsx` | Implements the email-entry step |
-| `components/auth/PasswordCard.tsx` | Implements the password-entry step |
-| `components/auth/SignInWithGoogle.tsx` | Starts Google OAuth sign-in |
-| `components/auth/AuthHeader.tsx` | Displays the shared authentication header |
-| `components/auth/ImageContainer.tsx` | Provides shared authentication-screen artwork and layout |
-| `components/auth/TermsFooter.tsx` | Displays the terms and privacy footer on authentication screens |
-| `components/auth/LogoutButton.tsx` | Signs the current user out |
-| `providers/auth-provider.tsx` | Restores sessions, loads profiles, and exposes authentication state |
-| `app/_layout.tsx` | Routes users according to authentication and profile state |
+| `components/auth/login.tsx` | Email and password login |
+| `components/auth/EmailCard.tsx`, `components/auth/PasswordCard.tsx` | Signup inputs |
+| `components/auth/SignInWithGoogle.tsx` | Google sign-in |
+| `app/(auth)/EmailConfirmation.tsx` | Signup code entry and resend |
+| `providers/auth-provider.tsx` | Restores the session and loads the profile |
+| `app/_layout.tsx` | Chooses the login, verification, profile-setup, or main screens |
+| `lib/supabase.ts` | Connects the app to Supabase |

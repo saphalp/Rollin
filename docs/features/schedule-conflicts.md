@@ -1,70 +1,39 @@
-# Schedule conflict warnings
+# Schedule Conflict Warnings
 
-When a user selects **Join Activity** or **Request to Join** on an activity,
-Rollin checks the activity's current start time against activities the user has
-already joined or is hosting.
+Rollin warns users when an activity they want to join starts close to another activity they already joined or are hosting. They can still join if the timing works for them.
 
-A **Possible schedule conflict** dialog appears when another start time is
-within **60 minutes before or after**, including exactly 60 minutes. The dialog
-shows the activity being joined, the conflicting activity names, local dates
-and times, and whether the user is hosting or attending each one.
+## When the warning appears
 
-- **Go back**, including Android's back button, closes the dialog without joining
-  or submitting a request.
-- **Join anyway** submits the normal public RSVP. For a private activity,
-  **Request anyway** submits a pending request; it does not bypass host approval.
-- With no conflicts, the normal join/request proceeds without an extra popup.
-- Existing capacity and database permission checks still apply.
+The check runs when someone taps **Join Activity** or **Request to Join**. If another activity starts within 60 minutes before or after it, the **Possible schedule conflict** popup shows the conflicting names, dates, and times.
 
-This is a start-time proximity warning, not an exact duration/overlap calculation.
-For example, starts at 2:00 PM and 3:00 PM warn; 2:00 PM and 3:01 PM do not. Date
-comparison uses absolute timestamps, so midnight, offsets and daylight-saving
-changes do not change the 60-minute rule. Displayed times include the local time
-zone abbreviation.
+For example, activities starting at 2:00 PM and 3:00 PM trigger a warning. Activities starting at 2:00 PM and 3:01 PM do not. We compare start times because activities do not have a saved end time; this is not a calculation of their full duration.
 
-## Scope and failures
+- **Go back** closes the popup without joining. Android's back button does the same.
+- **Join anyway** continues with a public activity.
+- **Request anyway** sends a private activity request that still needs the host's approval.
 
-The check uses saved RSVPs and hosted activities, not pending join requests,
-waitlist entries, saved events or rides. It excludes the target activity itself,
-canceled activities and invalid/missing dates in the user's existing schedule.
-An activity the user both hosts and joined appears once. Recently started
-activities remain eligible even if the expiry job marked them expired, because
-they may still be taking place.
+If there is no conflict, joining continues normally. Capacity and access checks still apply.
 
-Leaving an activity does not run this check. Waitlist entry and automatic
-promotion, as well as a host accepting a previously submitted private request,
-do not show this dialog. Private requests are checked when the attendee submits
-the request, not at the later time of approval. Standalone campus feed events
-are not joined directly; their hosted activities use the same activity flow.
+## What gets checked
 
-The app reads the current target start and only commitments within the relevant
-window, paginating as necessary with the signed-in user's existing permissions.
-If the check fails, it reports an error and does not silently join. The user can
-try joining again. An activity with no valid start time must be corrected by its
-host before joining. Leaving the screen or switching accounts cancels a pending
-check/confirmation. Duplicate taps cannot submit duplicate joins.
+The check includes hosted activities and saved RSVPs. It does not include rides, saved events, waitlists, or pending join requests. Cancelled activities and missing dates are skipped, and an activity that is both hosted and joined appears once.
 
-The warning is advisory and reflects the schedule at the time of checking. It
-does not reserve a spot or prevent later schedule changes. No migration, Edge
-Function deployment, new dependency or Supabase configuration is needed.
+A recently started activity can still trigger the warning because it may be taking place. Times are compared as actual moments, so crossing midnight or a daylight-saving change does not alter the 60-minute rule. The popup shows local times.
 
-## Verification
+Leaving an activity does not show a warning. Joining a waitlist, being moved off a waitlist, or having a host approve an earlier request also does not run it. Private requests are checked when they are sent.
 
-Run `node --test scripts/test-schedule-conflicts.cjs`.
+## If the check fails
 
-Phone acceptance:
+The app reads the latest start time before joining. If it cannot load the schedule, it shows an error and asks the user to try again. If the activity has no valid date, the host needs to fix it first.
 
-1. Join activity A at 2:00 PM. Try joining B at 2:30 PM: verify A's name/time,
-   choose Go back, and confirm no RSVP was created.
-2. Try B again and choose Join anyway. Verify normal attendance/chat behavior.
-3. Try activities exactly 60 minutes earlier/later, then 61 minutes away.
-4. Repeat with an activity you host and with a private target. Request anyway
-   should show Request Pending and still require the host to accept.
-5. Leave a joined activity: no warning. Try an activity on another day and
-   verify no false conflict. Test an event spanning a local midnight boundary.
-6. Test an empty schedule, network failure/retry, repeated taps, Android back,
-   large text and more than one conflicting activity.
+Leaving the page or changing accounts cancels the check. Repeated taps cannot submit the same join while the warning is open. The check does not reserve a spot or prevent someone changing an event later.
 
-Implementation: `lib/schedule-conflicts.ts`,
-`services/schedule-conflicts-service.ts`, `hooks/use-schedule-conflict.ts`,
-`components/activity/schedule-conflict-dialog.tsx`, and `app/activity/[id].tsx`.
+## Development and testing
+
+No new SQL, server function, or API key is needed. The main files are `lib/schedule-conflicts.ts`, `services/schedule-conflicts-service.ts`, `hooks/use-schedule-conflict.ts`, and `components/activity/schedule-conflict-dialog.tsx`.
+
+```powershell
+node --test scripts/test-schedule-conflicts.cjs
+```
+
+Test activities 30, 60, and 61 minutes apart. Try Go back and Join anyway, then repeat with a hosted activity and a private request. Also check an empty schedule, a connection failure, multiple conflicts, larger text, and events on either side of midnight.

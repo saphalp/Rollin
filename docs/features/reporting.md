@@ -1,46 +1,37 @@
-# Reporting
+# Reporting a Problem
 
-## Purpose
+Users can report a person, activity, or Explore photo post. The team reviews reports in the separate Rollin Analytics app.
 
-Users can report another user, an activity, or a photo post from the Explore feed. Reports are reviewed in the separate Rollin Analytics app, not inside Rollin.
+## Send a report
 
-## Assumptions
+1. Open the three-dot menu on the profile, activity, or post and choose **Report**.
+2. Choose a reason and add details if needed. Details can be up to 1,000 characters.
+3. Review the summary and confirm.
+4. The app shows that the report was submitted for review.
 
-- Reporting is reached only from a three-dot submenu, never from a button on the profile, post, or activity itself.
-- You can't report yourself, your own activity, or your own post, so the Report item is hidden there.
-- A reason is required. Extra details are optional, up to 1000 characters.
-- The reported person isn't told who reported them.
+You cannot report yourself or your own content. The reported person is not told who sent the report. If submitting fails, the app explains a known problem, such as deleted content, or asks the user to retry.
 
-## Decisions
+## What is saved
 
-### Flow
+All report types share one `reports` table so moderators can review them in one list. Each report includes the reason, optional details, target, reported user, and review status.
 
-The submenu opens the `/report` screen with `type` (`user`, `activity`, or `post`), `id`, and an optional `name` for display. The screen has three steps: choose a reason and add optional details, confirm the summary, then a message that the report has been submitted and will be reviewed. The reason list depends on the target type (`REPORT_REASONS` in `types/reports.ts`).
+The server also keeps a copy of the relevant name, title, caption, or image paths at the time of reporting. That gives moderators some context if the original content is later removed.
 
-### Submitting
+A person can have only one open report for the same target. Submitting it again while it is pending or under review returns the existing report. The `report_target_summary` view groups reports so moderators can find frequently reported content.
 
-`submitReport` in `services/reports.ts` calls the `submit_report` RPC. If it fails, the confirm step shows the function's own message when it's one of the known ones (target deleted, own content, signed out), and a generic retry message otherwise.
+## Access and setup
 
-### One table for every report type
+The app calls `submit_report` rather than writing to the table directly. That function checks that the content exists and does not belong to the reporter. Different target types share an ID field, so these checks cannot rely on one ordinary foreign-key relationship.
 
-All reports go in a single `reports` table with a `target_type` enum and a polymorphic `target_id`, instead of one table per type. The analytics app needs one moderation queue, sorted and filtered the same way across types, and the columns a moderator works with (reason, details, status, reviewer, resolution) are identical for all three. The cost is that `target_id` can't have a foreign key, so `submit_report` validates that the target exists.
+The analytics backend uses service-role access to read the moderation queue. That key must stay on its server. If the dashboard later uses regular signed-in database access, it will need a moderator role and suitable access rules.
 
-`submit_report` also stores:
+The setup is in `supabase/migrations/20261026120000_reports.sql`.
 
-- `reported_user_id`: the user, the activity host, or the post author, so moderators can see every report against one person whatever was reported.
-- `target_snapshot`: the name, title, caption, or image paths at report time, because reported content is often deleted before review.
+## Main files
 
-A reporter can have only one open (`pending` or `reviewing`) report per target. Reporting again while one is open returns the existing report instead of failing. The `report_target_summary` view groups reports per target for a most-reported-first queue.
+- `components/report/overflow-menu.tsx`: shared menu and report action.
+- `app/report.tsx` and `components/report/report-form.tsx`: report screens.
+- `types/reports.ts`: reasons and labels.
+- `services/reports.ts`: submits the report.
 
-### Access
-
-Clients have no direct access to `reports`. Inserts go through the `submit_report` security-definer function, and the analytics app reads with the service-role key. If that app later signs in as a regular user, it will need a moderator role and an RLS policy.
-
-## Relevant files
-
-- `components/report/overflow-menu.tsx`: the shared three-dot menu, plus `openReport` for screens that already have their own menu
-- `components/report/report-form.tsx`, `app/report.tsx`: the report screen
-- `types/reports.ts`: target types, reasons, and labels
-- `services/reports.ts`: `submitReport`, which calls the `submit_report` RPC
-- `supabase/migrations/20261026120000_reports.sql`: table, enums, `submit_report`, `report_target_summary`
-- Entry points: `components/explore/post-card.tsx`, `app/post/[id].tsx`, `app/profile/[id].tsx`, `app/shared-profile/[id].tsx`, `app/activity/[id].tsx`
+Test each report type, optional details, a failed request, and reporting the same content twice. Check that users cannot report their own content or read other people's reports.

@@ -1,89 +1,56 @@
 # Road Routing and Passenger Pickups
 
-## Purpose
+Rollin plans a ride's pickup stops and shows the route. Drivers use Google Maps for directions and return to Rollin to mark pickups or finish the trip.
 
-Rollin plans the stops for a ride and lets passengers see the planned route. Drivers use Google Maps for navigation rather than following directions inside Rollin.
+## Pickup choices
 
-## Assumptions
+A driver can use a shared meetup spot or allow separate passenger pickups. A passenger can also request a different address for a shared-meetup ride. The driver sees that address before accepting; accepting approves the pickup location. Changing it afterward requires cancelling and requesting again.
 
-- The driver grants location permission
-- Each accepted passenger has an approved pickup address
-- The ride has a destination with saved coordinates
-- The routing function and ORS key are configured in Supabase
-- Background tracking is not available yet
+The route starts at the driver's current location, visits the remaining pickups, and ends at the destination. The driver needs location permission, and pickup/destination coordinates must be saved.
 
-## Decisions
+## Planning and driving
 
-### Pickup choices
+Openrouteservice (ORS) supplies road distances and routes. For up to ten passengers, Rollin uses those distances to choose the pickup order with the lowest total distance. That is the best order for the distances returned, not a guarantee about every possible road or traffic condition.
 
-The ride offerer can choose a shared meetup location or turn on individual passenger pickups. For individual pickups, each passenger must include an address with their request. Passengers can also request a different address for a ride with a shared meetup spot.
+Drivers can move a stop earlier in the list. That order stays saved until they recalculate it. Marking someone picked up removes them from the remaining route.
 
-The driver sees the requested address before accepting. Acceptance approves that address. Changing an approved address requires cancelling and requesting again.
+On **Your Drive**, use the navigation control to open Google Maps. Maps calculates its own directions, so they may differ from the overview in Rollin. If Maps is not installed, the link opens in a browser.
 
-### Route planning
+The route link includes up to three intermediate stops and the destination. Longer trips open one stop at a time, with an explanation to the driver. **Navigate to next stop** opens just the next pickup or destination.
 
-The route starts at a fresh driver location, visits the remaining pickups, and ends at the ride destination. Rollin uses an ORS distance matrix to find the lowest-distance pickup order for up to 10 passengers. This finds the best order for the road distances ORS returns; it does not guarantee that every road segment is the shortest possible one.
+Google Maps does not tell Rollin when a passenger gets in. While parked, return to Rollin and mark the passenger picked up. After all accepted passengers are picked up and the trip is finished, use **Complete Ride**. Ratings are available afterward.
 
-Drivers can move pickups up in the list. That order is saved until they choose to recalculate it. Marking a passenger picked up removes that passenger from the remaining plan.
+## What passengers see
 
-### Google Maps
+Passengers load the driver's saved route from Supabase. Their Refresh button does not request a new route from ORS. Distances are displayed in miles.
 
-Start Drive opens the route overview. The driver reviews the stops, then taps Open Google Maps to navigate with the stops already filled in. Google Maps calculates its own roads, so its route may differ from the overview in Rollin. If Google Maps is not installed, the link opens in a browser.
+Live location sharing pauses when the driver leaves Rollin, including when they open Google Maps. Passengers see the last update time and a message if it is old. Background location sharing is not implemented yet.
 
-The link includes up to three intermediate stops plus the destination. For longer trips, the driver is told that navigation will open one stop at a time. Navigate to next stop always opens only the next pickup or destination.
+## Keeping requests under control
 
-### Passenger tracking
+Planning an unordered trip uses one ORS matrix request for distances and one directions request. Refreshing a trip with an order already chosen uses a directions request. Moving the car marker does not recalculate the road route.
 
-Passengers load the driver's saved route from Supabase. Their refresh button does not call ORS. Distances are shown in miles.
+While recovering from connection problems, passengers check the saved location every ten seconds and the saved route every fifteen seconds. Those are Supabase reads, not ORS requests.
 
-Location sharing runs while Rollin is open. It pauses when the driver switches to Google Maps and resumes when they return. Passengers see the last update time and a stale-location message rather than assuming an old position is live. Background sharing will be added after the development build is ready.
+## Supabase setup
 
-## Feature Workflow
+1. Add the openrouteservice key as `ORS_API_KEY` under **Edge Functions → Secrets**.
+2. Confirm the shared-route table and its access rules are installed. The original shared-route setup file is not in the current repository; get those definitions from the existing Supabase project when creating a new backend.
+3. Apply `supabase/migrations/20260919090000_ride_ratings_and_pickups.sql` for pickup and rating support.
+4. Deploy `supabase/functions/ride-route/index.ts` as the `ride-route` function.
+5. Test using a driver account and a passenger account.
 
-1. The driver posts a ride with a destination and pickup choice
-2. Passengers request seats and provide alternate pickup addresses if needed
-3. The driver reviews and accepts the requests
-4. The driver presses Start Drive on Ride Details
-5. Rollin displays the route from the driver's current location. The driver taps Open Google Maps when ready
-6. At a pickup, while parked, the driver returns to Rollin and presses Picked up for that passenger
-7. Rollin updates the remaining route. Open Google Maps starts navigation again
-8. After reaching the destination, the driver returns to Rollin and taps Complete ride on the overview
-9. The driver and passengers can rate each other
+Keep the key in Supabase, outside the app and Git. An early setup used the misspelled name `OSR_API_KEY`; the function expects `ORS_API_KEY`.
 
-## Technical Hurdles
+## Main files
 
-### API calls
+- `app/ride/offer.tsx`: pickup choice when offering a ride.
+- `app/ride/[id].tsx`: requests, approval, and starting the trip.
+- `app/ride/tracking/[id].tsx`: route and pickup page.
+- `components/rides/drive/driver-pickup-panel.tsx`: pickup order, progress, and completion.
+- `components/rides/drive/passenger-pickup-card.tsx`: each passenger's pickup controls.
+- `services/ride-navigation-service.ts`: Google Maps links.
+- `services/ride-routing-service.ts`: asks for a route from the current position.
+- `supabase/functions/ride-route/index.ts`: calculates and saves the route.
 
-Planning an unordered trip with multiple pickups uses one matrix request and one directions request. Refreshing an already ordered trip uses a directions request. Moving the car marker does not request a new road route.
-
-### Pickup progress
-
-Google Maps does not report passenger pickups back to Rollin through these links. The driver marks pickups manually. We do not mark someone picked up just because the car was near their address.
-
-### Connection failures
-
-Passengers check the saved location every 10 seconds while the realtime connection reconnects. The saved route is checked every 15 seconds to recover missed route updates. These are Supabase reads, not ORS requests.
-
-## Setup
-
-1. Save the openrouteservice API key as `ORS_API_KEY` under Supabase Edge Functions > Secrets
-2. Run `supabase/migrations/20260918120000_shared_ride_routes.sql` if the shared-route table has not been created
-3. Run `supabase/migrations/20260919090000_ride_ratings_and_pickups.sql` in the Supabase SQL Editor
-4. Replace the `ride-route` Edge Function with `supabase/functions/ride-route/index.ts` and deploy it
-5. Reload Rollin and test with driver and passenger accounts
-
-The key stays in Supabase. It should not be placed in an `EXPO_PUBLIC_` variable or committed. During the original setup the secret was named `OSR_API_KEY` by mistake; it must be `ORS_API_KEY`.
-
-## Relevant Files
-
-| File | Role |
-|---|---|
-| `app/ride/offer.tsx` | Driver pickup choice when posting a ride |
-| `app/ride/[id].tsx` | Pickup requests, approval, starting and completing a ride |
-| `app/ride/tracking/[id].tsx` | Route overview and Google Maps handoff |
-| `components/rides/drive/driver-pickup-panel.tsx` | Pickup progress, navigation to remaining stops, manual and optimized order, and Complete ride once everyone is picked up |
-| `components/rides/drive/passenger-pickup-card.tsx` | One passenger's card: photo, pickup address, status, Mark as picked up |
-| `services/ride-navigation-service.ts` | Builds and opens Google Maps links |
-| `services/ride-routing-service.ts` | Publishes a fresh position and requests a route |
-| `supabase/functions/ride-route/index.ts` | Orders pickups, calculates the road route, and saves it |
-| `scripts/test-ride-navigation.cjs` | Checks navigation links and pickup ordering |
+Run `node --test scripts/test-ride-navigation.cjs` when changing navigation links or pickup ordering. Also check the links on a phone with several stops.

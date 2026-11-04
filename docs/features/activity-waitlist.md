@@ -1,48 +1,31 @@
 # Activity Waitlist
 
-## Purpose
+When an activity is full, users can join its waitlist. If someone leaves, the first person waiting is moved into the activity and notified.
 
-When an activity is full, users can join a waitlist instead of missing out. When someone leaves, the first person in line is moved into the activity automatically and notified.
+## Joining the list
 
-## Assumptions
+Open a full activity and tap **Join Waitlist**. The button changes to **Leave Waitlist (#N)** so the user can see their place and leave if their plans change. The Home card also shows their waitlist position.
 
-- The waitlist only appears once an activity reaches its max attendees.
-- A user can be on an activity's waitlist only once.
-- Line order is first come, first served, by the time each person joined.
-- Users can see their own place in line, but not who else is waiting.
-- Users can leave the waitlist at any time.
+The list is first come, first served. Each person can join once and can see their own position, not the names of everyone waiting.
 
-## Decisions
+## When a spot opens
 
-### Promotion runs in an edge function
+Leaving an activity calls the `leave-activity` server function. It removes the attendee, checks for a free spot, and adds the next waiting person to the activity. It removes that person from the waitlist and sends an in-app notification and, where available, a push.
 
-Leaving an activity goes through the `leave-activity` edge function instead of a direct delete. The function removes the caller's RSVP, checks whether a spot opened, and if so moves the first person in line into `rsvps`, removes them from `waitlist`, and sends an in-app notification and a push. Doing this on the server means promotion happens even if the person leaving closes the app right away, and it needs the service-role key to add an RSVP for another user.
+This happens on the server so it can finish even if the person leaving closes the app. Positions are calculated from join times, so the list does not need to be renumbered each time someone leaves.
 
-### Position is calculated, not stored
+## Keeping capacity correct
 
-`waitlist` stores only `joined_at`. The `my_waitlist_positions()` function counts how many people joined before the current user, so positions stay correct as people leave without having to renumber every row.
+We once saw an activity with two attendees even though its limit was one. Both users had opened the page before the final place was taken, and the app's local check was not enough.
 
-### Capacity enforced in the database
+The `enforce_activity_capacity` database trigger now rejects joins when the activity is full. The app shows **This activity is full. Join the waitlist instead.** Server permissions also need to allow `leave-activity` to update attendance, waitlists, and notifications.
 
-A trigger on `rsvps` (`enforce_activity_capacity`) rejects a join when the activity is already full, with the message "This activity is full. Join the waitlist instead." This stops two people from taking the last spot at the same moment, which the app alone can't prevent.
+## Main files
 
-## Technical Hurdles
+- `supabase/migrations/20261006120000_activity_waitlist.sql`: waitlist table and `my_waitlist_positions()`.
+- `supabase/migrations/20261011120000_activity_capacity.sql`: capacity checks.
+- `supabase/functions/leave-activity/index.ts`: leaving and filling the opened spot.
+- `app/activity/[id].tsx`: Join/Leave Waitlist controls.
+- `components/activity-card.tsx`: the waitlist badge on Home.
 
-- An activity showed 2/1 joined because capacity was only checked in the app. Two users who opened the page before it filled could both join. Fixed with the `enforce_activity_capacity` trigger.
-- `leave-activity` failed until `service_role` was granted access to `waitlist`, `activities`, `rsvps`, and `notifications`.
-
-## Feature Workflow
-
-1. A user opens a full activity and taps **Join Waitlist**.
-2. A row is added to `waitlist`, and the button changes to **Leave Waitlist (#N)**.
-3. On the home feed, the activity card shows a **Waitlist #N** badge.
-4. When an attendee leaves, `leave-activity` promotes the first person in line.
-5. The promoted user gets "A spot opened up! You're now going to [activity]" as a push and in their notifications.
-
-## Relevant files
-
-- `supabase/migrations/20261006120000_activity_waitlist.sql`: `waitlist` table, RLS policies, grants, and `my_waitlist_positions()`
-- `supabase/migrations/20261011120000_activity_capacity.sql`: `enforce_activity_capacity` trigger
-- `supabase/functions/leave-activity/index.ts`: removes the RSVP and promotes the next person in line
-- `app/activity/[id].tsx`: Join/Leave Waitlist button
-- `app/(tabs)/index.tsx`, `components/activity-card.tsx`: Waitlist #N badge on the home feed
+Test a full activity with two waiting accounts. Have an attendee leave and check that the first person gets the spot, the second person's position updates, and the activity stays within capacity.

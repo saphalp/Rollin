@@ -1,319 +1,90 @@
-# **Ride Sharing**
+# Ride Sharing
 
-## Purpose 
+Students can offer spare seats or ask for a ride to the same destination. A user can drive for one trip and be a passenger on another. Offering rides requires the project's driver verification checks.
 
-The ride sharing feature allows Rollin users to offer rides or request seats from other users who are already travelling to the same destination. 
+Rides can be linked to an activity or be independent trips. For an activity ride, Rollin fills in the event destination and date. For an independent ride, the driver chooses both.
 
-Ride sharing supports two types of rides:
-- **Activity-based rides**
-- **Regular rides**
+## Find a ride
 
-**For activity-linked rides, the destination is connected to the activity location**
+Open **Rides** to browse offers and requests, or open an activity with ride sharing enabled. Its ride section previews up to three upcoming offers with seats available. **View all rides and requests** opens the list for that activity.
 
-**For regular rides, the ride offerer can choose both the pickup location and destination**
+Open an offer to check the driver, pickup, destination, departure time, seats, and notes. Request a seat and wait for the driver to accept it. A pending request is not a reserved seat.
 
-The feature allows users to:
-    - Select available seats
-    - Find available rides
-    - request a seat
-    - cancel a ride request
-    - accept or decline passengers request
-    - support multiple passengers
-    - view ride status
-    - start and complete rides
-    - view ride history
-    - use live tracking after a request is accepted
+If no offer works, use **Request a Ride** to post where and when you need one. Requests started from an activity stay linked to it. The form waits for the activity details to load and offers Retry if that fails.
 
+## Offer a ride
 
-## Assumptions
-- Rollin ride feeature is a peer-to-peer
-- Users are not professional drivers. (It does not mean they cannot drive or does not have license. Just not used to driving for money)
-- A single ride can contain multiple passengers
-- A passenger must request a seat before joining a ride
-- The ride offerer decides whether to accept or decline each request
-- Available seats decrease when passengers are accepted
-- A ride becomes full when no seats remain
-- Activity ride sharing is enabled through the activity's 'ride_sharing' field
-- seat count is decided by the ride offerer
-- Activity-linked rides uses the activity as the destinatinos
-- A user cannot request their own ride
-- A user cannot request a ride that is full , cancelled, or expired
-- A user can only have one active rides for the same activity
-- Multiple users can offer rides for the same activity
-- Live tracking becomes available only after a passenger is accepted and the ride has started
+Drivers choose a pickup location, departure time, seats, and any notes. They can use one meetup spot or allow individual passenger pickups.
 
+For an activity ride, the event's start time appears above the form. The date comes from the activity and cannot be changed, but the driver chooses the departure time. The destination is the activity location. If the host has not saved a date, they need to fix the activity before a ride can be offered.
 
-## Decisions
+Independent rides have editable pickup, destination, date, and time. Departures must be in the future. Multiple drivers can offer rides for the same activity.
 
-### Peer-to-peer Ride model
-Rollin does not separate users into permanent drivers and passengers. (IN future , we can implement a user to be registered as a driver before being able to offer rides.)
-A user may offer a ride for one trip and request a ride for another
+## Seats and requests
 
-### Activity and regular rides
-The system supports both activity based and independent rides. 
-An activity ride contains:
-- activity_id
-- pickup location
-- activity destination
-- departure time
-- available seats
+The driver sees incoming requests and can accept or decline them. Accepting uses a seat; when none remain, the ride is full. The server handles the seat check and update together so two requests cannot take the last seat at the same time.
 
-A regular ride contains:
-- pickup location
-- destination
-- departure time
-- available seats
-
-### Fixed Destination for Activity Rides
-For activity rides, the system automatically uses the activity location as the destination. The ride offerer cannot change the destination. This simplifies the ride creation process and ensures that all ride requests for an activity go to the same location
+Passengers cannot request their own ride or a ride that is full, closed, or past departure. Duplicate active requests for the same activity are blocked. A passenger can withdraw a pending request or cancel an accepted seat when the ride's state permits it. The driver receives an update when the passenger does this themselves; requests cancelled as part of cancelling the whole ride or activity do not send that extra update.
 
-### Multiple Ride Offers Per Activity
-An activity can have multiple ride offerers.
+## Answer a posted ride request
 
-For example:
-
-Pickleball Activity
-
-- Offerer A -> 3 seats
-- Offerer B -> 2 seats
-- Offerer C -> 4 seats
+Open **Requests → Requested by others** to find people looking for a ride. Tapping a request opens an offer form with that passenger's pickup, destination, and time already set. The driver chooses the number of seats, including that passenger's, and adds notes.
 
-Passengers can choose between the available rides.
+Saving creates the ride, gives the requester an accepted seat, and marks the request fulfilled together. A request can only be answered once, by someone other than its requester, and only by a verified driver.
 
-### Multiple Passengers Per Ride
-A single ride can have multiple passengers.
+Earlier, this action created a ride without adding the passenger to it. Doing all three steps in the `offer_ride_for_wanted_request` database function keeps them connected. From there, pickups, tracking, completion, and ratings work like any other ride.
 
-For example:
+## Take the trip
 
-Offerer A -> 3 seats
+1. The driver accepts the passenger requests and reviews pickup locations.
+2. **Start Drive** starts the trip and location sharing after permission is granted.
+3. On **Your Drive**, the driver can navigate to the next stop, change pickup order, and mark each passenger picked up.
+4. **Complete Ride** becomes available after all accepted passengers are marked picked up.
+5. Completing the trip updates the ride and its passengers, ends tracking, and opens ratings.
 
-Passenger 1 -> accepted
-Passenger 2 -> accepted
-Passenger 3 -> accepted
+An in-progress ride has **Continue Drive** on its details page. Google Maps handles turn-by-turn directions; Rollin handles the trip and pickup list. See [Road Routing](road-routing-setup.md), [Live Tracking](live-ride-tracking.md), and [Ride Ratings](ride-ratings.md).
 
-Ride status: full
+## The Rides tabs
 
-### One Active Request Per Activity
-A user can only have one active ride request per activity. This prevents users from creating duplicate ride requests and ensures that each request is unique and can be tracked separately.
-
-### Ride status
-Ride offers use the following statuses:
-
-- Open - Ride offerer can accept or decline requests, passengers can request seats
-- Full - Ride is full, no more requests can be accepted
-- Cancelled - Ride has been cancelled, no more requests can be accepted
-- In-progress - Ride has started, no more requests can be accepted
-- Completed - Ride has been completed, no more requests can be accepted
-
-### Ride request states
-Ride requests use the following statuses:
-
-- Pending - Ride request has been sent, ride offerer can accept or decline
-- Accepted - Ride request has been accepted, passenger can join the ride
-- Declined - Ride request has been declined, passenger cannot join the ride
-- Cancelled - Ride request has been cancelled, passenger cannot join the ride
-
-## Technical Hurdles
-### Preventing Seat Race Conditions
-If two passengers attempted to claim the final seat simultaneously, normal client-side updates could allow both requests.
-
-This was solved using the accept_ride_request database RPC so seat validation and seat reduction happen atomically.
-
-### Activity Ride Destination
-For activity rides, the destination is fixed to the activity location.
-
-This avoids confusion and ensures that all passengers arrive at the same place.
-
-### Preventing Duplicate Requests
-Users could potentially request multiple ride offers for the same activity.
-
-This was solved using a unique constraint on the ride_requests table: (user_id, activity_id)
-
-This prevents a user from having more than one active ride request per activity.
-
-### Ride Location Coordinates
-Ride offers include both a pickup location and coordinates.
-
-## Feature Workflow
-
-### Activity Ride Flow
-A user first joins an activity. 
-    Activity detail
-    |
-    Join Activity
-    |
-    Going
-    |
-    Ride Options
-           |           |
-    Offer a ride    Request a ride
-
-### Find a ride
-When the passenger selects Find a Ride:
-
-    Activity
-    |
-    Ride options
-    |
-    find a ride
-    |    
-    available rides for activity
-    |
-    select ride
-    |
-    ride details
-    |
-    request a seat
-
-The user can review:
-
-- Ride offerer
-- Pickup location
-- Destination
-- Departure time
-- Available seats
-- Notes
-
-### Rides on an activity
-
-Upcoming activities with ride sharing enabled show **Rides for this activity** beneath About. The section previews up to three upcoming open offers with available seats, including the viewer's own offers. Each card opens the existing ride details and seat-request flow. Full, past, and closed offers are excluded. **View all rides and requests** opens the activity-filtered list, including people looking for a ride.
-
-**Request a Ride** opens the existing pickup/time form and posts a request linked to the activity. **Offer a Ride** opens the existing offer form with that activity selected. Both actions remain available when offers already exist. The request form waits for its activity to load and offers retry on failure; it cannot silently create a general request if the lookup fails. Successful activity requests return to the activity page.
-
-The preview refreshes on screen focus and ride updates, and provides loading, empty, error, and retry states. It uses existing ride tables, services, and permissions; no migration or new configuration is required.
-
-Device acceptance check: offer a ride on activity A, view A from another account and request a seat; confirm activity B does not show A's rides. Post a ride request from A both with and without offers and confirm it appears in A's requests. Test lookup failure/retry, returning after creating an offer, and past/ride-sharing-disabled activities.
-
-### Offer a Ride
-
-The linked offer page shows the event's start date and time above the form. Activity creation and editing require a valid start date/time. Apply `supabase/migrations/202610130001_require_activity_date.sql` to enforce this for database inserts and date changes too; existing undated activities keep their data until their hosts set a date.
-
-For an activity-linked offer, the date is read-only and taken from the activity's local calendar date. The driver chooses only the departure time. Submission combines that time with the activity date and still requires a future departure. Activity lookup failures must be retried before the offer form is available. An activity without a saved date instead explains that its host must set a date; retrying cannot repair missing scheduling data. Independent offers retain editable date and time fields.
-
-When the user selects Offer a Ride:
-
-    Activity
-    |
-    Ride Options
-    |
-    Offer a Ride
-
-The user enters:
-
-- Pickup location
-- Departure date
-- Departure time
-- Available seats
-- Notes
-
-The destination is automatically filled from the activity location.
-
-### Regular Ride Flow
-
-A user may also create a ride that is not associated with an activity.
-
-For a regular ride, the user enters:
-
-- Pickup location
-- Destination
-- Date
-- Time
-- Available seats
-- Notes
-
-### Passenger Requests Seat
-
-When the passenger taps Request Seat:
-
-- ride_requests
-- status = pending
-
-The ride offerer can then see the incoming request.
-
-### Ride Request Actions
-
-- Accept: request becomes 'accepted and available seats decrease by 1.
-- Decline: request becomes 'rejected'.
-- Cancel: passenger request becomes 'cancelled'. When the passenger cancels it themselves, the driver gets a notification ("cancelled their seat" for an accepted seat, "withdrew their seat request" for a pending one). Requests cancelled because the ride or activity was cancelled don't notify the driver.
-- If seats reach 0, the ride status becomes 'full'.
-
-### Offering a Ride on a Passenger's Request
-
-A passenger who can't find a ride posts a request (`ride_wanted_requests`) with their pickup, destination, and time. Other students' open requests appear under **Requests → Requested by others** on the Rides tab (and in the available-rides list), so drivers don't have to search for them.
-
-Tapping a request opens the offer screen in request mode. The pickup, destination, and time are the passenger's and are shown read-only; the driver only chooses how many seats to offer (including the passenger's) and adds optional notes. Submitting calls the `offer_ride_for_wanted_request` RPC, which in one transaction:
-
-- creates the driver's ride with the request's pickup, destination, and time,
-- adds the passenger to that ride and accepts them through `accept_ride_request`, the same path as a driver accepting a seat request,
-- marks the request `fulfilled` and stores the ride in `offered_ride_id`.
-
-From then on it is an ordinary ride: the passenger sees an accepted seat under Requests, and Start Drive, pickups, live tracking, arrival notifications, completion, and ratings all work the same as for activity rides. A request can only be answered once, never by its own requester, and only by a verified driver.
-
-Decision: earlier, offering on a request created an unrelated ride and only flipped the request to `fulfilled`, so the passenger was never on the ride and the ride workflow never started. Doing it in a single RPC keeps the ride, the accepted seat, and the request status consistent.
-
-### Ride Lifecycle
-
-- Start Drive -> ride becomes 'in_progress', location sharing starts, and Google Maps opens with the planned stops.
-- Continue Drive -> while a ride is in progress, the ride page has one button that opens the drive screen. Pickups and completion happen there, not on the ride page.
-- Drive screen -> a progress card ("1 of 3 picked up") with a Navigate button, then a card per passenger (photo, pickup address, Mark as picked up; the next pickup is highlighted and can be reordered). Complete Ride appears only once every accepted passenger is picked up; completing marks the ride and accepted requests 'completed' and opens ratings.
-- Cancel Ride -> ride becomes 'cancelled.
-
-## Interface Details
-
-### Offering and Requests tabs
-
-Both Rides tabs are split into two subsections with a switch at the top, and neither is filtered by activity:
-
-- **Offering → Offered by you**: your active rides (open, full, or in progress).
-- **Offering → Offered by others**: open rides from other students that still have seats and haven't departed (the same set as the available-rides list). Tapping one opens the ride to request a seat.
-- **Requests → Requested by you**: your pending or accepted seat requests and your open ride requests.
-- **Requests → Requested by others**: pending seat requests on your rides (tap to accept or decline on the ride page) and other students' open ride requests (tap to offer them a ride).
-
-Every card shows a badge with its activity's title, or **Independent ride** when it isn't linked to an activity.
-
-### When a ride moves to History
-
-A ride is **closed** once it is completed, cancelled, or **expired**: still open or full 30 minutes after its departure time without the driver starting it (`RIDE_START_GRACE_MS` in `lib/ride-status.ts`). The grace period lets a driver who is running late still tap Start Drive; a ride already in progress never expires.
-
-Closed rides, seat requests on closed rides, and posted ride requests whose time has passed leave Offering and Requests and appear in History (expired ones with an **expired** status). Opening a closed ride shows it read-only: no accepting, declining, starting, cancelling, requesting, or tracking. A completed ride keeps its **Rate this ride** button.
-
-## Relevant Files
-
-| File | Role |
+| Section | What it shows |
 |---|---|
-| `app/(tabs)/rides.tsx` | Main ride dashboard for discovery, offers, requests, and history |
-| `app/ride/offer.tsx` | Creates standalone or activity-linked ride offers, or answers a passenger's ride request |
-| `app/ride/request.tsx` | Creates standalone or activity-linked wanted-ride requests |
-| `app/ride/available.tsx` | Lists and filters available offers and wanted-ride requests |
-| `app/ride/[id].tsx` | Displays ride details and manages passenger requests and ride status |
-| `app/ride/find.tsx` | Lists upcoming ride-enabled activities |
-| `app/ride/map.tsx` | Displays the full-screen ride discovery map |
-| `app/activity/[id].tsx` | Provides ride-sharing entry points from an activity |
-| `navigation/ride-navigation.ts` | Centralizes navigation to ride search, details, and tracking routes |
-| `components/rides/ride-action-cards.tsx` | Presents Find a Ride and Offer a Ride actions |
-| `components/rides/ride-dashboard-cards.tsx` | Renders offer, request, and history cards on the ride dashboard |
-| `components/rides/ride-segmented-control.tsx` | "By you" / "By others" switch inside the Offering and Requests tabs |
-| `components/rides/ride-activity-badge.tsx` | Activity or "Independent ride" badge on ride and request cards |
-| `components/rides/offer/requested-ride-offer-form.tsx` | Read-only trip details plus seats and notes when answering a ride request |
-| `supabase/migrations/20261103120000_offer_ride_for_wanted_request.sql` | `offer_ride_for_wanted_request` RPC |
-| `components/rides/attending-activity-picker-sheet.tsx` | Selects an attended activity before finding or offering a ride |
-| `components/rides/available-ride-card.tsx` | Displays an available ride offer |
-| `components/rides/wanted-ride-card.tsx` | Displays a rider's wanted-ride request |
-| `components/rides/ride-detail-card.tsx` | Displays route, driver, activity, seating, and timing details |
-| `components/rides/ride-request-button.tsx` | Controls passenger request and cancellation actions |
-| `components/rides/ride-filter-bar.tsx` | Filters all, activity-linked, and standalone rides |
-| `components/rides/offer/offer-ride-form.tsx` | Reusable form shared by ride offers and wanted requests |
-| `components/activity/activity-ride-options-sheet.tsx` | Presents ride options associated with a specific activity |
-| `hooks/use-available-rides.ts` | Loads and refreshes filtered ride offers |
-| `hooks/use-ride-dashboard-data.ts` | Loads the signed-in user's offers, requests, and ride history |
-| `hooks/use-ride-request.ts` | Manages a passenger's request for a specific ride |
-| `hooks/use-ride-wanted-requests.ts` | Loads wanted-ride requests and listens for changes |
-| `hooks/use-attending-activities.ts` | Loads activities available for ride linking |
-| `services/rides-service.ts` | Fetches ride offers and subscribes to offer changes |
-| `services/ride-requests-service.ts` | Creates, cancels, and subscribes to passenger ride requests |
-| `services/offerer-ride-requests-service.ts` | Lets drivers load, accept, and decline passenger requests |
-| `services/ride-wanted-requests-service.ts` | Creates, cancels, fulfills, and subscribes to wanted rides |
-| `services/ride-dashboard-service.ts` | Fetches dashboard and ride-history data |
-| `services/ride-lifecycle-service.ts` | Starts, completes, and cancels offered rides |
-| `services/geocoding-service.ts` | Converts pickup and destination text into coordinates |
-| `types/rides.ts` | Defines shared ride, request, location, and status types |
+| Offering → Offered by you | Your open, full, or in-progress rides |
+| Offering → Offered by others | Upcoming offers from other students with seats available |
+| Requests → Requested by you | Your pending/accepted seats and open ride requests |
+| Requests → Requested by others | Seat requests on your rides and other students looking for a ride |
+| History | Completed, cancelled, and expired rides and older requests |
+
+Cards show the activity name or **Independent ride**. Open cards to manage the request or see the trip details.
+
+An open or full ride expires if it has not started within 30 minutes after departure. This gives a late driver a short chance to start it. A trip already in progress does not expire this way. Closed rides are read-only, though completed rides keep **Rate this ride**.
+
+## Database notes
+
+Offers are stored in `rides_offered`, seats in `ride_requests`, and posts looking for a ride in `ride_wanted_requests`. Ride states include open, full, cancelled, in progress, and completed. Requests move through pending, accepted, rejected, cancelled, and completed as appropriate.
+
+Relevant setup files in `supabase/migrations/` include:
+
+- `202610130001_require_activity_date.sql`: required dates on new activities and date changes.
+- `20261102120000_ride_seats_and_cancelled_activity_rides.sql`: seat handling and rides affected by activity cancellation.
+- `20261103120000_offer_ride_for_wanted_request.sql`: answering a passenger's posted request.
+- `20261103120000_prevent_duplicate_ride_requests.sql`: duplicate request checks.
+- `20261105120000_notify_driver_on_seat_cancel.sql`: driver notifications when a passenger cancels.
+
+Check which files are already applied before updating the shared database. Older undated activities keep their data until the host sets a date.
+
+## Main files
+
+- `app/(tabs)/rides.tsx`: offers, requests, and history.
+- `app/ride/offer.tsx`, `app/ride/request.tsx`, and `app/ride/available.tsx`: create and browse trips.
+- `app/ride/[id].tsx`: ride details and seat decisions.
+- `components/activity/activity-rides-section.tsx`: rides on an activity page.
+- `components/rides/offer/requested-ride-offer-form.tsx`: answer a posted request.
+- `components/rides/drive/driver-pickup-panel.tsx`: pickup progress and completion.
+- `services/ride-requests-service.ts`, `services/offerer-ride-requests-service.ts`, and `services/ride-lifecycle-service.ts`: request and trip actions.
+- `lib/ride-status.ts`: whether a ride is still active or belongs in History.
+
+## Testing
+
+Use a driver and passenger account. Offer a ride for activity A and check that it does not appear under activity B. Request and accept a seat, cancel one, and check the available seat count. Try posting a wanted ride both with and without existing offers, then have a driver answer it and confirm the passenger is actually on the new ride.
+
+Check the fixed activity date, editable departure time, empty/error states, duplicate requests, full rides, pickups, completion, and History. The matching `test-activity-rides`, `test-duplicate-ride-requests`, `test-wanted-ride-offer-db`, and ride-dashboard tests are in `scripts/`.

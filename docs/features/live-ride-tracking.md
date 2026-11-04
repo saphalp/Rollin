@@ -1,146 +1,41 @@
 # Live Ride Tracking
-## Purpose
-The live ride tracking feature allows accepted passengers to see the driver's live location after the ride has started. Drivers use Start Drive to plan their route and open Google Maps. See [Road Routing and Passenger Pickups](road-routing-setup.md) for the routing setup and driver workflow.
 
-The features provides:
-- Live ride offerer location
-- Passenger/pickup location
-- Distance between users
-- Estimated time of arrival
-- Arrival detection
-- Realtime location updates through supabase
+Accepted passengers can see the driver's location after a ride starts. The tracking page also shows pickup and destination locations, distance, an approximate arrival time, and whether the last update is getting old.
 
-## Assumptions
-- Rollin has a peer-t0-peer ride-sharing feature 
-- Any user can offer a ride 
-- A single ride can have multiple passengers
-- Only accepted passengers can view live location
-- The rider offerer controls when location sharing starts and stops
-- The device must grant location permissions for location tracking
-- Supabase realtime is used for location updates
-- Tracking stops when the ride is completed or cancelled
-- GPS accuracy depends on the user's device and location
-- The current feature does not include smooth animated movement of the tracker, markers, or road snapping (like uber), but these features could be added in the future.
+## How it works
 
-## Decisions
-### Tracking only starts after Acceptance
+1. A passenger requests a seat and the driver accepts it.
+2. The driver taps **Start Drive** and grants location permission.
+3. While Rollin is open, the driver's phone sends location updates to Supabase.
+4. Accepted passengers receive those updates on the tracking map.
+5. Completing or cancelling the ride ends location sharing.
 
-Passenger requests a ride
-|
-Ride offerer accepts
-|
-Request = accepted
-|
-Ride offerer starts trip
-|
-Ride = in progress
-|
-Live tracking begins
+The driver can also stop sharing from **Your Drive**. Passengers can view the trip but cannot publish the driver's location.
 
-### Ride Offerer controls Location sharing
-- Pressing Start Drive starts location sharing after the driver grants permission. The driver can stop sharing from the Your Drive screen.
+Rollin saves the latest location for each ride rather than a full GPS history. The database checks that the person publishing is the driver and that viewers are allowed participants.
 
-### Supabase Realtime
-- The ride offere publishes location updates to supabase
+## Current limits
 
-Accepted passengers subscribe to those changes using supabase realtime
+Location sharing runs while Rollin is open. It pauses when the driver switches to another app, including Google Maps, and resumes when they return. Passengers see the last update time so an old position is not mistaken for a new one. Having a Play Store build does not add background tracking by itself.
 
-### Latest location storage
-- The system stores the latest location for each ride instead of keeping a complete GPS history
+GPS accuracy depends on the phone and surroundings. Markers can appear slightly off the road or jump between updates. The map does not currently smooth the movement or snap it to the road. Arrival times are estimates, not traffic-aware promises.
 
+Without location permission, the driver cannot publish a live position. A connection failure can also delay updates. The page needs to explain those states rather than leaving passengers guessing.
 
-## Technical Hurdles
-###Location Permissions
--The ride offerer must grant device location permissions before tracking can begin. If it is denied, the live tracking feature cannot publish GPS coordinated. 
+For planned stops and Google Maps directions, see [Road Routing and Passenger Pickups](road-routing-setup.md).
 
-Realtime synchronization
-- Passengers need location updates without refreshing the application
+## Main files
 
-### RLS 
-- The ride_locations table requires RLS policies.
-The policies must:
-    - Allow the ride offerer to insert location data
-    - Allow accepted passengers to select the latest location 
-    - Protect against unauthorized access
-
-### GPS accuracy
--Raw gps coordinated may occasionally appear slightly away from the road
-
-### Marker movement
--Location updates occur periodicall
-Because of this, the ride marker may move from one coordinate to another instead of using continuous uber-style animation
-
-
-
-## Feature Workflow
-1. Passenger requests a ride
-    A passenger selects a ride and created a ride request
-2. Ride offerer accepts passenger
-    - The offerer accepts the passenger request.(accepted/denied)
-    if all seats are taken:
-        - the ride is automatically marked as closed 
-3. Tracking Access Becomes Available
-    The accepted passenger is eligible to view the live tracking. 
-4. Ridee offerer starts trip
-    The ride offerer starts a trip and ride status chages to in progress
-5. Location is Published
-    The device provides location informations such as
-    - latitude
-    - longitude
-    - heading
-    - speed
-    - updates_at
-4. Passengers receivers updates
-5. Distance is calculated
-6. ETA is calculated
-7. Arrival detection
-8. Ride complettion
-    When the rider completed the ride, the live location becomes inactive and the ride appears in ride-history
-
-
-## Interface Details
-Ride offerer
-- The ride offerer can perform actions such as: 
-    - Start Drive and open Google Maps
-    - review remaining pickup stops
-    - complete trip
-    - cancel ride
-Passenger
-- the passenegr can only view live tracking
-    - can see ride offerer location
-    -pickup/passenger location
-    - distance
-    - ETA
-    - Ride status
-    - Arrival status
-
-Map
-- The map updates when new coordinated arrive through supabase.
-The current implementation focuses on raw functional live tracking.
-
-Future improvements:
-- smooth animations 
-- vehicle, road animations
-- Automatic camera following
-- Route snapping
-- Traffic-aware routes, ETA, distance
-
-## Relevant Files
-
-| File | Role |
+| File | What it does |
 |---|---|
-| `app/ride/tracking/[id].tsx` | Authorizes participants and presents the live-tracking screen |
-| `components/rides/live-ride-map.tsx` | Resolves the platform-specific live-map implementation |
-| `components/rides/live-ride-map.native.tsx` | Displays driver, passenger, pickup, and destination markers on native maps |
-| `components/rides/live-ride-map.web.tsx` | Provides a web fallback when the native map is unavailable |
-| `components/rides/live-ride-status.tsx` | Displays distance, approximate ETA, arrival, and stale-location status |
-| `hooks/use-live-ride-location.ts` | Coordinates location publishing, subscriptions, passenger location, ETA, and arrival notifications |
-| `services/ride-tracking-service.ts` | Requests permission, publishes and subscribes to locations, and calculates distance and ETA |
-| `services/ride-requests-service.ts` | Verifies that only the driver and accepted passengers can access tracking |
-| `services/ride-lifecycle-service.ts` | Updates rides through open, in-progress, completed, and cancelled states |
-| `services/ride-notifications-service.ts` | Configures and sends the driver-arrival notification |
-| `navigation/ride-navigation.ts` | Opens the dynamic live-tracking route |
-| `types/rides.ts` | Defines the shared coordinate and live-location types |
-| `supabase/migrations/20260804_sprint3_live_tracking` | Creates the live-location table, access policies, and realtime publication |
+| `app/ride/tracking/[id].tsx` | Driver and passenger tracking page |
+| `components/rides/live-ride-map.native.tsx` | Android/native map and markers |
+| `components/rides/live-ride-map.web.tsx` | Web fallback |
+| `components/rides/live-ride-status.tsx` | Distance, estimated arrival, and old-location message |
+| `hooks/use-live-ride-location.ts` | Sends and receives location updates |
+| `services/ride-tracking-service.ts` | Location permission, storage, and calculations |
+| `services/ride-notifications-service.ts` | Arrival notifications |
 
-Location updates currently pause when the driver switches away from Rollin. The passenger sees the last update time. Background tracking is deferred until a development build is available.
+The original location-table setup is not included in the current migration folder. When recreating the backend, get the `ride_locations` table definition, access rules, and Realtime settings from the existing Supabase project.
+
+Test with an accepted passenger and an unrelated account. Only allowed participants should see tracking. Also test denied location permission, a lost connection, switching out of Rollin, returning to it, and completing the trip.

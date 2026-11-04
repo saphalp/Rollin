@@ -18,10 +18,11 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture:
-      - Application Architecture: architecture.md
-      - Backend and Data Model: backend.md
+      - How the App Is Organized: architecture.md
+      - Supabase and App Data: backend.md
   - Features:
       - Authentication: features/authentication.md
+      - Email Login Verification: features/login-email-verification.md
       - Password Reset: features/password-reset.md
       - First-login Tutorial: features/first-login-tutorial.md
       - User Profiles and Connections: features/user-profiles-and-connections.md
@@ -33,6 +34,7 @@ nav:
       - Messaging and Notifications: features/messaging-and-notifications.md
       - Ride Sharing: features/ride-sharing.md
       - Live Ride Tracking: features/live-ride-tracking.md
+      - Road Routing and Pickups: features/road-routing-setup.md
       - Ride Ratings: features/ride-ratings.md
       - Reviews: features/reviews.md
       - Reporting: features/reporting.md

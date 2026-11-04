@@ -117,3 +117,4 @@ test('pull-to-refresh execution simulation coordinates all profile updates concu
   assert.equal(refreshed.activities, true, 'Activities must be refreshed');
   assert.equal(refreshed.accountChangesNotified, true, 'Account change subscribers must be notified');
 });
+

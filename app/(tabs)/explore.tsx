@@ -23,7 +23,7 @@ import { supabase } from '@/lib/supabase';
 
 const PAGE_SIZE = 10;
 
-export type FeedFilter = 'all' | 'campus' | 'following';
+export type FeedFilter = 'all' | 'college' | 'campus' | 'following';
 
 type FilterOption = {
   key: FeedFilter;
@@ -32,7 +32,7 @@ type FilterOption = {
 
 const FILTER_OPTIONS: FilterOption[] = [
   { key: 'all', label: 'All Posts' },
-  { key: 'campus', label: 'My Campus' },
+  { key: 'college', label: 'College Event' },
   { key: 'following', label: 'Following' },
 ];
 
@@ -98,12 +98,20 @@ export default function ExploreScreen() {
 
       let query = supabase
         .from('activity_photos')
-        .select('id, activity_id, user_id, image_path, caption, created_at')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .select('id, activity_id, user_id, image_path, caption, created_at');
+
+      let activeUserId = userId;
+      if (!activeUserId) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          activeUserId = authData.user?.id ?? null;
+        } catch {
+          activeUserId = null;
+        }
+      }
 
       if (filter === 'following') {
-        if (!userId) {
+        if (!activeUserId) {
           setHasMore(false);
           return [] as PostViewModel[];
         }
@@ -111,7 +119,7 @@ export default function ExploreScreen() {
         let followsQuery = supabase
           .from('follows')
           .select('following_id')
-          .eq('follower_id', userId)
+          .eq('follower_id', activeUserId)
           .eq('status', 'accepted');
 
         if (signal) followsQuery = followsQuery.abortSignal(signal);
@@ -127,50 +135,52 @@ export default function ExploreScreen() {
           setHasMore(false);
           return [] as PostViewModel[];
         }
-        query = query.in('user_id', followingIds);
-      } else if (filter === 'campus') {
-        if (!campus) {
-          setHasMore(false);
-          return [] as PostViewModel[];
-        }
 
-        let campusQuery = supabase
-          .from('profiles')
-          .select('id')
-          .eq('university', campus);
-
-        if (signal) campusQuery = campusQuery.abortSignal(signal);
-
-        const { data: campusProfiles, error: campusError } = await campusQuery;
-        if (campusError) {
-          console.error('fetchPage campus error:', campusError);
-          throw campusError;
-        }
-
-        const campusUserIds = (campusProfiles ?? []).map((p: any) => p.id);
-        if (campusUserIds.length === 0) {
-          setHasMore(false);
-          return [] as PostViewModel[];
-        }
-
-        // Also include activities hosted by members of this campus
-        let campusActivitiesQuery = supabase
+        // Include posts created by followed users or from activities hosted by followed users
+        let followedActivitiesQuery = supabase
           .from('activities')
           .select('id')
-          .in('host_id', campusUserIds);
+          .in('host_id', followingIds);
 
-        if (signal) campusActivitiesQuery = campusActivitiesQuery.abortSignal(signal);
-        const { data: campusActivities } = await campusActivitiesQuery;
-        const campusActivityIds = (campusActivities ?? []).map((a: any) => a.id);
+        if (signal) followedActivitiesQuery = followedActivitiesQuery.abortSignal(signal);
+        const { data: followedActivities } = await followedActivitiesQuery;
+        const followedActivityIds = (followedActivities ?? []).map((a: any) => a.id);
 
-        if (campusActivityIds.length > 0) {
+        if (followedActivityIds.length > 0) {
           query = query.or(
-            `user_id.in.(${campusUserIds.join(',')}),activity_id.in.(${campusActivityIds.join(',')})`
+            `user_id.in.(${followingIds.join(',')}),activity_id.in.(${followedActivityIds.join(',')})`
           );
         } else {
-          query = query.in('user_id', campusUserIds);
+          query = query.in('user_id', followingIds);
         }
+      } else if (filter === 'college' || filter === 'campus') {
+        // Query activities that are College Events (either linked to campus_events or category 'campus')
+        let collegeActivitiesQuery = supabase
+          .from('activities')
+          .select('id')
+          .or('source_campus_event_id.not.is.null,category.eq.campus');
+
+        if (signal) collegeActivitiesQuery = collegeActivitiesQuery.abortSignal(signal);
+
+        const { data: collegeActivities, error: collegeError } = await collegeActivitiesQuery;
+        if (collegeError) {
+          console.error('fetchPage college activities error:', collegeError);
+          throw collegeError;
+        }
+
+        const collegeActivityIds = (collegeActivities ?? []).map((a: any) => a.id);
+        if (collegeActivityIds.length === 0) {
+          setHasMore(false);
+          return [] as PostViewModel[];
+        }
+
+        query = query.in('activity_id', collegeActivityIds);
       }
+
+      // Order and range applied after all filters
+      query = query
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (signal) {
         query = query.abortSignal(signal);
@@ -200,20 +210,23 @@ export default function ExploreScreen() {
         .in('id', userIds);
       let activitiesQuery = supabase
         .from('activities')
-        .select('id, title')
+        .select('id, title, category, source_campus_event_id, host_id')
         .in('id', activityIds);
       let likesQuery = supabase
         .from('post_likes')
         .select('post_id')
         .in('post_id', postIds);
-      let myLikesQuery = userId
-        ? supabase.from('post_likes').select('post_id').eq('user_id', userId).in('post_id', postIds)
+      let myLikesQuery = activeUserId
+        ? supabase.from('post_likes').select('post_id').eq('user_id', activeUserId).in('post_id', postIds)
         : null;
       let imagesQuery = supabase
         .from('activity_photo_images')
         .select('post_id, image_path, position')
         .in('post_id', postIds)
         .order('position', { ascending: true });
+      let followsCheckQuery = activeUserId
+        ? supabase.from('follows').select('following_id').eq('follower_id', activeUserId).eq('status', 'accepted')
+        : null;
 
       if (signal) {
         profilesQuery = profilesQuery.abortSignal(signal);
@@ -221,22 +234,44 @@ export default function ExploreScreen() {
         likesQuery = likesQuery.abortSignal(signal);
         if (myLikesQuery) myLikesQuery = myLikesQuery.abortSignal(signal);
         imagesQuery = imagesQuery.abortSignal(signal);
+        if (followsCheckQuery) followsCheckQuery = followsCheckQuery.abortSignal(signal);
       }
 
-      const [{ data: profilesData }, { data: activitiesData }, { data: likesData }, { data: myLikesData }, { data: imagesData }] =
-        await Promise.all([
-          profilesQuery,
-          activitiesQuery,
-          likesQuery,
-          myLikesQuery ?? Promise.resolve({ data: [] as { post_id: string }[], error: null }),
-          imagesQuery,
-        ]);
+      const [
+        { data: profilesData },
+        { data: activitiesData },
+        { data: likesData },
+        { data: myLikesData },
+        { data: imagesData },
+        followsCheckResult,
+      ] = await Promise.all([
+        profilesQuery,
+        activitiesQuery,
+        likesQuery,
+        myLikesQuery ?? Promise.resolve({ data: [] as { post_id: string }[], error: null }),
+        imagesQuery,
+        followsCheckQuery ?? Promise.resolve({ data: [] as { following_id: string }[], error: null }),
+      ]);
 
       const profileMap: Record<string, { full_name?: string | null; profile_picture?: string | null }> =
         Object.fromEntries((profilesData ?? []).map((p: any) => [p.id, p]));
 
-      const activityTitleMap: Record<string, string> = Object.fromEntries(
-        (activitiesData ?? []).map((a: any) => [a.id, a.title]),
+      const activityMap: Record<
+        string,
+        { title: string; isCollegeEvent: boolean; hostId?: string }
+      > = Object.fromEntries(
+        (activitiesData ?? []).map((a: any) => [
+          a.id,
+          {
+            title: a.title,
+            isCollegeEvent: !!(a.source_campus_event_id || a.category === 'campus'),
+            hostId: a.host_id,
+          },
+        ])
+      );
+
+      const followingSet = new Set(
+        ((followsCheckResult?.data ?? []) as any[]).map((f: any) => f.following_id)
       );
 
       const likeCountMap: Record<string, number> = {};
@@ -257,6 +292,9 @@ export default function ExploreScreen() {
       return photos.map((p: any) => {
         const prof = profileMap[p.user_id];
         const name = prof?.full_name?.trim() || "Rollin' User";
+        const act = activityMap[p.activity_id];
+        const isFollowing =
+          followingSet.has(p.user_id) || (act?.hostId ? followingSet.has(act.hostId) : false);
 
         let imageUrls = imageUrlsByPost[p.id];
         if (!imageUrls || imageUrls.length === 0) {
@@ -274,11 +312,13 @@ export default function ExploreScreen() {
           avatarUrl: resolveAvatarUri(prof?.profile_picture),
           createdAt: p.created_at,
           activityId: p.activity_id,
-          activityTitle: activityTitleMap[p.activity_id] ?? 'An activity',
+          activityTitle: act?.title ?? 'An activity',
           caption: p.caption,
           imageUrls,
           likeCount: likeCountMap[p.id] ?? 0,
           likedByMe: myLikedSet.has(p.id),
+          isCollegeEvent: act?.isCollegeEvent ?? false,
+          isFollowing,
         } satisfies PostViewModel;
       });
     },
@@ -454,17 +494,17 @@ export default function ExploreScreen() {
       );
     }
 
-    if (feedFilter === 'campus') {
+    if (feedFilter === 'college' || feedFilter === 'campus') {
       return (
         <View style={styles.emptyCard}>
-          <IconSymbol name="mappin" size={36} color={colors.outline} />
+          <IconSymbol name="graduationcap.fill" size={36} color={colors.outline} />
           <AppText style={[styles.emptyTitle, { color: colors.text, fontFamily: Fonts?.sans }]}>
-            {userUniversity ? `No photos from ${userUniversity} yet` : 'Campus Not Set'}
+            No College Event photos yet
           </AppText>
           <AppText style={[styles.emptyText, { color: colors.outline, fontFamily: Fonts?.sans }]}>
             {userUniversity
-              ? 'Be the first from your campus to share an activity photo!'
-              : 'Add your university in your profile settings to see photos from your campus community.'}
+              ? `Be the first to share photos from an official ${userUniversity} event!`
+              : 'Photos from official campus and college events will appear here. Be the first to share one!'}
           </AppText>
         </View>
       );
@@ -478,7 +518,7 @@ export default function ExploreScreen() {
             No posts from people you follow
           </AppText>
           <AppText style={[styles.emptyText, { color: colors.outline, fontFamily: Fonts?.sans }]}>
-            When you follow other students, photos from activities they attended will appear here.
+            When you follow other students, photos posted by them or from activities they host will appear here.
           </AppText>
         </View>
       );

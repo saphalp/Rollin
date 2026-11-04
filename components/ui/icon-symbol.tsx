@@ -58,6 +58,8 @@ const MAPPING = {
   'record.circle': 'radio-button-checked',
   'checkmark.circle.fill': 'check-circle',
   'checkmark.seal.fill': 'verified',
+  'graduationcap.fill': 'school',
+  'building.columns.fill': 'account-balance',
 } as IconMapping;
 
 

@@ -29,6 +29,8 @@ export type PostViewModel = {
   imageUrls: string[];
   likeCount: number;
   likedByMe: boolean;
+  isCollegeEvent?: boolean;
+  isFollowing?: boolean;
 };
 
 /**
@@ -184,6 +186,76 @@ export function PostCard({ post, isOwnPost, onDelete }: Props) {
                     {post.activityTitle}
                   </AppText>
                 </TouchableOpacity>
+              ) : null}
+
+              {/* Event classification badge: College Event */}
+              {post.isCollegeEvent ? (
+                <View
+                  style={[
+                    styles.classificationBadge,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(59, 130, 246, 0.2)"
+                        : "#EFF6FF",
+                      borderColor: isDark
+                        ? "rgba(59, 130, 246, 0.4)"
+                        : "#BFDBFE",
+                    },
+                  ]}
+                >
+                  <IconSymbol
+                    name="graduationcap.fill"
+                    size={10.5}
+                    color={isDark ? "#93C5FD" : "#1D4ED8"}
+                  />
+                  <AppText
+                    style={[
+                      styles.classificationBadgeText,
+                      {
+                        color: isDark ? "#93C5FD" : "#1D4ED8",
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    College Event
+                  </AppText>
+                </View>
+              ) : null}
+
+              {/* Following badge: indicates post author is someone you follow */}
+              {post.isFollowing && !isOwnPost ? (
+                <View
+                  style={[
+                    styles.classificationBadge,
+                    {
+                      backgroundColor: isDark
+                        ? "rgba(16, 185, 129, 0.18)"
+                        : "#ECFDF5",
+                      borderColor: isDark
+                        ? "rgba(16, 185, 129, 0.35)"
+                        : "#A7F3D0",
+                    },
+                  ]}
+                >
+                  <IconSymbol
+                    name="person.2.fill"
+                    size={10}
+                    color={isDark ? "#6EE7B7" : "#047857"}
+                  />
+                  <AppText
+                    style={[
+                      styles.classificationBadgeText,
+                      {
+                        color: isDark ? "#6EE7B7" : "#047857",
+                        fontFamily: Fonts?.sans,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    Following
+                  </AppText>
+                </View>
               ) : null}
             </View>
 
@@ -384,6 +456,20 @@ const styles = StyleSheet.create({
   },
   activityBadgeText: {
     fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  classificationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3.5,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 7.5,
+    paddingVertical: 2,
+  },
+  classificationBadgeText: {
+    fontSize: 10.5,
     fontWeight: "600",
     letterSpacing: -0.1,
   },

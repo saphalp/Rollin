@@ -243,29 +243,29 @@ test('explore page implements connected feed filters with distinct queries and e
 
   // Check 3 filter options
   assert.ok(exploreSource.includes("'All Posts'"), 'Must include All Posts filter');
-  assert.ok(exploreSource.includes("'My Campus'"), 'Must include My Campus filter');
+  assert.ok(exploreSource.includes("'College Event'"), 'Must include College Event filter');
   assert.ok(exploreSource.includes("'Following'"), 'Must include Following filter');
 
   // Check Following backend query connects to follows table with accepted status
   assert.ok(
     exploreSource.includes(".from('follows')") &&
     exploreSource.includes(".eq('status', 'accepted')") &&
-    exploreSource.includes(".eq('follower_id', userId)"),
+    exploreSource.includes(".eq('follower_id', activeUserId)"),
     'Following filter must query accepted connections from follows table'
   );
 
-  // Check My Campus backend query connects to profiles table with matching university
+  // Check College Event backend query identifies college events from activities table
   assert.ok(
-    exploreSource.includes(".from('profiles')") &&
-    exploreSource.includes(".eq('university', campus)"),
-    'Campus filter must query profiles matching current university'
+    exploreSource.includes(".from('activities')") &&
+    exploreSource.includes('source_campus_event_id.not.is.null'),
+    'College Event filter must query activities associated with college/campus events'
   );
 
   // Check distinct empty states
   assert.ok(
-    exploreSource.includes('Campus Not Set') &&
+    exploreSource.includes('No College Event photos yet') &&
     exploreSource.includes('No posts from people you follow'),
-    'Explore must provide dedicated empty states for campus and following filters'
+    'Explore must provide dedicated empty states for college event and following filters'
   );
 
   // Check TourTarget id="explore-first-post" is preserved
@@ -314,6 +314,8 @@ test('post card has activity badge beside username, Home badge style, expandable
   assert.ok(cardSource.includes('activityBadge'), 'Activity badge style must be present');
   assert.ok(cardSource.includes('secondaryContainer'), 'Badge must use Rollin Home secondaryContainer style');
   assert.ok(cardSource.includes('onSecondaryContainer'), 'Badge must use Rollin Home onSecondaryContainer style');
+  assert.ok(cardSource.includes('College Event'), 'Post card must classify College Events with a badge');
+  assert.ok(cardSource.includes('isCollegeEvent'), 'Post card must accept isCollegeEvent prop');
 
   // 3. Expandable caption
   assert.ok(cardSource.includes('See more'), 'Must include See more for long captions');

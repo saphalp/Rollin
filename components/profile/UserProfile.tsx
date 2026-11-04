@@ -1,6 +1,7 @@
 import { TourScrollView, TourTarget } from '@/components/tutorial/tour-target';
 import { Colors, Fonts } from "@/constants/theme";
 import { useFollow } from "@/hooks/use-follow";
+import { useAuthContext } from "@/hooks/use-auth-context";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileInterests } from "@/hooks/use-profile-interests";
 import { notifyAccountChanges } from '@/lib/account-center';
@@ -114,7 +115,19 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ userId }: UserProfileProps) {
-  return <ProfilePrivacyGate userId={userId}><UserProfileContent userId={userId} /></ProfilePrivacyGate>;
+  const { claims } = useAuthContext();
+  const currentUserId = claims?.sub as string | undefined;
+  const isOwnProfile = !!currentUserId && !!userId && currentUserId === userId;
+
+  if (isOwnProfile) {
+    return <UserProfileContent userId={userId} />;
+  }
+
+  return (
+    <ProfilePrivacyGate userId={userId}>
+      <UserProfileContent userId={userId} />
+    </ProfilePrivacyGate>
+  );
 }
 
 function UserProfileContent({ userId }: UserProfileProps) {

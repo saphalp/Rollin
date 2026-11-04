@@ -89,7 +89,7 @@ export function DateTimeField({
           mode={mode}
           display="default"
           minimumDate={minimumDate}
-          onValueChange={handleChange}
+          onChange={handleChange}
           onDismiss={() => setVisible(false)}
         />
       )}
@@ -125,7 +125,7 @@ export function DateTimeField({
                 mode={mode}
                 display="spinner"
                 minimumDate={minimumDate}
-                onValueChange={handleChange}
+                onChange={handleChange}
                 textColor={colors.text}
                 style={styles.picker}
               />

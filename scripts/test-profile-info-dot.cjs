@@ -147,3 +147,4 @@ test('ProfileInfo: does NOT render dot or metaRow when both university and major
   const texts = findTexts(tree);
   assert.deepEqual(texts, ['Jack Doe']);
 });
+

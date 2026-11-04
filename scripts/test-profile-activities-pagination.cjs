@@ -168,3 +168,4 @@ test('pagination deduplication: prevents duplicate entries when new items overla
   assert.equal(combined.length, 5);
   assert.deepEqual(combined.map(a => a.id), ['1', '2', '3', '4', '5']);
 });
+

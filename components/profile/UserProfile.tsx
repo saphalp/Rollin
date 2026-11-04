@@ -8,11 +8,12 @@ import { notifyAccountChanges } from '@/lib/account-center';
 import { resolveAvatarUri } from "@/lib/profile/resolve-avatar-uri";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   StyleSheet,
   useColorScheme,
   View,
@@ -137,11 +138,20 @@ function UserProfileContent({ userId }: UserProfileProps) {
   const theme = useColorScheme() ?? "light";
   const colors = Colors[theme];
 
-  const { profile, isLoading: profileLoading, isOwnProfile } =
-    useProfile(userId);
-  const { followState, toggle: toggleFollow } = useFollow(userId);
-  const { allInterestNames, selectedNames, save: saveInterests } =
-    useProfileInterests(userId);
+  const {
+    profile,
+    isLoading: profileLoading,
+    isOwnProfile,
+    refresh: refreshProfile,
+  } = useProfile(userId);
+  const { followState, toggle: toggleFollow, refresh: refreshFollow } =
+    useFollow(userId);
+  const {
+    allInterestNames,
+    selectedNames,
+    save: saveInterests,
+    refresh: refreshInterests,
+  } = useProfileInterests(userId);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [activityView, setActivityView] =
@@ -154,152 +164,145 @@ function UserProfileContent({ userId }: UserProfileProps) {
   const [hasMoreJoined, setHasMoreJoined] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const { average: rating } = useReviewSummary(userId);
+  const { average: rating, refresh: refreshReviews } = useReviewSummary(userId);
+  const [refreshing, setRefreshing] = useState(false);
   const [rideCount, setRideCount] = useState(0);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadRideCount = useCallback(async () => {
     if (!userId) return;
-    let cancelled = false;
 
-    (async () => {
-      setActivitiesLoading(true);
-      setActivitiesError(null);
+    const [offeredResult, takenResult] = await Promise.all([
+      supabase
+        .from("rides_offered")
+        .select("id", { count: "exact", head: true })
+        .eq("driver_id", userId)
+        .eq("status", "completed"),
+      supabase
+        .from("ride_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("requester_id", userId)
+        .eq("status", "completed"),
+    ]);
 
-      setLoadMoreError(null);
+    if (offeredResult.error) {
+      console.error("[profile] offered ride count failed:", offeredResult.error);
+    }
+    if (takenResult.error) {
+      console.error("[profile] taken ride count failed:", takenResult.error);
+    }
 
-      const createdRequest = supabase
-        .from("activities")
-        .select("id, title, date_time, image_url, category, status", { count: "exact" })
-        .eq("host_id", userId)
-        .is("recurrence_parent_id", null)
-        .order("date_time", { ascending: false })
-        .range(0, ACTIVITIES_PAGE_SIZE - 1);
+    const offered = offeredResult.count ?? 0;
+    const taken = takenResult.count ?? 0;
 
-      const joinedRequest = isOwnProfile
-        ? supabase
-          .from("rsvps")
-          .select(
-            "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
-            { count: "exact" }
-          )
-          .eq("user_id", userId)
-          .range(0, ACTIVITIES_PAGE_SIZE - 1)
-        : supabase
-          .from("rsvps")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId);
+    setRideCount(offered + taken);
+  }, [userId]);
 
-      const [createdResult, joinedResult] = await Promise.all([
-        createdRequest,
-        joinedRequest,
-      ]);
+  const loadInitialActivities = useCallback(async () => {
+    if (!userId) return;
+    setActivitiesLoading(true);
+    setActivitiesError(null);
+    setLoadMoreError(null);
 
-      if (cancelled) return;
+    const createdRequest = supabase
+      .from("activities")
+      .select("id, title, date_time, image_url, category, status", { count: "exact" })
+      .eq("host_id", userId)
+      .is("recurrence_parent_id", null)
+      .order("date_time", { ascending: false })
+      .range(0, ACTIVITIES_PAGE_SIZE - 1);
 
-      if (createdResult.error || joinedResult.error) {
-        const error = createdResult.error ?? joinedResult.error;
-        console.error("[profile] fetch activities failed:", error);
-        setActivitiesError("Unable to load activities. Please try again.");
-      }
+    const joinedRequest = isOwnProfile
+      ? supabase
+        .from("rsvps")
+        .select(
+          "activity:activities(id, title, date_time, image_url, category, status, recurrence_parent_id)",
+          { count: "exact" }
+        )
+        .eq("user_id", userId)
+        .range(0, ACTIVITIES_PAGE_SIZE - 1)
+      : supabase
+        .from("rsvps")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
 
-      const created = (createdResult.data ?? []) as ActivityRecord[];
-      const sortedCreated = sortActivitiesByDate(created.map(toActivityRow));
-      setCreatedActivities(sortedCreated);
+    const [createdResult, joinedResult] = await Promise.all([
+      createdRequest,
+      joinedRequest,
+    ]);
 
-      const totalHosted = createdResult.count ?? created.length;
-      setHostedCount(totalHosted);
-      setHasMoreCreated(totalHosted > sortedCreated.length);
+    if (createdResult.error || joinedResult.error) {
+      const error = createdResult.error ?? joinedResult.error;
+      console.error("[profile] fetch activities failed:", error);
+      setActivitiesError("Unable to load activities. Please try again.");
+    }
 
-      if (isOwnProfile) {
-        const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
-        const joined = joinedRows.flatMap((row) => {
-          if (!row.activity) return [];
-          const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
-          return activities.filter((a: any) => !a.recurrence_parent_id);
-        });
+    const created = (createdResult.data ?? []) as ActivityRecord[];
+    const sortedCreated = sortActivitiesByDate(created.map(toActivityRow));
+    setCreatedActivities(sortedCreated);
 
-        const sortedJoined = sortActivitiesByDate(joined.map(toActivityRow));
-        setJoinedActivities(sortedJoined);
+    const totalHosted = createdResult.count ?? created.length;
+    setHostedCount(totalHosted);
+    setHasMoreCreated(totalHosted > sortedCreated.length);
 
-        const totalJoined = joinedResult.count ?? joined.length;
-        setAttendedCount(totalJoined);
-        setHasMoreJoined(totalJoined > sortedJoined.length);
-      } else {
-        setJoinedActivities([]);
-        setHasMoreJoined(false);
-        setAttendedCount(joinedResult.count ?? 0);
-      }
-      setActivitiesLoading(false);
-    })();
+    if (isOwnProfile) {
+      const joinedRows = (joinedResult.data ?? []) as JoinedActivityRecord[];
+      const joined = joinedRows.flatMap((row) => {
+        if (!row.activity) return [];
+        const activities = Array.isArray(row.activity) ? row.activity : [row.activity];
+        return activities.filter((a: any) => !a.recurrence_parent_id);
+      });
 
-    return () => {
-      cancelled = true;
-    };
+      const sortedJoined = sortActivitiesByDate(joined.map(toActivityRow));
+      setJoinedActivities(sortedJoined);
+
+      const totalJoined = joinedResult.count ?? joined.length;
+      setAttendedCount(totalJoined);
+      setHasMoreJoined(totalJoined > sortedJoined.length);
+    } else {
+      setJoinedActivities([]);
+      setHasMoreJoined(false);
+      setAttendedCount(joinedResult.count ?? 0);
+    }
+    setActivitiesLoading(false);
   }, [isOwnProfile, userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadInitialActivities();
+  }, [loadInitialActivities]);
 
-    let cancelled = false;
-
-    async function loadRideCount() {
-      const [offeredResult, takenResult] = await Promise.all([
-        /*
-         * Rides this user offered and completed.
-         */
-        supabase
-          .from("rides_offered")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("driver_id", userId)
-          .eq("status", "completed"),
-
-        /*
-         * Rides this user took as a passenger
-         * and completed.
-         */
-        supabase
-          .from("ride_requests")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("requester_id", userId)
-          .eq("status", "completed"),
-      ]);
-
-      if (cancelled) return;
-
-      if (offeredResult.error) {
-        console.error(
-          "[profile] offered ride count failed:",
-          offeredResult.error,
-        );
-      }
-
-      if (takenResult.error) {
-        console.error(
-          "[profile] taken ride count failed:",
-          takenResult.error,
-        );
-      }
-
-      const offered = offeredResult.count ?? 0;
-      const taken = takenResult.count ?? 0;
-
-      setRideCount(offered + taken);
-    }
-
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadRideCount();
+  }, [loadRideCount]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    notifyAccountChanges();
+    try {
+      await Promise.all([
+        refreshProfile(),
+        refreshInterests(),
+        refreshFollow(),
+        refreshReviews(),
+        loadRideCount(),
+        loadInitialActivities(),
+      ]);
+    } catch (err) {
+      console.error("[profile] pull-to-refresh failed:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [
+    refreshProfile,
+    refreshInterests,
+    refreshFollow,
+    refreshReviews,
+    loadRideCount,
+    loadInitialActivities,
+  ]);
 
   async function handleLoadMore() {
     if (loadingMore || !userId) return;
@@ -444,6 +447,14 @@ function UserProfileContent({ userId }: UserProfileProps) {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.tint}
+            colors={[colors.tint]}
+          />
+        }
       >
         <View style={styles.header}>
           <ProfileCover
